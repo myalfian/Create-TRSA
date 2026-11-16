@@ -60,6 +60,44 @@ export function getPlantCode(plantLocation = '') {
   return '1402';
 }
 
+// Master Plant Directory & Invoicing Database
+export const PLANT_DATABASE = {
+  '1402': {
+    code: '1402',
+    plantName: 'Semarang Plant',
+    companyName: 'PT. Indofood Fortuna Makmur',
+    invoiceRecipient: 'PT Indofood Fortuna Makmur',
+    address: 'Jalan Tambak Aji IV Nomor 10, Tambakaji, Kecamatan Ngaliyan, Kota Semarang, Jawa Tengah 50185, Indonesia',
+    deliveryPort: 'Semarang Port (CIF/CIP)',
+    purchasingAttn: [
+      { name: "Natalia Happy", email: "natalia.happy@icbp.indofood.co.id" },
+      { name: "Yanuar Ari Wibowo", email: "yanuar.wibowo@icbp.indofood.co.id" }
+    ],
+    customClearanceNote: 'Indofood will handle custom clearance in the Indonesian port after receiving final original shipping documents. If the goods arrive before documents, any demurrage/storage cost will be charged to The Seller.'
+  },
+  '1403': {
+    code: '1403',
+    plantName: 'Cikupa Plant',
+    companyName: 'PT. Indofood Fortuna Makmur',
+    invoiceRecipient: 'PT Indofood Fortuna Makmur',
+    address: 'Jalan Bhumimas II No. 5 Kawasan Industri dan Pergudangan Cikupamas RT 01 RW 03 Kampung Telaga, Cikupa - Banten 15710, Indonesia',
+    deliveryPort: 'Tanjung Priok Port, Jakarta (CIF/CIP)',
+    purchasingAttn: [
+      { name: "Moh Yusuf Alfian", email: "my.alfian@icbp.indofood.co.id" },
+      { name: "Natalia Happy", email: "natalia.happy@icbp.indofood.co.id" }
+    ],
+    customClearanceNote: 'Indofood will handle custom clearance in the Indonesian port after receiving final original shipping documents. If the goods arrive before documents, any demurrage/storage cost will be charged to The Seller.'
+  }
+};
+
+export function getPlantDatabase(plantLocationOrCode = '') {
+  const raw = String(plantLocationOrCode || '').toLowerCase();
+  if (raw.includes('1403') || raw.includes('cikupa')) {
+    return PLANT_DATABASE['1403'];
+  }
+  return PLANT_DATABASE['1402'];
+}
+
 export function generateTRSANumber(options = {}) {
   const {
     seq = '001',
@@ -160,6 +198,48 @@ export class TRSAStore {
     return this.currentUser || this.teamMembers[0];
   }
 
+  isAdmin() {
+    const user = this.getCurrentUser();
+    // Admin check: Role is Project & Engineering Manager or name is Moh Yusuf Alfian / explicit admin role
+    return user?.role?.toLowerCase().includes('manager') || 
+           user?.role?.toLowerCase().includes('admin') || 
+           user?.name?.toLowerCase().includes('yusuf alfian');
+  }
+
+  updatePlantLocation(plantLocation, projectId = null) {
+    const proj = projectId ? this.projects.find(p => p.id === projectId) : this.getActiveProject();
+    if (!proj) return null;
+
+    proj.documentInfo.plantLocation = plantLocation;
+    const plantData = getPlantDatabase(plantLocation);
+
+    if (!proj.siteDescription) {
+      proj.siteDescription = {};
+    }
+
+    // Auto-populate IV. Site Location & Invoicing Address from database
+    proj.siteDescription.invoiceRecipient = plantData.invoiceRecipient;
+    proj.siteDescription.address = plantData.address;
+    proj.siteDescription.deliveryPort = plantData.deliveryPort;
+    proj.siteDescription.purchasingAttn = JSON.parse(JSON.stringify(plantData.purchasingAttn));
+
+    // Update Doc Number plant code if standard format
+    const parsed = parseTRSANumber(proj.documentInfo.docNumber);
+    if (parsed) {
+      proj.documentInfo.docNumber = generateTRSANumber({
+        seq: parsed.seq,
+        creatorName: proj.documentInfo.revisionHistory?.[0]?.originatedBy || 'Refin A Putra',
+        plantCode: plantData.code,
+        dept: parsed.dept,
+        date: proj.documentInfo.revisionHistory?.[0]?.date || new Date()
+      });
+    }
+
+    this.saveProjects();
+    this.showNotification(`Plant Location & Invoicing Address updated to ${plantData.plantName} (${plantData.code})`, 'info');
+    return plantData;
+  }
+
   loadProjects() {
     try {
       if (typeof localStorage !== 'undefined') {
@@ -210,10 +290,18 @@ export class TRSAStore {
     const plantCode = getPlantCode(plant);
 
     newProj.documentInfo.plantLocation = plant;
+    const plantData = getPlantDatabase(plant);
+    if (!newProj.siteDescription) newProj.siteDescription = {};
+    newProj.siteDescription.invoiceRecipient = plantData.invoiceRecipient;
+    newProj.siteDescription.address = plantData.address;
+    newProj.siteDescription.deliveryPort = plantData.deliveryPort;
+    newProj.siteDescription.purchasingAttn = JSON.parse(JSON.stringify(plantData.purchasingAttn));
+    newProj.siteDescription.customClearanceNote = plantData.customClearanceNote;
+
     newProj.documentInfo.docNumber = generateTRSANumber({
       seq: nextSeq,
       creatorName: author,
-      plantCode: plantCode,
+      plantCode: plantData.code,
       dept: this.currentUser?.dept || 'MFG',
       date: now
     });
@@ -1482,11 +1570,28 @@ function renderStep1(proj) {
 
 // Sub-step 2: Key Contacts, Site Description & Invoicing
 function renderStep2(proj) {
+  const isAdminUser = store.isAdmin();
+  const currentPlant = proj.documentInfo.plantLocation || 'Semarang Plant';
+  const plantData = getPlantDatabase(currentPlant);
+
   return `
     <div class="dropx-card p-6 bg-white border border-[#E0ECF6] space-y-6">
-      <div class="border-b border-[#E0ECF6] pb-4">
-        <h2 class="text-base font-bold text-[#0B2447]">Key Contacts & Plant Location</h2>
-        <p class="text-xs text-[#5A7184]">Personnel responsible for project correspondence and invoice addresses.</p>
+      <div class="border-b border-[#E0ECF6] pb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div>
+          <h2 class="text-base font-bold text-[#0B2447]">Key Contacts & Plant Location</h2>
+          <p class="text-xs text-[#5A7184]">Personnel responsible for project correspondence and invoice addresses.</p>
+        </div>
+        <div class="flex items-center gap-2">
+          <span class="text-[10px] font-bold uppercase tracking-wider text-slate-500">Plant Location:</span>
+          <select 
+            id="step2-plant-selector" 
+            onchange="window.TRSA.onPlantLocationChanged(this.value)"
+            class="corp-select font-bold text-xs py-1.5 px-3 bg-[#E0F2FE] text-[#0284C7] border-sky-300 focus:ring-2 focus:ring-sky-500/20"
+          >
+            <option value="Semarang Plant" ${currentPlant === 'Semarang Plant' ? 'selected' : ''}>1402 - Semarang Plant</option>
+            <option value="Cikupa Plant" ${currentPlant === 'Cikupa Plant' ? 'selected' : ''}>1403 - Cikupa Plant</option>
+          </select>
+        </div>
       </div>
 
       <!-- Contacts Table -->
@@ -1518,25 +1623,130 @@ function renderStep2(proj) {
         </div>
       </div>
 
-      <!-- Site Description & Invoicing -->
+      <!-- Site Description & Invoicing (Auto-populated from Master Plant Database) -->
       <div class="border-t border-[#E0ECF6] pt-5 space-y-4">
-        <h3 class="text-xs font-bold text-[#0B2447] uppercase tracking-wider">IV. Site Location & Invoicing Address</h3>
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-1">
+          <div>
+            <div class="flex items-center gap-2">
+              <span class="w-2.5 h-2.5 rounded-full bg-[#0284C7] animate-pulse"></span>
+              <h3 class="text-xs font-bold text-[#0B2447] uppercase tracking-wider">IV. Site Location & Invoicing Address</h3>
+              <span class="text-[10px] bg-sky-50 text-[#0284C7] border border-sky-200 px-2 py-0.5 rounded-full font-bold">
+                Auto from Plant Database
+              </span>
+            </div>
+            <p class="text-[11px] text-[#5A7184] mt-0.5">
+              Alamat penagihan dan pengiriman terisi otomatis dari master database sesuai Plant yang dipilih (<strong class="text-[#0284C7]">${currentPlant}</strong>).
+            </p>
+          </div>
+          <button 
+            type="button" 
+            onclick="window.TRSA.syncSiteLocationFromDatabase()" 
+            class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold bg-[#E0F2FE] hover:bg-[#BAE6FD] text-[#0284C7] rounded-xl transition-all shadow-xs"
+            title="Sinkronkan ulang data alamat dan delivery port dari database plant"
+          >
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+            Re-sync Database
+          </button>
+        </div>
+
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
-            <label class="block text-xs font-bold text-[#0B2447] mb-1">Company Invoicing Name</label>
-            <input type="text" id="site-recipient" value="${proj.siteDescription.invoiceRecipient}" class="w-full text-xs p-2.5 bg-[#F4F8FC] border border-[#E0ECF6] rounded-xl font-bold" />
+            <div class="flex items-center justify-between mb-1">
+              <label class="block text-xs font-bold text-[#0B2447]">Company Invoicing Name</label>
+              <span class="text-[10px] text-emerald-600 font-semibold flex items-center gap-1">
+                <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> Auto-filled
+              </span>
+            </div>
+            <input 
+              type="text" 
+              id="site-recipient" 
+              value="${proj.siteDescription.invoiceRecipient || plantData.invoiceRecipient}" 
+              class="w-full text-xs p-2.5 bg-[#F8FBFE] border border-sky-200 rounded-xl font-bold text-slate-800 focus:bg-white focus:border-[#0284C7]" 
+            />
           </div>
           <div>
-            <label class="block text-xs font-bold text-[#0B2447] mb-1">Delivery Port (Incoterm)</label>
-            <input type="text" id="site-port" value="${proj.siteDescription.deliveryPort}" class="w-full text-xs p-2.5 bg-[#F4F8FC] border border-[#E0ECF6] rounded-xl font-bold text-[#0284C7]" />
+            <div class="flex items-center justify-between mb-1">
+              <label class="block text-xs font-bold text-[#0B2447]">Delivery Port (Incoterm)</label>
+              <span class="text-[10px] text-emerald-600 font-semibold flex items-center gap-1">
+                <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> Auto-filled
+              </span>
+            </div>
+            <input 
+              type="text" 
+              id="site-port" 
+              value="${proj.siteDescription.deliveryPort || plantData.deliveryPort}" 
+              class="w-full text-xs p-2.5 bg-[#F8FBFE] border border-sky-200 rounded-xl font-bold text-[#0284C7] focus:bg-white focus:border-[#0284C7]" 
+            />
           </div>
           <div class="md:col-span-2">
-            <label class="block text-xs font-bold text-[#0B2447] mb-1">Company Address / Plant Location</label>
-            <input type="text" id="site-address" value="${proj.siteDescription.address}" class="w-full text-xs p-2.5 bg-[#F4F8FC] border border-[#E0ECF6] rounded-xl" />
+            <div class="flex items-center justify-between mb-1">
+              <label class="block text-xs font-bold text-[#0B2447]">Company Address / Plant Location</label>
+              <span class="text-[10px] text-emerald-600 font-semibold flex items-center gap-1">
+                <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> Database Synced
+              </span>
+            </div>
+            <input 
+              type="text" 
+              id="site-address" 
+              value="${proj.siteDescription.address || plantData.address}" 
+              class="w-full text-xs p-2.5 bg-[#F8FBFE] border border-sky-200 rounded-xl text-slate-800 focus:bg-white focus:border-[#0284C7]" 
+            />
           </div>
-          <div class="md:col-span-2">
-            <label class="block text-xs font-bold text-[#0B2447] mb-1">Custom Clearance & Shipping Clause</label>
-            <textarea id="site-customs" rows="2" class="w-full text-xs p-2.5 bg-[#F4F8FC] border border-[#E0ECF6] rounded-xl">${proj.siteDescription.customClearanceNote}</textarea>
+
+          <!-- Custom Clearance & Shipping Clause: RBAC Admin Protection -->
+          <div class="md:col-span-2 p-4 rounded-2xl border ${isAdminUser ? 'border-amber-200 bg-amber-50/30' : 'border-slate-200 bg-slate-50'}">
+            <div class="flex items-center justify-between mb-2">
+              <div class="flex items-center gap-2">
+                <svg class="w-4 h-4 ${isAdminUser ? 'text-amber-600' : 'text-slate-400'}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
+                <label class="text-xs font-bold text-[#0B2447]">
+                  Custom Clearance & Shipping Clause
+                </label>
+              </div>
+              <div>
+                ${isAdminUser ? `
+                  <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-300">
+                    <span class="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>
+                    Admin Access (Editable)
+                  </span>
+                ` : `
+                  <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-slate-200 text-slate-700 border border-slate-300" title="Hanya Admin / Project & Engineering Manager yang dapat mengedit klausul ini">
+                    <svg class="w-3 h-3 text-slate-500" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clip-rule="evenodd"/></svg>
+                    Locked: Admin Only
+                  </span>
+                `}
+              </div>
+            </div>
+
+            <textarea 
+              id="site-customs" 
+              rows="3" 
+              ${isAdminUser ? '' : 'readonly'}
+              placeholder="Custom clearance terms..."
+              class="w-full text-xs p-3 rounded-xl transition-all ${
+                isAdminUser 
+                  ? 'bg-white border border-amber-300 text-slate-800 focus:outline-none focus:ring-2 focus:ring-amber-500/20' 
+                  : 'bg-slate-100/80 border border-slate-200 text-slate-600 cursor-not-allowed select-text'
+              }"
+            >${proj.siteDescription.customClearanceNote || plantData.customClearanceNote}</textarea>
+
+            <div class="mt-2 flex items-center justify-between text-[11px]">
+              <span class="${isAdminUser ? 'text-amber-700' : 'text-slate-500'}">
+                ${isAdminUser 
+                  ? `Logged in as <strong>${store.currentUser.name}</strong> (${store.currentUser.role}) — Authorized to modify legal customs clause.`
+                  : `Read-only for regular users. Hubungi Admin (Project & Engineering Manager: <strong>Moh Yusuf Alfian</strong>) untuk melakukan perubahan klausul kepabeanan.`
+                }
+              </span>
+              ${!isAdminUser ? `
+                <button 
+                  type="button" 
+                  onclick="window.TRSA.switchUser('Moh Yusuf Alfian')" 
+                  class="text-[10px] font-bold text-[#0284C7] hover:underline"
+                  title="Switch session ke Admin untuk demonstrasi hak akses edit"
+                >
+                  Switch to Admin &rarr;
+                </button>
+              ` : ''}
+            </div>
           </div>
         </div>
       </div>
@@ -2340,12 +2550,13 @@ function attachEventHandlers(activeProject) {
   const docPlantLoc = document.getElementById('doc-plant-location');
   if (docPlantLoc) {
     docPlantLoc.addEventListener('change', (e) => {
-      activeProject.documentInfo.plantLocation = e.target.value;
+      store.updatePlantLocation(e.target.value);
       const genPlant = document.getElementById('gen-plant');
       if (genPlant) {
         genPlant.value = getPlantCode(e.target.value);
         updateLiveGenerator();
       }
+      render();
     });
   }
 
@@ -2453,6 +2664,34 @@ function attachEventHandlers(activeProject) {
       }
     });
   });
+
+  // Step 2: Site Location and Invoicing Inputs
+  const siteRecipient = document.getElementById('site-recipient');
+  if (siteRecipient) {
+    siteRecipient.addEventListener('input', (e) => {
+      activeProject.siteDescription.invoiceRecipient = e.target.value;
+    });
+  }
+  const sitePort = document.getElementById('site-port');
+  if (sitePort) {
+    sitePort.addEventListener('input', (e) => {
+      activeProject.siteDescription.deliveryPort = e.target.value;
+    });
+  }
+  const siteAddress = document.getElementById('site-address');
+  if (siteAddress) {
+    siteAddress.addEventListener('input', (e) => {
+      activeProject.siteDescription.address = e.target.value;
+    });
+  }
+  const siteCustoms = document.getElementById('site-customs');
+  if (siteCustoms) {
+    siteCustoms.addEventListener('input', (e) => {
+      if (store.isAdmin()) {
+        activeProject.siteDescription.customClearanceNote = e.target.value;
+      }
+    });
+  }
 
   // Scope specs inputs
   document.querySelectorAll('[data-scope-idx]').forEach(input => {
@@ -2649,6 +2888,16 @@ if (typeof window !== 'undefined') {
       qty: '1 (one) unit',
       specs: ['Stainless steel 304 construction', 'Compliant with hygienic food contact design']
     });
+    render();
+  },
+  syncSiteLocationFromDatabase() {
+    const p = store.getActiveProject();
+    const plant = p.documentInfo?.plantLocation || 'Semarang Plant';
+    store.updatePlantLocation(plant);
+    render();
+  },
+  onPlantLocationChanged(newPlant) {
+    store.updatePlantLocation(newPlant);
     render();
   },
   removeScopeItem(type, idx) {
