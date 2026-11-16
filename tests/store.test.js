@@ -19,7 +19,7 @@ globalThis.document = {
 import { test, describe } from 'node:test';
 import assert from 'node:assert';
 import { defaultTRSAProject } from '../src/data/defaultTRSA.js';
-import { TRSAStore } from '../src/js/app.js';
+import { TRSAStore, PLANT_DATABASE, getPlantDatabase } from '../src/js/app.js';
 
 describe('TRSA Store and Business Logic Tests', () => {
   // Mock store calculation logic
@@ -123,5 +123,56 @@ describe('TRSA Store and Business Logic Tests', () => {
 
     // Date must be automatically updated to current save date
     assert.strictEqual(proj.documentInfo.revisionHistory[proj.documentInfo.revisionHistory.length - 1].date, today, 'Date must be auto-populated with current save date');
+  });
+
+  test('IV. Site Location & Invoicing Address auto-populated from Plant Database', () => {
+    const store = new TRSAStore();
+    const proj = store.getActiveProject();
+
+    // 1. Test database master resolution
+    const semarang = getPlantDatabase('Semarang Plant');
+    assert.strictEqual(semarang.code, '1402');
+    assert.strictEqual(semarang.deliveryPort, 'Semarang Port (CIF/CIP)');
+    assert.ok(semarang.address.includes('Tambak Aji IV'));
+
+    const cikupa = getPlantDatabase('Cikupa Plant');
+    assert.strictEqual(cikupa.code, '1403');
+    assert.strictEqual(cikupa.deliveryPort, 'Tanjung Priok Port, Jakarta (CIF/CIP)');
+    assert.ok(cikupa.address.includes('Bhumimas II'));
+
+    // 2. Test auto-population when plant location changes to Cikupa
+    store.updatePlantLocation('Cikupa Plant');
+    assert.strictEqual(proj.documentInfo.plantLocation, 'Cikupa Plant');
+    assert.strictEqual(proj.siteDescription.deliveryPort, cikupa.deliveryPort);
+    assert.strictEqual(proj.siteDescription.address, cikupa.address);
+    assert.strictEqual(proj.siteDescription.invoiceRecipient, cikupa.invoiceRecipient);
+    assert.ok(proj.documentInfo.docNumber.includes('1403'), 'Doc Number should update plant code to 1403');
+
+    // 3. Test auto-population when plant location changes back to Semarang
+    store.updatePlantLocation('Semarang Plant');
+    assert.strictEqual(proj.documentInfo.plantLocation, 'Semarang Plant');
+    assert.strictEqual(proj.siteDescription.deliveryPort, semarang.deliveryPort);
+    assert.strictEqual(proj.siteDescription.address, semarang.address);
+    assert.ok(proj.documentInfo.docNumber.includes('1402'), 'Doc Number should update plant code to 1402');
+  });
+
+  test('Custom Clearance & Shipping Clause: Admin-only access validation', () => {
+    const store = new TRSAStore();
+
+    // Default user is Moh Yusuf Alfian (Manager / Admin)
+    store.setCurrentUser('Moh Yusuf Alfian');
+    assert.strictEqual(store.isAdmin(), true, 'Moh Yusuf Alfian (Manager) must have admin privileges');
+
+    // Project Engineer user (Refin A Putra)
+    store.setCurrentUser('Refin A Putra');
+    assert.strictEqual(store.isAdmin(), false, 'Refin A Putra (Project Engineer) must not have admin privileges');
+
+    // Purchasing Supervisor user (Natalia Happy)
+    store.setCurrentUser('Natalia Happy');
+    assert.strictEqual(store.isAdmin(), false, 'Natalia Happy (Purchasing) must not have admin privileges');
+
+    // Murdani (Project & Engineering)
+    store.setCurrentUser('Murdani');
+    assert.strictEqual(store.isAdmin(), false, 'Murdani must not have admin privileges');
   });
 });
