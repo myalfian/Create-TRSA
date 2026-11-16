@@ -152,7 +152,7 @@ describe('TRSA Indofood Document Specification Matrix Tests', () => {
     assert.ok(defaultTRSAProject.generalInfo, 'Project must contain generalInfo section');
     assert.strictEqual(defaultTRSAProject.generalInfo.plantLocation, 'Semarang Plant');
     assert.strictEqual(defaultTRSAProject.generalInfo.countryOfOrigin, 'Japan');
-    assert.strictEqual(defaultTRSAProject.generalInfo.machineType, 'Sheeted Pellet Fryer & Seasoning System');
+    assert.strictEqual(defaultTRSAProject.generalInfo.equipmentType, 'Frying System');
     assert.strictEqual(defaultTRSAProject.generalInfo.vendorName, 'Heat and Control / Kiremko B.V.');
     assert.strictEqual(defaultTRSAProject.generalInfo.modelNumber, 'SPF-600 Continuous');
     assert.strictEqual(defaultTRSAProject.generalInfo.designCapacity, '600 kg/hour (Pellet Output)');

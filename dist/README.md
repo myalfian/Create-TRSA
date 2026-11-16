@@ -78,16 +78,16 @@ Contoh Format: 006/RAP/TRSA – 1403/MFG-IFM/VIII/2024
 ### 3. Multi-Step Guided TRSA Builder
 - **Step 1: Document Identification, General Information & Revision Control**:
   - **General Information Master Section**:
-    - **Plant Lokasi**: Pemilihan pabrik tujuan (*1402 - Semarang Plant / 1403 - Cikupa Plant*).
+    - **Plant Lokasi**: Pemilihan pabrik tujuan (*1402 - Cikokol Plant, 1403 - Semarang Plant, 1405 - Cikupa Plant, 1411 - Agro Plant*).
     - **Country of Origin (Dropdown)**: Pilihan negara asal pabrikan mesin (*Japan, Germany, Italy, Netherlands, China, United States, United Kingdom, Switzerland, Taiwan, Indonesia, Australia, dll*).
-    - **Jenis Mesin (Machine Type)**: Klasifikasi tipe mesin & sistem peralatan (misal: *Sheeted Pellet Fryer & Seasoning System*).
+    - **Equipment Type (Dropdown)**: Pilihan kategori peralatan teknik (*Process Line, Frying System, Seasoning System, Flight Belt Elevator (FBE), Distribution System, Packaging System, Auto Case Packer, Finished Good Conveyor, Carton Sealer, Palletizer, Oil Free Compressor, Nitrogen Generator, Generator Set, dll*).
     - **Nama Vendor (OEM / Manufacturer)**: Nama manufaktur / prinsipal vendor (misal: *Heat and Control / Kiremko B.V.*).
     - **Model / Line Tag & Kapasitas Desain (dll)**: Tag model mesin dan kapasitas desain (misal: *SPF-600 Continuous, 600 kg/hour*).
   - **Official Document Control**: Title, Sub-title, Nomor Dokumen TRSA resmi (Read-Only dengan Auto sequential generator).
   - **Vendor Procurement Origin Sourcing**: Pilihan asal vendor (**Foreign**, **Local**, dan **Mixed**) yang secara dinamis menyesuaikan klausul pengiriman (CIF/CIP vs Franco Pabrik), regulasi perpajakan (PPh 26 treaty vs PPh 23 lokal), mata uang (USD/EUR vs IDR), dan persyaratan visa kerja tenaga ahli.
   - **Revision History**: Kolom *Originated By* otomatis terisi nama pengguna aktif, dan *Date* otomatis terisi tanggal penyimpanan.
 - **Step 2: Key Contacts & Site Invoicing (Section IV)**:
-  - **Database Auto-Fill**: Pemilihan plant location (*Semarang 1402 / Cikupa 1403*) otomatis mengisi alamat pabrik, entitas penerima invoice, delivery port CIF/CIP, dan daftar purchasing attention.
+  - **Database Auto-Fill**: Pemilihan plant location (*1402 Cikokol, 1403 Semarang, 1405 Cikupa, 1411 Agro*) otomatis mengisi alamat pabrik, entitas penerima invoice, delivery port CIF/CIP, dan daftar purchasing attention.
   - **RBAC Custom Clearance Clause**: Klausul pengurusan bea cukai dan demurrage dikunci khusus role **Admin** (*Moh Yusuf Alfian / Manager*).
 - **Step 3: Interactive Product Specifications & Process Parameters Canvas**:
   - **Visual CAD/CAM SVG Diagram**: Menampilkan visual 3D snack pellets (*3D Chicken Legs*, *3D Golgappa Pellets*, *3D Star Pellets*, *2D Pierced Chips*).

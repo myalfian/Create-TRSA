@@ -22,7 +22,8 @@ export const defaultTRSAProject = {
   generalInfo: {
     plantLocation: "Semarang Plant",
     countryOfOrigin: "Japan",
-    machineType: "Sheeted Pellet Fryer & Seasoning System",
+    equipmentType: "Frying System",
+    machineType: "Frying System",
     vendorName: "Heat and Control / Kiremko B.V.",
     modelNumber: "SPF-600 Continuous",
     designCapacity: "600 kg/hour (Pellet Output)",

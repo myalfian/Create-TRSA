@@ -67,9 +67,12 @@ describe('TRSA Document Control Number Specification Tests', () => {
   });
 
   test('Plant Code Resolution', () => {
-    assert.strictEqual(getPlantCode('Semarang Plant'), '1402');
-    assert.strictEqual(getPlantCode('Cikupa Plant'), '1403');
-    assert.strictEqual(getPlantCode('Semarang'), '1402');
+    assert.strictEqual(getPlantCode('Cikokol Plant'), '1402');
+    assert.strictEqual(getPlantCode('Semarang Plant'), '1403');
+    assert.strictEqual(getPlantCode('Cikupa Plant'), '1405');
+    assert.strictEqual(getPlantCode('Agro Plant'), '1411');
+    assert.strictEqual(getPlantCode('Semarang'), '1403');
+    assert.strictEqual(getPlantCode('Cikokol'), '1402');
   });
 
   test('Generate Standard Indofood TRSA Number Format', () => {

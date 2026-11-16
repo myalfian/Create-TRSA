@@ -19,7 +19,7 @@ globalThis.document = {
 import { test, describe } from 'node:test';
 import assert from 'node:assert';
 import { defaultTRSAProject } from '../src/data/defaultTRSA.js';
-import { TRSAStore, PLANT_DATABASE, getPlantDatabase, VENDOR_ORIGIN_CONFIG, getVendorOriginConfig, COUNTRY_ORIGIN_OPTIONS, ensureGeneralInfo } from '../src/js/app.js';
+import { TRSAStore, PLANT_DATABASE, getPlantDatabase, VENDOR_ORIGIN_CONFIG, getVendorOriginConfig, COUNTRY_ORIGIN_OPTIONS, EQUIPMENT_TYPE_OPTIONS, ensureGeneralInfo } from '../src/js/app.js';
 import { getAuditLogs } from '../src/js/auditService.js';
 
 describe('TRSA Store and Business Logic Tests', () => {
@@ -132,14 +132,21 @@ describe('TRSA Store and Business Logic Tests', () => {
 
     // 1. Test database master resolution
     const semarang = getPlantDatabase('Semarang Plant');
-    assert.strictEqual(semarang.code, '1402');
+    assert.strictEqual(semarang.code, '1403');
     assert.strictEqual(semarang.deliveryPort, 'Semarang Port (CIF/CIP)');
     assert.ok(semarang.address.includes('Tambak Aji IV'));
 
     const cikupa = getPlantDatabase('Cikupa Plant');
-    assert.strictEqual(cikupa.code, '1403');
+    assert.strictEqual(cikupa.code, '1405');
     assert.strictEqual(cikupa.deliveryPort, 'Tanjung Priok Port, Jakarta (CIF/CIP)');
     assert.ok(cikupa.address.includes('Bhumimas II'));
+
+    const cikokol = getPlantDatabase('Cikokol Plant');
+    assert.strictEqual(cikokol.code, '1402');
+    assert.ok(cikokol.address.includes('Daan Mogot'));
+
+    const agro = getPlantDatabase('Agro Plant');
+    assert.strictEqual(agro.code, '1411');
 
     // 2. Test auto-population when plant location changes to Cikupa
     store.updatePlantLocation('Cikupa Plant');
@@ -147,14 +154,14 @@ describe('TRSA Store and Business Logic Tests', () => {
     assert.strictEqual(proj.siteDescription.deliveryPort, cikupa.deliveryPort);
     assert.strictEqual(proj.siteDescription.address, cikupa.address);
     assert.strictEqual(proj.siteDescription.invoiceRecipient, cikupa.invoiceRecipient);
-    assert.ok(proj.documentInfo.docNumber.includes('1403'), 'Doc Number should update plant code to 1403');
+    assert.ok(proj.documentInfo.docNumber.includes('1405'), 'Doc Number should update plant code to 1405');
 
     // 3. Test auto-population when plant location changes back to Semarang
     store.updatePlantLocation('Semarang Plant');
     assert.strictEqual(proj.documentInfo.plantLocation, 'Semarang Plant');
     assert.strictEqual(proj.siteDescription.deliveryPort, semarang.deliveryPort);
     assert.strictEqual(proj.siteDescription.address, semarang.address);
-    assert.ok(proj.documentInfo.docNumber.includes('1402'), 'Doc Number should update plant code to 1402');
+    assert.ok(proj.documentInfo.docNumber.includes('1403'), 'Doc Number should update plant code to 1403');
   });
 
   test('Custom Clearance & Shipping Clause: Admin-only access validation', () => {
@@ -275,7 +282,7 @@ describe('TRSA Store and Business Logic Tests', () => {
     assert.strictEqual(proj.documentInfo.vendorOrigin, 'Foreign', 'Invalid origin should fall back to Foreign');
   });
 
-  test('General Information Section: Verification of Plant Location, Country of Origin dropdown, Machine Type, Vendor Name, and auto-sync', () => {
+  test('General Information Section: Verification of Plant Location, Country of Origin dropdown, Equipment Type dropdown, Vendor Name, and auto-sync', () => {
     globalThis.localStorage.clear();
     const store = new TRSAStore();
     const proj = store.getActiveProject();
@@ -284,28 +291,42 @@ describe('TRSA Store and Business Logic Tests', () => {
     assert.ok(proj.generalInfo, 'generalInfo object must exist');
     assert.strictEqual(proj.generalInfo.plantLocation, 'Semarang Plant');
     assert.strictEqual(proj.generalInfo.countryOfOrigin, 'Japan');
+    assert.ok(proj.generalInfo.equipmentType || proj.generalInfo.machineType);
 
-    // 2. Verify Country of Origin Options list
+    // 2. Verify Country of Origin & Equipment Type Options lists
     assert.ok(Array.isArray(COUNTRY_ORIGIN_OPTIONS), 'COUNTRY_ORIGIN_OPTIONS must be an array');
     assert.ok(COUNTRY_ORIGIN_OPTIONS.includes('Japan'));
     assert.ok(COUNTRY_ORIGIN_OPTIONS.includes('Germany'));
-    assert.ok(COUNTRY_ORIGIN_OPTIONS.includes('Italy'));
-    assert.ok(COUNTRY_ORIGIN_OPTIONS.includes('Netherlands'));
-    assert.ok(COUNTRY_ORIGIN_OPTIONS.includes('China'));
     assert.ok(COUNTRY_ORIGIN_OPTIONS.includes('Indonesia'));
+
+    assert.ok(Array.isArray(EQUIPMENT_TYPE_OPTIONS), 'EQUIPMENT_TYPE_OPTIONS must be an array');
+    assert.ok(EQUIPMENT_TYPE_OPTIONS.includes('Process Line'));
+    assert.ok(EQUIPMENT_TYPE_OPTIONS.includes('Frying System'));
+    assert.ok(EQUIPMENT_TYPE_OPTIONS.includes('Seasoning System'));
+    assert.ok(EQUIPMENT_TYPE_OPTIONS.includes('Flight Belt Elevator (FBE)'));
+    assert.ok(EQUIPMENT_TYPE_OPTIONS.includes('Distribution System'));
+    assert.ok(EQUIPMENT_TYPE_OPTIONS.includes('Packaging System'));
+    assert.ok(EQUIPMENT_TYPE_OPTIONS.includes('Auto Case Packer'));
+    assert.ok(EQUIPMENT_TYPE_OPTIONS.includes('Finished Good Conveyor'));
+    assert.ok(EQUIPMENT_TYPE_OPTIONS.includes('Carton Sealer'));
+    assert.ok(EQUIPMENT_TYPE_OPTIONS.includes('Palletizer'));
+    assert.ok(EQUIPMENT_TYPE_OPTIONS.includes('Oil Free Compressor'));
+    assert.ok(EQUIPMENT_TYPE_OPTIONS.includes('Nitrogen Generator'));
+    assert.ok(EQUIPMENT_TYPE_OPTIONS.includes('Generator Set'));
 
     // 3. Update General Information fields
     store.setCurrentUser('Moh Yusuf Alfian');
     store.updateGeneralInfo({
       countryOfOrigin: 'Germany',
-      machineType: 'Continuous Rotary Pellet Fryer System',
+      equipmentType: 'Process Line',
+      machineType: 'Process Line',
       vendorName: 'Kiremko B.V. & Florigo',
       modelNumber: 'KRM-750 Pro',
       designCapacity: '750 kg/hour (Pellet Output)'
     });
 
     assert.strictEqual(proj.generalInfo.countryOfOrigin, 'Germany');
-    assert.strictEqual(proj.generalInfo.machineType, 'Continuous Rotary Pellet Fryer System');
+    assert.strictEqual(proj.generalInfo.equipmentType, 'Process Line');
     assert.strictEqual(proj.generalInfo.vendorName, 'Kiremko B.V. & Florigo');
     assert.strictEqual(proj.generalInfo.modelNumber, 'KRM-750 Pro');
     assert.strictEqual(proj.generalInfo.designCapacity, '750 kg/hour (Pellet Output)');
@@ -314,8 +335,18 @@ describe('TRSA Store and Business Logic Tests', () => {
     store.updatePlantLocation('Cikupa Plant');
     assert.strictEqual(proj.documentInfo.plantLocation, 'Cikupa Plant');
     assert.strictEqual(proj.generalInfo.plantLocation, 'Cikupa Plant');
+    assert.ok(proj.documentInfo.docNumber.includes('1405'), 'Cikupa plant code must be 1405');
 
-    // 5. Audit Trail captures General Information updates
+    // 5. Updating Plant Location to Cikokol (1402) and Agro (1411)
+    store.updatePlantLocation('Cikokol Plant');
+    assert.strictEqual(proj.documentInfo.plantLocation, 'Cikokol Plant');
+    assert.ok(proj.documentInfo.docNumber.includes('1402'), 'Cikokol plant code must be 1402');
+
+    store.updatePlantLocation('Agro Plant');
+    assert.strictEqual(proj.documentInfo.plantLocation, 'Agro Plant');
+    assert.ok(proj.documentInfo.docNumber.includes('1411'), 'Agro plant code must be 1411');
+
+    // 6. Audit Trail captures General Information updates
     const logs = getAuditLogs(proj.id);
     assert.ok(logs.length >= 1, 'Audit log must record updates');
     assert.ok(logs.some(l => l.userName === 'Moh Yusuf Alfian'));

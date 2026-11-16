@@ -85,15 +85,30 @@ export function getNextSequenceNumber(projects) {
 
 export function getPlantCode(plantLocation = '') {
   const loc = String(plantLocation || '').toLowerCase();
-  if (loc.includes('cikupa')) return '1403';
-  if (loc.includes('semarang')) return '1402';
-  return '1402';
+  if (loc.includes('1402') || loc.includes('cikokol')) return '1402';
+  if (loc.includes('1403') || loc.includes('semarang')) return '1403';
+  if (loc.includes('1405') || loc.includes('cikupa')) return '1405';
+  if (loc.includes('1411') || loc.includes('agro')) return '1411';
+  return '1403'; // default Semarang Plant
 }
 
 // Master Plant Directory & Invoicing Database
 export const PLANT_DATABASE = {
   '1402': {
     code: '1402',
+    plantName: 'Cikokol Plant',
+    companyName: 'PT. Indofood Fortuna Makmur',
+    invoiceRecipient: 'PT Indofood Fortuna Makmur',
+    address: 'Jalan Daan Mogot KM 19, Kebon Besar, Batuceper, Kota Tangerang, Banten 15122, Indonesia',
+    deliveryPort: 'Tanjung Priok Port, Jakarta (CIF/CIP)',
+    purchasingAttn: [
+      { name: "Natalia Happy", email: "natalia.happy@icbp.indofood.co.id" },
+      { name: "Moh Yusuf Alfian", email: "my.alfian@icbp.indofood.co.id" }
+    ],
+    customClearanceNote: 'Indofood will handle custom clearance in the Indonesian port after receiving final original shipping documents. If the goods arrive before documents, any demurrage/storage cost will be charged to The Seller.'
+  },
+  '1403': {
+    code: '1403',
     plantName: 'Semarang Plant',
     companyName: 'PT. Indofood Fortuna Makmur',
     invoiceRecipient: 'PT Indofood Fortuna Makmur',
@@ -105,8 +120,8 @@ export const PLANT_DATABASE = {
     ],
     customClearanceNote: 'Indofood will handle custom clearance in the Indonesian port after receiving final original shipping documents. If the goods arrive before documents, any demurrage/storage cost will be charged to The Seller.'
   },
-  '1403': {
-    code: '1403',
+  '1405': {
+    code: '1405',
     plantName: 'Cikupa Plant',
     companyName: 'PT. Indofood Fortuna Makmur',
     invoiceRecipient: 'PT Indofood Fortuna Makmur',
@@ -117,15 +132,29 @@ export const PLANT_DATABASE = {
       { name: "Natalia Happy", email: "natalia.happy@icbp.indofood.co.id" }
     ],
     customClearanceNote: 'Indofood will handle custom clearance in the Indonesian port after receiving final original shipping documents. If the goods arrive before documents, any demurrage/storage cost will be charged to The Seller.'
+  },
+  '1411': {
+    code: '1411',
+    plantName: 'Agro Plant',
+    companyName: 'PT. Indofood Fortuna Makmur',
+    invoiceRecipient: 'PT Indofood Fortuna Makmur',
+    address: 'Kawasan Industri Agro Indofood, Jawa Barat / Jawa Tengah, Indonesia',
+    deliveryPort: 'Tanjung Priok / Tanjung Emas Port (CIF/CIP)',
+    purchasingAttn: [
+      { name: "Moh Yusuf Alfian", email: "my.alfian@icbp.indofood.co.id" },
+      { name: "Natalia Happy", email: "natalia.happy@icbp.indofood.co.id" }
+    ],
+    customClearanceNote: 'Indofood will handle custom clearance in the Indonesian port after receiving final original shipping documents. If the goods arrive before documents, any demurrage/storage cost will be charged to The Seller.'
   }
 };
 
 export function getPlantDatabase(plantLocationOrCode = '') {
   const raw = String(plantLocationOrCode || '').toLowerCase();
-  if (raw.includes('1403') || raw.includes('cikupa')) {
-    return PLANT_DATABASE['1403'];
-  }
-  return PLANT_DATABASE['1402'];
+  if (raw.includes('1402') || raw.includes('cikokol')) return PLANT_DATABASE['1402'];
+  if (raw.includes('1403') || raw.includes('semarang')) return PLANT_DATABASE['1403'];
+  if (raw.includes('1405') || raw.includes('cikupa')) return PLANT_DATABASE['1405'];
+  if (raw.includes('1411') || raw.includes('agro')) return PLANT_DATABASE['1411'];
+  return PLANT_DATABASE['1403'];
 }
 
 // Master Vendor Procurement Origin Matrix & Standards
@@ -250,18 +279,46 @@ export const COUNTRY_ORIGIN_OPTIONS = [
   'Other'
 ];
 
+export const EQUIPMENT_TYPE_OPTIONS = [
+  'Process Line',
+  'Frying System',
+  'Seasoning System',
+  'Flight Belt Elevator (FBE)',
+  'Distribution System',
+  'Packaging System',
+  'Auto Case Packer',
+  'Finished Good Conveyor',
+  'Carton Sealer',
+  'Palletizer',
+  'Oil Free Compressor',
+  'Nitrogen Generator',
+  'Generator Set',
+  'Sheeted Pellet Fryer & Seasoning System',
+  'Extruder & Forming Line',
+  'Continuous Roasting System',
+  'De-Oiling & Cooling System',
+  'Bulk Storage & Silo System',
+  'CIP (Clean-in-Place) System',
+  'Other Equipment'
+];
+
 export function ensureGeneralInfo(project) {
   if (!project) return null;
   if (!project.generalInfo) {
     project.generalInfo = {
       plantLocation: project.documentInfo?.plantLocation || 'Semarang Plant',
       countryOfOrigin: 'Japan',
-      machineType: project.documentInfo?.subTitle?.replace(/^For Supply of\s*/i, '') || 'Sheeted Pellet Fryer & Seasoning System',
+      equipmentType: 'Frying System',
+      machineType: 'Frying System',
       vendorName: 'Heat and Control / Kiremko B.V.',
       modelNumber: 'SPF-600 Continuous',
       designCapacity: '600 kg/hour (Pellet Output)',
       targetCommissioning: project.projectOverview?.keyDates?.lineStartUp || 'End of April 2025'
     };
+  } else {
+    if (!project.generalInfo.equipmentType) {
+      project.generalInfo.equipmentType = project.generalInfo.machineType || 'Frying System';
+    }
   }
   return project.generalInfo;
 }
@@ -2036,8 +2093,10 @@ function renderStep1(proj) {
               Plant Lokasi <span class="text-red-500">*</span>
             </label>
             <select id="gen-plant-location" class="corp-select font-bold text-slate-800">
-              <option value="Semarang Plant" ${(proj.generalInfo?.plantLocation || proj.documentInfo.plantLocation) === 'Semarang Plant' ? 'selected' : ''}>1402 - Semarang Plant</option>
-              <option value="Cikupa Plant" ${(proj.generalInfo?.plantLocation || proj.documentInfo.plantLocation) === 'Cikupa Plant' ? 'selected' : ''}>1403 - Cikupa Plant</option>
+              <option value="Cikokol Plant" ${(proj.generalInfo?.plantLocation || proj.documentInfo.plantLocation) === 'Cikokol Plant' ? 'selected' : ''}>1402 - Cikokol Plant</option>
+              <option value="Semarang Plant" ${(proj.generalInfo?.plantLocation || proj.documentInfo.plantLocation) === 'Semarang Plant' ? 'selected' : ''}>1403 - Semarang Plant</option>
+              <option value="Cikupa Plant" ${(proj.generalInfo?.plantLocation || proj.documentInfo.plantLocation) === 'Cikupa Plant' ? 'selected' : ''}>1405 - Cikupa Plant</option>
+              <option value="Agro Plant" ${(proj.generalInfo?.plantLocation || proj.documentInfo.plantLocation) === 'Agro Plant' ? 'selected' : ''}>1411 - Agro Plant</option>
             </select>
           </div>
 
@@ -2053,12 +2112,16 @@ function renderStep1(proj) {
             </select>
           </div>
 
-          <!-- Jenis Mesin -->
+          <!-- Equipment Type (Dropdown) -->
           <div>
             <label class="block text-xs font-semibold text-slate-700 mb-1">
-              Jenis Mesin (Machine Type) <span class="text-red-500">*</span>
+              Equipment Type <span class="text-red-500">*</span>
             </label>
-            <input type="text" id="gen-machine-type" value="${proj.generalInfo?.machineType || ''}" placeholder="e.g. Sheeted Pellet Fryer & Seasoning System" class="corp-input font-medium" />
+            <select id="gen-equipment-type" class="corp-select font-bold text-[#0B2447]">
+              ${EQUIPMENT_TYPE_OPTIONS.map(opt => `
+                <option value="${opt}" ${(proj.generalInfo?.equipmentType || proj.generalInfo?.machineType || 'Frying System') === opt ? 'selected' : ''}>${opt}</option>
+              `).join('')}
+            </select>
           </div>
 
           <!-- Nama Vendor -->
@@ -3199,13 +3262,13 @@ function renderStudio(proj) {
               <tbody>
                 <tr>
                   <th style="width: 25%;">Plant Lokasi</th>
-                  <td style="width: 25%; font-weight: 600;">${proj.generalInfo?.plantLocation || proj.documentInfo.plantLocation || 'Semarang Plant'}</td>
+                  <td style="width: 25%; font-weight: 600;">${getPlantCode(proj.generalInfo?.plantLocation || proj.documentInfo.plantLocation)} - ${proj.generalInfo?.plantLocation || proj.documentInfo.plantLocation || 'Semarang Plant'}</td>
                   <th style="width: 25%;">Country of Origin</th>
                   <td style="width: 25%; font-weight: 700; color: #0284C7;">${proj.generalInfo?.countryOfOrigin || 'Japan'}</td>
                 </tr>
                 <tr>
-                  <th>Jenis Mesin</th>
-                  <td style="font-weight: 600;">${proj.generalInfo?.machineType || proj.documentInfo.subTitle || 'Sheeted Pellet Fryer & Seasoning System'}</td>
+                  <th>Equipment Type</th>
+                  <td style="font-weight: 600;">${proj.generalInfo?.equipmentType || proj.generalInfo?.machineType || 'Frying System'}</td>
                   <th>Nama Vendor</th>
                   <td style="font-weight: 700; color: #0B2447;">${proj.generalInfo?.vendorName || 'Heat and Control / Kiremko B.V.'}</td>
                 </tr>
@@ -3726,6 +3789,16 @@ function attachEventHandlers(activeProject) {
     });
   }
 
+  const genEquip = document.getElementById('gen-equipment-type');
+  if (genEquip) {
+    genEquip.addEventListener('change', (e) => {
+      const g = ensureGeneralInfo(activeProject);
+      g.equipmentType = e.target.value;
+      g.machineType = e.target.value;
+      render();
+    });
+  }
+
   const genMachine = document.getElementById('gen-machine-type');
   if (genMachine) {
     genMachine.addEventListener('input', (e) => {
@@ -3924,6 +3997,7 @@ if (typeof window !== 'undefined') {
     render();
   },
   COUNTRY_ORIGIN_OPTIONS,
+  EQUIPMENT_TYPE_OPTIONS,
   deleteProject(id) {
     store.deleteProject(id);
     render();

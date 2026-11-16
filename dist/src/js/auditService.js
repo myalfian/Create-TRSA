@@ -181,12 +181,14 @@ export function detectDetailedProjectChanges(prev = {}, next = {}) {
       to: nextGen.countryOfOrigin
     });
   }
-  if (prevGen.machineType !== nextGen.machineType && nextGen.machineType) {
+  const prevEquip = prevGen.equipmentType || prevGen.machineType;
+  const nextEquip = nextGen.equipmentType || nextGen.machineType;
+  if (prevEquip !== nextEquip && nextEquip) {
     diffs.push({
-      category: 'Machine Type',
-      description: 'Machine type / equipment classification modified',
-      from: prevGen.machineType || 'None',
-      to: nextGen.machineType
+      category: 'Equipment Type',
+      description: 'Equipment type classification modified',
+      from: prevEquip || 'None',
+      to: nextEquip
     });
   }
   if (prevGen.vendorName !== nextGen.vendorName && nextGen.vendorName) {
