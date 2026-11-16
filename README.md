@@ -78,6 +78,7 @@ Contoh Format: 006/RAP/TRSA – 1403/MFG-IFM/VIII/2024
 ### 3. Multi-Step Guided TRSA Builder
 - **Step 1: Document Identification & Revision Control**:
   - Title, Sub-title, Control Number generator, target milestone dates.
+  - **Vendor Procurement Origin Sourcing**: Pilihan asal vendor (**Foreign**, **Local**, dan **Mixed**) yang secara dinamis menyesuaikan klausul pengiriman (CIF/CIP vs Franco Pabrik), regulasi perpajakan (PPh 26 treaty vs PPh 23 lokal), mata uang (USD/EUR vs IDR), dan persyaratan visa kerja tenaga ahli.
   - **Revision History**: Kolom *Originated By* otomatis terisi nama pengguna aktif, dan *Date* otomatis terisi tanggal penyimpanan.
 - **Step 2: Key Contacts & Site Invoicing (Section IV)**:
   - **Database Auto-Fill**: Pemilihan plant location (*Semarang 1402 / Cikupa 1403*) otomatis mengisi alamat pabrik, entitas penerima invoice, delivery port CIF/CIP, dan daftar purchasing attention.

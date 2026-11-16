@@ -19,7 +19,7 @@ globalThis.document = {
 import { test, describe } from 'node:test';
 import assert from 'node:assert';
 import { defaultTRSAProject } from '../src/data/defaultTRSA.js';
-import { TRSAStore, PLANT_DATABASE, getPlantDatabase } from '../src/js/app.js';
+import { TRSAStore, PLANT_DATABASE, getPlantDatabase, VENDOR_ORIGIN_CONFIG, getVendorOriginConfig } from '../src/js/app.js';
 import { getAuditLogs } from '../src/js/auditService.js';
 
 describe('TRSA Store and Business Logic Tests', () => {
@@ -242,5 +242,36 @@ describe('TRSA Store and Business Logic Tests', () => {
     const plantDiff = latest.diffDetails.find(d => d.category.includes('Plant'));
     assert.ok(plantDiff, 'Must contain plant diff');
     assert.strictEqual(plantDiff.to, 'Cikupa Plant', 'Must record new value');
+  });
+
+  test('Vendor Origin Selection (Foreign, Local, Mixed): Updates terms, provisions & audit trail', () => {
+    const store = new TRSAStore();
+    const proj = store.getActiveProject();
+
+    // 1. Initial default is Foreign
+    assert.strictEqual(proj.documentInfo.vendorOrigin || 'Foreign', 'Foreign');
+    const foreignCfg = getVendorOriginConfig('Foreign');
+    assert.strictEqual(foreignCfg.origin, 'Foreign');
+    assert.ok(foreignCfg.label.includes('Foreign'));
+
+    // 2. Switch to Local
+    store.setCurrentUser('Moh Yusuf Alfian');
+    const localCfg = store.updateVendorOrigin('Local');
+    assert.strictEqual(proj.documentInfo.vendorOrigin, 'Local');
+    assert.strictEqual(proj.commercialTerms.vendorOrigin, 'Local');
+    assert.ok(proj.commercialTerms.shipmentTerms.includes('Franco Pabrik'), 'Local vendor shipment must use domestic Franco terms');
+    assert.ok(proj.legalAndTaxProvisions.some(p => p.title.includes('PPN 11%')), 'Local vendor provisions must include PPN 11%');
+    assert.ok(proj.legalAndTaxProvisions.some(p => p.title.includes('PPh Pasal 23')), 'Local vendor provisions must include PPh 23');
+
+    // 3. Switch to Mixed
+    const mixedCfg = store.updateVendorOrigin('Mixed');
+    assert.strictEqual(proj.documentInfo.vendorOrigin, 'Mixed');
+    assert.strictEqual(proj.commercialTerms.vendorOrigin, 'Mixed');
+    assert.ok(proj.commercialTerms.shipmentTerms.includes('Dual Terms'), 'Mixed vendor shipment must use Dual Terms');
+    assert.ok(proj.legalAndTaxProvisions.some(p => p.title.includes('Separation of Offshore Supply & Onshore Scope')), 'Mixed vendor provisions must separate offshore and onshore scope');
+
+    // 4. Fallback on invalid origin
+    store.updateVendorOrigin('InvalidOrigin');
+    assert.strictEqual(proj.documentInfo.vendorOrigin, 'Foreign', 'Invalid origin should fall back to Foreign');
   });
 });

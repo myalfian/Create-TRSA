@@ -128,6 +128,108 @@ export function getPlantDatabase(plantLocationOrCode = '') {
   return PLANT_DATABASE['1402'];
 }
 
+// Master Vendor Procurement Origin Matrix & Standards
+export const VENDOR_ORIGIN_CONFIG = {
+  Foreign: {
+    origin: 'Foreign',
+    label: 'Foreign (International OEM)',
+    badgeClass: 'bg-sky-50 text-[#0284C7] border border-sky-200',
+    description: 'International manufacturer. Import via Sea/Air freight (CIF/CIP), L/C payment, PPh 26 tax treaty, and Indonesian working visas apply.',
+    currency: 'USD / EUR',
+    defaultShipment: 'CIF / CIP Semarang Port, Indonesia. Endorsed Marine Insurance ICC A/AIR for at least 110% invoice value payable to Bank Central Asia (BCA) in Jakarta. Carrying vessel must not be older than 25 years.',
+    defaultProvisions: [
+      {
+        title: "Cost Quotation Separation",
+        description: "The Seller shall provide separate quotations for Equipment and Engineering Services costs."
+      },
+      {
+        title: "Duty Exemption Documentation",
+        description: "For equipment from countries with Economic Partnership Agreements (EPA), Seller must furnish Form DGT/exemption prior to demurrage expiry, or incurrence is deducted from contract value."
+      },
+      {
+        title: "Withholding Tax (PPh 26 / Double Tax Treaty)",
+        description: "Indonesian withholding tax (PPh 26) of 20% applies to services. If valid DGT Form is provided, treaty rates apply (e.g., 5% Switzerland, 7.5% Germany, 10% India/Luxembourg, 0% for applicable treaties)."
+      },
+      {
+        title: "Permanent Establishment (PMK 35/2019)",
+        description: "Exceeding 6 months cumulative service stay in 1 year requires Indonesian NPWP & Permanent Establishment (BUT), subject to PPh 23 (approx 4%). Otherwise 20% PPh 26 applies."
+      },
+      {
+        title: "Visas & Engineer Expenses",
+        description: "Dispatched engineers must possess valid Indonesian working visas. Indonesian visa costs borne by IFM; home country visa by Seller. Daily allowance, flights, insurance borne by Seller; local Indonesian lodging & transport borne by IFM."
+      },
+      {
+        title: "Value Added Tax (PPN & PPh Local)",
+        description: "Subject to Indonesian tax laws (PP No. 44 Tahun 2022 Pasal 23 ayat 2). Invoices must include original Kwitansi affixed with official Materai (stamp duty)."
+      }
+    ]
+  },
+  Local: {
+    origin: 'Local',
+    label: 'Local (Domestic Indonesian Vendor)',
+    badgeClass: 'bg-emerald-50 text-emerald-700 border border-emerald-200',
+    description: 'Domestic Indonesian manufacturer or fabricator. Domestic Franco delivery in IDR, PPN 11% e-Faktur, PPh 23 withholding tax, without customs demurrage.',
+    currency: 'IDR (Rupiah)',
+    defaultShipment: 'Franco Pabrik / Gudang PT Indofood Fortuna Makmur (Semarang / Cikupa). Seluruh biaya pengangkutan darat, asuransi pengiriman domestik, dan risiko transportasi ditanggung penuh oleh Penjual hingga barang diterima dengan baik di site Pembeli.',
+    defaultProvisions: [
+      {
+        title: "Pajak Pertambahan Nilai (PPN 11%)",
+        description: "Penyerahan Barang Kena Pajak dan Jasa Kena Pajak dalam daerah pabean dikenakan PPN sebesar 11% sesuai ketentuan UU HPP. Penjual wajib menerbitkan e-Faktur Pajak yang valid dan dapat dikreditkan."
+      },
+      {
+        title: "Pemotongan PPh Pasal 23",
+        description: "Atas jasa instalasi, fabrikasi, testing, dan commissioning dikenakan pemotongan PPh Pasal 23 sebesar 2% (bagi yang ber-NPWP). Bukti potong resmi akan diterbitkan oleh PT Indofood Fortuna Makmur."
+      },
+      {
+        title: "Mata Uang Pembayaran & Penagihan (IDR)",
+        description: "Seluruh transaksi dan pembayaran dilakukan dalam mata uang Rupiah (IDR) melalui transfer perbankan nasional. Invoice wajib dilengkapi Kwitansi asli bermaterai cukup (Rp 10.000) dan copy Surat Perintah Kerja (PO/SPK)."
+      },
+      {
+        title: "Kepatuhan Tenaga Kerja Lokal & Keselamatan Kerja (K3)",
+        description: "Seluruh teknisi dan pekerja yang dikirim ke site wajib mematuhi standar K3 PT Indofood Fortuna Makmur, memiliki kartu BPJS Ketenagakerjaan aktif, dan menggunakan APD lengkap selama di area pabrik."
+      },
+      {
+        title: "Garansi & Layanan Purna Jual On-Site",
+        description: "Garansi mekanikal dan elektrikal minimum 12 bulan sejak Berita Acara Serah Terima (BAST). Vendor lokal wajib menyediakan kunjungan teknis on-site maksimal dalam waktu 1x24 jam saat terjadi emergency breakdown."
+      }
+    ]
+  },
+  Mixed: {
+    origin: 'Mixed',
+    label: 'Mixed (Dual Sourcing: Foreign & Local)',
+    badgeClass: 'bg-purple-50 text-purple-700 border border-purple-200',
+    description: 'Hybrid sourcing model: Core specialized machinery imported from abroad (CIF/CIP, L/C, PPh 26), while peripheral fabrication, ducting, piping, and local installation executed locally (Franco, IDR, PPN).',
+    currency: 'USD/EUR (Import Equipment) & IDR (Local Scope)',
+    defaultShipment: 'Dual Terms: Mesin Utama impor dikapalkan secara CIF / CIP Pelabuhan Tanjung Emas Semarang (Asuransi ICC A/AIR 110%). Material lokal, platform, ducting exhaust, dan panel integrasi dikirim secara Franco Pabrik Indofood.',
+    defaultProvisions: [
+      {
+        title: "Separation of Offshore Supply & Onshore Scope",
+        description: "Kontrak dan penawaran harga dipisahkan secara tegas antara Offshore Equipment Supply (dalam mata uang asing / Valas) dan Onshore Local Works/Services (dalam mata uang IDR)."
+      },
+      {
+        title: "Import Taxation & Custom Clearance Protocol",
+        description: "Untuk porsi impor berlaku ketentuan PPh 26 / DGT Form tax treaty dan pengurusan custom clearance pelabuhan. Dokumen impor (B/L, Packing List, Certificate of Origin) harus diserahkan tepat waktu untuk menghindari demurrage."
+      },
+      {
+        title: "Domestic Scope Taxation (PPN 11% & PPh 23)",
+        description: "Untuk porsi fabrikasi lokal, jasa pemasangan, dan material penunjang domestik dikenakan PPN 11% dengan e-Faktur dan pemotongan PPh Pasal 23 sebesar 2%."
+      },
+      {
+        title: "Expatriate & Local Engineer Coordination",
+        description: "Commissioning dipimpin oleh commissioning engineer prinsipal luar negeri (dengan Working Visa/KITAS resmi) didampingi tim teknis lokal ber-BPJS Ketenagakerjaan."
+      },
+      {
+        title: "Combined Performance Acceptance & Warranty",
+        description: "Pengujian continuous 7-hour trial mencakup integrasi total antara sistem mesin impor dan sistem penunjang lokal. Garansi komprehensif 12 bulan mengikat kedua penyedia komponen."
+      }
+    ]
+  }
+};
+
+export function getVendorOriginConfig(origin = 'Foreign') {
+  return VENDOR_ORIGIN_CONFIG[origin] || VENDOR_ORIGIN_CONFIG.Foreign;
+}
+
 export function generateTRSANumber(options = {}) {
   const {
     seq = '001',
@@ -301,6 +403,42 @@ export class TRSAStore {
     }]);
     this.showNotification(`Plant Location & Invoicing Address updated to ${plantData.plantName} (${plantData.code})`, 'info');
     return plantData;
+  }
+
+  updateVendorOrigin(vendorOrigin, projectId = null) {
+    const validOrigins = ['Foreign', 'Local', 'Mixed'];
+    const origin = validOrigins.includes(vendorOrigin) ? vendorOrigin : 'Foreign';
+    const proj = projectId ? this.projects.find(p => p.id === projectId) : this.getActiveProject();
+    if (!proj) return null;
+
+    const oldOrigin = proj.documentInfo.vendorOrigin || 'Foreign';
+    proj.documentInfo.vendorOrigin = origin;
+    if (!proj.commercialTerms) proj.commercialTerms = {};
+    proj.commercialTerms.vendorOrigin = origin;
+
+    const config = VENDOR_ORIGIN_CONFIG[origin];
+    if (config) {
+      // Adapt default shipment terms to match origin if using standard default
+      if (!proj.commercialTerms.shipmentTerms || 
+          proj.commercialTerms.shipmentTerms.includes('CIF / CIP') || 
+          proj.commercialTerms.shipmentTerms.includes('Franco Pabrik') || 
+          proj.commercialTerms.shipmentTerms.includes('Dual Terms')) {
+        proj.commercialTerms.shipmentTerms = config.defaultShipment;
+      }
+      // Update legal & tax provisions with tailored origin clauses
+      if (Array.isArray(config.defaultProvisions)) {
+        proj.legalAndTaxProvisions = JSON.parse(JSON.stringify(config.defaultProvisions));
+      }
+    }
+
+    this.saveProjects('VENDOR_ORIGIN_CHANGE', [{
+      category: 'Vendor Origin',
+      description: `Vendor procurement origin updated to ${origin}`,
+      from: oldOrigin,
+      to: origin
+    }]);
+    this.showNotification(`Vendor Origin updated to ${origin} (${config?.label || origin})`, 'info');
+    return config;
   }
 
   loadProjects() {
@@ -1423,6 +1561,7 @@ function renderDashboard() {
                 <th class="py-3 px-5">Tender / Agreement Title</th>
                 <th class="py-3 px-4">Doc Number</th>
                 <th class="py-3 px-4">Plant & Location</th>
+                <th class="py-3 px-4">Origin</th>
                 <th class="py-3 px-4">Status</th>
                 <th class="py-3 px-4">Progress</th>
                 <th class="py-3 px-5 text-right">Actions</th>
@@ -1432,6 +1571,7 @@ function renderDashboard() {
               ${store.projects.map(proj => {
                 const isSelected = proj.id === store.activeProjectId;
                 const progress = store.calculateProgress(proj);
+                const vendorOrigin = proj.documentInfo.vendorOrigin || 'Foreign';
                 return `
                   <tr class="hover:bg-slate-50/70 transition-colors ${isSelected ? 'bg-sky-50/30' : ''}">
                     <td class="py-3.5 px-5">
@@ -1443,6 +1583,15 @@ function renderDashboard() {
                     </td>
                     <td class="py-3.5 px-4 text-slate-500">
                       ${proj.documentInfo.plantLocation || 'Semarang Plant'}
+                    </td>
+                    <td class="py-3.5 px-4">
+                      <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase ${
+                        vendorOrigin === 'Local' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' :
+                        vendorOrigin === 'Mixed' ? 'bg-purple-50 text-purple-700 border border-purple-200' :
+                        'bg-sky-50 text-[#0284C7] border border-sky-200'
+                      }">
+                        ${vendorOrigin}
+                      </span>
                     </td>
                     <td class="py-3.5 px-4">
                       <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-semibold ${
@@ -1769,12 +1918,43 @@ function renderStep1(proj) {
             <option value="Approved" ${proj.documentInfo.status === 'Approved' ? 'selected' : ''}>Approved</option>
           </select>
         </div>
-        <div class="md:col-span-2">
+        <div>
           <label class="block text-xs font-semibold text-slate-700 mb-1">Plant Location</label>
           <select id="doc-plant-location" class="corp-select font-semibold text-slate-700">
             <option value="Semarang Plant" ${proj.documentInfo.plantLocation === 'Semarang Plant' ? 'selected' : ''}>Semarang Plant</option>
             <option value="Cikupa Plant" ${proj.documentInfo.plantLocation === 'Cikupa Plant' ? 'selected' : ''}>Cikupa Plant</option>
           </select>
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">Vendor Origin</label>
+          <select id="doc-vendor-origin" class="corp-select font-bold text-[#0B2447]">
+            <option value="Foreign" ${(proj.documentInfo.vendorOrigin || 'Foreign') === 'Foreign' ? 'selected' : ''}>Foreign (International OEM)</option>
+            <option value="Local" ${proj.documentInfo.vendorOrigin === 'Local' ? 'selected' : ''}>Local (Domestic Indonesian Vendor)</option>
+            <option value="Mixed" ${proj.documentInfo.vendorOrigin === 'Mixed' ? 'selected' : ''}>Mixed (Foreign Equipment & Local Services)</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Vendor Origin Contextual Banner -->
+      <div class="p-3.5 rounded-xl border flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs ${
+        (proj.documentInfo.vendorOrigin || 'Foreign') === 'Local' ? 'bg-emerald-50/70 border-emerald-200 text-emerald-950' :
+        (proj.documentInfo.vendorOrigin || 'Foreign') === 'Mixed' ? 'bg-purple-50/70 border-purple-200 text-purple-950' :
+        'bg-sky-50/70 border-sky-200 text-sky-950'
+      }">
+        <div class="flex items-center gap-2.5">
+          <span class="px-2.5 py-1 rounded-lg font-bold uppercase text-[10px] ${
+            (proj.documentInfo.vendorOrigin || 'Foreign') === 'Local' ? 'bg-emerald-600 text-white' :
+            (proj.documentInfo.vendorOrigin || 'Foreign') === 'Mixed' ? 'bg-purple-600 text-white' :
+            'bg-[#0284C7] text-white'
+          }">
+            ${proj.documentInfo.vendorOrigin || 'Foreign'} Sourcing
+          </span>
+          <span class="font-medium text-[11px]">
+            ${(VENDOR_ORIGIN_CONFIG[proj.documentInfo.vendorOrigin || 'Foreign'] || VENDOR_ORIGIN_CONFIG.Foreign).description}
+          </span>
+        </div>
+        <div class="font-mono text-[10px] font-bold text-slate-600 whitespace-nowrap">
+          Currency: ${(VENDOR_ORIGIN_CONFIG[proj.documentInfo.vendorOrigin || 'Foreign'] || VENDOR_ORIGIN_CONFIG.Foreign).currency}
         </div>
       </div>
 
@@ -2690,6 +2870,38 @@ function renderStep6(proj) {
         <p class="text-xs text-[#5A7184]">Payment structure, Indonesian withholding tax compliance, and 14 required seller documents.</p>
       </div>
 
+      <!-- Vendor Origin Mode Quick Toggle in Step 6 -->
+      <div class="p-4 rounded-2xl border border-slate-200 bg-slate-50/80 space-y-2">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div>
+            <div class="flex items-center gap-2">
+              <span class="w-2.5 h-2.5 rounded-full ${
+                (proj.documentInfo.vendorOrigin || 'Foreign') === 'Local' ? 'bg-emerald-500' :
+                (proj.documentInfo.vendorOrigin || 'Foreign') === 'Mixed' ? 'bg-purple-500' :
+                'bg-[#0284C7]'
+              }"></span>
+              <span class="text-xs font-bold text-[#0B2447] uppercase tracking-wider">Vendor Procurement Origin</span>
+            </div>
+            <p class="text-[11px] text-slate-500 mt-0.5">Pilihan asal vendor menentukan skema perpajakan (PPh 26 vs PPh 23), klausul pengiriman (CIF/CIP vs Franco), dan mata uang.</p>
+          </div>
+          <div class="inline-flex rounded-xl p-1 bg-white border border-slate-200 shadow-xs">
+            ${['Foreign', 'Local', 'Mixed'].map(origin => `
+              <button 
+                type="button" 
+                onclick="window.TRSA.setVendorOrigin('${origin}')" 
+                class="px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                  (proj.documentInfo.vendorOrigin || 'Foreign') === origin 
+                    ? 'bg-[#0284C7] text-white shadow-xs' 
+                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+                }"
+              >
+                ${origin}
+              </button>
+            `).join('')}
+          </div>
+        </div>
+      </div>
+
       <!-- Payment Option Radio Selector -->
       <div>
         <label class="block text-xs font-bold text-[#0B2447] uppercase tracking-wider mb-3">XIII. Term of Payment (Seller to Select One)</label>
@@ -2833,8 +3045,17 @@ function renderStudio(proj) {
             <div class="text-xs font-black tracking-widest text-[#0284C7] uppercase mb-1">Tender Requirements and Specification Agreement</div>
             <h1 class="text-xl font-black text-[#0B2447] uppercase tracking-tight">${proj.documentInfo.title}</h1>
             ${proj.documentInfo.subTitle ? `<div class="text-sm font-semibold text-[#16365C] mt-1">${proj.documentInfo.subTitle}</div>` : ''}
-            <div class="mt-2 inline-block px-3 py-1 bg-[#F0F9FF] border border-[#BAE6FD] font-mono text-xs font-bold text-[#0369A1] rounded">
-              (${proj.documentInfo.docNumber})
+            <div class="mt-2 flex items-center justify-center gap-2 flex-wrap">
+              <span class="px-3 py-1 bg-[#F0F9FF] border border-[#BAE6FD] font-mono text-xs font-bold text-[#0369A1] rounded">
+                (${proj.documentInfo.docNumber})
+              </span>
+              <span class="px-2.5 py-1 text-xs font-bold rounded uppercase tracking-wider ${
+                (proj.documentInfo.vendorOrigin || 'Foreign') === 'Local' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' :
+                (proj.documentInfo.vendorOrigin || 'Foreign') === 'Mixed' ? 'bg-purple-50 text-purple-700 border border-purple-200' :
+                'bg-sky-50 text-[#0284C7] border border-sky-200'
+              }">
+                Origin: ${proj.documentInfo.vendorOrigin || 'Foreign'} Vendor
+              </span>
             </div>
           </div>
 
@@ -3161,7 +3382,16 @@ function renderStudio(proj) {
 
           <!-- Section XIV: Shipment and Delivery -->
           <div class="mb-6">
-            <h2 class="text-xs font-bold text-[#0B2447] uppercase tracking-wider mb-2">XIV. Shipment and Delivery</h2>
+            <div class="flex items-center justify-between mb-2">
+              <h2 class="text-xs font-bold text-[#0B2447] uppercase tracking-wider">XIV. Shipment and Delivery</h2>
+              <span class="text-[10px] font-bold px-2 py-0.5 rounded uppercase tracking-wider ${
+                (proj.documentInfo.vendorOrigin || 'Foreign') === 'Local' ? 'bg-emerald-100 text-emerald-800' :
+                (proj.documentInfo.vendorOrigin || 'Foreign') === 'Mixed' ? 'bg-purple-100 text-purple-800' :
+                'bg-sky-100 text-[#0369A1]'
+              }">
+                ${proj.documentInfo.vendorOrigin || 'Foreign'} Clause
+              </span>
+            </div>
             <div class="p-3 bg-[#F4F8FC] border border-[#D6E6F2] text-xs text-slate-700 rounded leading-relaxed">
               ${proj.commercialTerms.shipmentTerms}
             </div>
@@ -3177,7 +3407,16 @@ function renderStudio(proj) {
 
           <!-- Section XVI: Administrative Provisions -->
           <div class="mb-6">
-            <h2 class="text-xs font-bold text-[#0B2447] uppercase tracking-wider mb-2">XVI. Administrative Provisions</h2>
+            <div class="flex items-center justify-between mb-2">
+              <h2 class="text-xs font-bold text-[#0B2447] uppercase tracking-wider">XVI. Administrative Provisions</h2>
+              <span class="text-[10px] font-bold px-2 py-0.5 rounded uppercase tracking-wider ${
+                (proj.documentInfo.vendorOrigin || 'Foreign') === 'Local' ? 'bg-emerald-100 text-emerald-800' :
+                (proj.documentInfo.vendorOrigin || 'Foreign') === 'Mixed' ? 'bg-purple-100 text-purple-800' :
+                'bg-sky-100 text-[#0369A1]'
+              }">
+                ${proj.documentInfo.vendorOrigin || 'Foreign'} Compliance
+              </span>
+            </div>
             <div class="space-y-2 text-xs text-slate-700">
               ${(proj.legalAndTaxProvisions || []).map(p => `
                 <div class="p-2.5 bg-slate-50 border border-slate-200 rounded">
@@ -3284,6 +3523,14 @@ function attachEventHandlers(activeProject) {
   if (docPlantLoc) {
     docPlantLoc.addEventListener('change', (e) => {
       store.updatePlantLocation(e.target.value);
+      render();
+    });
+  }
+
+  const docVendorOrigin = document.getElementById('doc-vendor-origin');
+  if (docVendorOrigin) {
+    docVendorOrigin.addEventListener('change', (e) => {
+      store.updateVendorOrigin(e.target.value);
       render();
     });
   }
@@ -3448,6 +3695,10 @@ if (typeof window !== 'undefined') {
   },
   syncDocNumberFromGenerator() {
     window.TRSA.autoGenerateDocNumber();
+  },
+  setVendorOrigin(origin) {
+    store.updateVendorOrigin(origin);
+    render();
   },
   deleteProject(id) {
     store.deleteProject(id);

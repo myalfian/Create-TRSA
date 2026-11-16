@@ -8,6 +8,7 @@ export const defaultTRSAProject = {
     status: "Published", // Draft, Under Review, Tender Published, Bid Received, Awarded
     category: "Food Processing Machinery",
     plantLocation: "Semarang Plant",
+    vendorOrigin: "Foreign", // "Foreign" | "Local" | "Mixed"
     companyName: "PT. Indofood Fortuna Makmur",
     revisionHistory: [
       {
@@ -440,6 +441,7 @@ export const defaultTRSAProject = {
         ]
       }
     },
+    vendorOrigin: "Foreign",
     engineeringServicesPayment: "100% by T/T after machine running with signed acceptance certificate.",
     shipmentTerms: "CIF / CIP Semarang Port, Indonesia. Endorsed Marine Insurance ICC A/AIR for at least 110% invoice value payable to Bank Central Asia (BCA) in Jakarta. Carrying vessel must not be older than 25 years.",
     warranty: "Minimum 12 months continuous operation after final site acceptance, with phone support during office hours.",

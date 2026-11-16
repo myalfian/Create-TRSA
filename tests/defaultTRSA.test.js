@@ -142,4 +142,9 @@ describe('TRSA Indofood Document Specification Matrix Tests', () => {
     assert.ok(titles.includes('Halal Compliance Documentation'));
     assert.ok(titles.includes('Equipment Layout (DWG)'));
   });
+
+  test('Verify Vendor Origin Sourcing Options (Foreign, Local, Mixed)', () => {
+    assert.strictEqual(defaultTRSAProject.documentInfo.vendorOrigin, 'Foreign', 'Default vendor origin should be Foreign');
+    assert.strictEqual(defaultTRSAProject.commercialTerms.vendorOrigin, 'Foreign');
+  });
 });
