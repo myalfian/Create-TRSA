@@ -103,9 +103,20 @@ export function parseTRSANumber(docNum = '') {
 }
 
 // Application State Management
-class TRSAStore {
+export class TRSAStore {
   constructor() {
     this.STORAGE_KEY = 'TRSA_ENTERPRISE_PROJECTS_V1';
+    this.USER_STORAGE_KEY = 'TRSA_LOGGED_IN_USER_V1';
+    this.teamMembers = [
+      { name: "Moh Yusuf Alfian", email: "my.alfian@icbp.indofood.co.id", role: "Project & Engineering Manager", initials: "MYA", dept: "MFG" },
+      { name: "Refin A Putra", email: "refin.putra@icbp.indofood.co.id", role: "Project Engineer", initials: "RAP", dept: "MFG" },
+      { name: "Natalia Happy", email: "natalia.happy@icbp.indofood.co.id", role: "Purchasing Supervisor", initials: "NH", dept: "PUR" },
+      { name: "Murdani", email: "m.murdani@icbp.indofood.co.id", role: "Project & Engineering", initials: "M", dept: "MFG" },
+      { name: "Ayodya Maulana Gunoro", email: "ayodya.gunoro@icbp.indofood.co.id", role: "Project & Engineering", initials: "AMG", dept: "MFG" },
+      { name: "Dany Taufiq Alim Ansori", email: "dany.ansori@icbp.indofood.co.id", role: "Project & Engineering", initials: "DTAA", dept: "MFG" }
+    ];
+    this.currentUser = this.loadUser();
+    this.showUserMenu = false;
     this.projects = this.loadProjects();
     this.activeProjectId = this.projects[0]?.id || 'trsa-006-ifm-2024';
     this.currentView = 'dashboard'; // 'dashboard' | 'projects' | 'builder' | 'studio'
@@ -115,6 +126,38 @@ class TRSAStore {
     this.plantFilter = 'all';
     this.watermark = 'OFFICIAL';
     this.notification = null;
+  }
+
+  loadUser() {
+    try {
+      if (typeof localStorage !== 'undefined') {
+        const saved = localStorage.getItem(this.USER_STORAGE_KEY);
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (parsed && parsed.name) return parsed;
+        }
+      }
+    } catch (e) {}
+    return this.teamMembers[0];
+  }
+
+  setCurrentUser(user) {
+    if (typeof user === 'string') {
+      const found = this.teamMembers.find(m => m.name.toLowerCase() === user.toLowerCase());
+      this.currentUser = found || { name: user, email: '', role: 'Project Engineer', initials: getInitials(user), dept: 'MFG' };
+    } else if (user && user.name) {
+      this.currentUser = user;
+    }
+    try {
+      if (typeof localStorage !== 'undefined') {
+        localStorage.setItem(this.USER_STORAGE_KEY, JSON.stringify(this.currentUser));
+      }
+    } catch (e) {}
+    this.showNotification(`Active user session: ${this.currentUser.name} (${this.currentUser.role})`, 'info');
+  }
+
+  getCurrentUser() {
+    return this.currentUser || this.teamMembers[0];
   }
 
   loadProjects() {
@@ -155,7 +198,8 @@ class TRSAStore {
     return this.projects.find(p => p.id === this.activeProjectId) || this.projects[0];
   }
 
-  createProject(title = 'New TRSA Project', creator = 'Refin A Putra', plant = 'Semarang Plant') {
+  createProject(title = 'New TRSA Project', creator = null, plant = 'Semarang Plant') {
+    const author = creator || this.currentUser?.name || 'Moh Yusuf Alfian';
     const newProj = JSON.parse(JSON.stringify(defaultTRSAProject));
     newProj.id = 'trsa-' + Date.now();
     newProj.documentInfo.title = title;
@@ -168,16 +212,16 @@ class TRSAStore {
     newProj.documentInfo.plantLocation = plant;
     newProj.documentInfo.docNumber = generateTRSANumber({
       seq: nextSeq,
-      creatorName: creator,
+      creatorName: author,
       plantCode: plantCode,
-      dept: 'MFG',
+      dept: this.currentUser?.dept || 'MFG',
       date: now
     });
     newProj.documentInfo.status = 'Draft';
     newProj.documentInfo.revisionHistory = [{
       revision: '0.0',
       description: 'First Document Draft',
-      originatedBy: creator,
+      originatedBy: author,
       date: dateStr
     }];
     this.projects.unshift(newProj);
@@ -196,7 +240,7 @@ class TRSAStore {
     cloned.documentInfo.title = cloned.documentInfo.title + ' (Copy)';
     
     const nextSeq = getNextSequenceNumber(this.projects);
-    const creator = cloned.documentInfo.revisionHistory?.[0]?.originatedBy || 'Refin A Putra';
+    const creator = this.currentUser?.name || cloned.documentInfo.revisionHistory?.[0]?.originatedBy || 'Moh Yusuf Alfian';
     const parsed = parseTRSANumber(cloned.documentInfo.docNumber);
     const plantCode = parsed?.plantCode || getPlantCode(cloned.documentInfo.plantLocation);
     const dept = parsed?.dept || 'MFG';
@@ -209,6 +253,12 @@ class TRSAStore {
       date: new Date()
     });
     cloned.documentInfo.status = 'Draft';
+    cloned.documentInfo.revisionHistory = [{
+      revision: '0.0',
+      description: 'Cloned Document Copy',
+      originatedBy: creator,
+      date: new Date().toISOString().split('T')[0]
+    }];
     this.projects.unshift(cloned);
     this.activeProjectId = cloned.id;
     this.saveProjects();
@@ -267,6 +317,62 @@ class TRSAStore {
     } catch (e) {
       alert('Failed to parse JSON file. Please ensure it is a valid TRSA project export.');
     }
+  }
+
+  addRevisionRow(projectId = null) {
+    const proj = projectId ? this.projects.find(p => p.id === projectId) : this.getActiveProject();
+    if (!proj) return null;
+    if (!proj.documentInfo) proj.documentInfo = {};
+    if (!Array.isArray(proj.documentInfo.revisionHistory)) proj.documentInfo.revisionHistory = [];
+    
+    const count = proj.documentInfo.revisionHistory.length;
+    const revNum = count === 0 ? '0.0' : `0.${count}`;
+    const today = new Date().toISOString().split('T')[0];
+    const author = this.getCurrentUser().name;
+
+    const newRev = {
+      revision: revNum,
+      description: 'Engineering Revision Update',
+      originatedBy: author,
+      date: today
+    };
+
+    proj.documentInfo.revisionHistory.push(newRev);
+    this.saveProjects();
+    this.showNotification(`Added new Revision ${revNum} by ${author}`, 'info');
+    return newRev;
+  }
+
+  stampRevisionRow(idx, projectId = null) {
+    const proj = projectId ? this.projects.find(p => p.id === projectId) : this.getActiveProject();
+    if (!proj || !proj.documentInfo?.revisionHistory || !proj.documentInfo.revisionHistory[idx]) return false;
+    
+    const today = new Date().toISOString().split('T')[0];
+    const author = this.getCurrentUser().name;
+    const rev = proj.documentInfo.revisionHistory[idx];
+
+    rev.originatedBy = author;
+    rev.date = today;
+    this.saveProjects();
+    this.showNotification(`Revision ${rev.revision} updated: Originated By ${author}, Date ${today}`, 'success');
+    return true;
+  }
+
+  saveRevisionHistory(projectId = null) {
+    const proj = projectId ? this.projects.find(p => p.id === projectId) : this.getActiveProject();
+    const today = new Date().toISOString().split('T')[0];
+    const author = this.getCurrentUser().name;
+    
+    if (proj?.documentInfo?.revisionHistory?.length > 0) {
+      // Auto-stamp the latest revision row's date and author
+      const latestRev = proj.documentInfo.revisionHistory[proj.documentInfo.revisionHistory.length - 1];
+      latestRev.date = today;
+      if (!latestRev.originatedBy || latestRev.originatedBy === 'Engineering Team') {
+        latestRev.originatedBy = author;
+      }
+    }
+    this.saveProjects();
+    return true;
   }
 
   calculateProgress(proj) {
@@ -463,16 +569,19 @@ function renderSidebar(activeProject) {
         </nav>
       </div>
 
-      <!-- User & Footer Info -->
+      <!-- User & Footer Info (Current Logged-in Session) -->
       <div class="p-4 border-t border-white/20">
-        <div class="flex items-center gap-3">
-          <div class="w-8 h-8 rounded-full bg-white flex items-center justify-center text-xs font-black text-[#0284C7] shadow-md">
-            IFM
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-3 truncate cursor-pointer" onclick="window.TRSA.toggleUserMenu()" title="Logged in as: ${store.currentUser.name} (${store.currentUser.role}) - Click to switch">
+            <div class="w-8 h-8 rounded-full bg-white flex items-center justify-center text-xs font-black text-[#0284C7] shadow-md flex-shrink-0">
+              ${store.currentUser.initials}
+            </div>
+            <div class="truncate">
+              <div class="text-xs font-bold text-white truncate">${store.currentUser.name}</div>
+              <div class="text-[10px] text-sky-100 truncate">${store.currentUser.role}</div>
+            </div>
           </div>
-          <div class="truncate">
-            <div class="text-xs font-bold text-white truncate">PT Indofood Fortuna</div>
-            <div class="text-[10px] text-sky-100 truncate">Engineering & Machinery</div>
-          </div>
+          <span class="w-2.5 h-2.5 rounded-full bg-[#10B981] shadow-xs flex-shrink-0 ml-1.5" title="Logged in & Active"></span>
         </div>
       </div>
     </aside>
@@ -527,6 +636,53 @@ function renderHeader(activeProject) {
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
           <input type="file" id="import-file-input" accept=".json" class="hidden" />
         </label>
+
+        <!-- User Session Profile & Switcher -->
+        <div class="relative ml-1 pl-3 border-l border-slate-200">
+          <button 
+            type="button" 
+            onclick="window.TRSA.toggleUserMenu()" 
+            class="flex items-center gap-2 px-2.5 py-1.5 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-xl transition-all cursor-pointer shadow-xs"
+            title="Active Login: ${store.currentUser.name} (${store.currentUser.role}) - Click to switch"
+          >
+            <div class="w-6 h-6 rounded-full bg-[#0284C7] text-white flex items-center justify-center text-[10px] font-extrabold shadow-xs">
+              ${store.currentUser.initials}
+            </div>
+            <div class="text-left hidden sm:block">
+              <div class="text-[11px] font-bold text-slate-800 leading-tight">${store.currentUser.name}</div>
+              <div class="text-[9px] text-[#0284C7] font-semibold leading-tight flex items-center gap-1">
+                <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                <span>Active User</span>
+              </div>
+            </div>
+            <svg class="w-3 h-3 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+          </button>
+
+          <!-- User Switcher Dropdown Menu -->
+          <div id="user-switcher-dropdown" class="${store.showUserMenu ? '' : 'hidden'} absolute right-0 mt-2 w-72 bg-white border border-slate-200 rounded-2xl shadow-xl z-50 p-2 space-y-1">
+            <div class="px-3 py-2 border-b border-slate-100 flex items-center justify-between">
+              <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Team Login Session</span>
+              <span class="text-[9px] font-bold bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded-full border border-emerald-200">Online</span>
+            </div>
+            ${store.teamMembers.map(m => `
+              <button 
+                type="button" 
+                onclick="window.TRSA.switchUser('${m.name}')" 
+                class="w-full text-left px-3 py-2 rounded-xl text-xs flex items-center justify-between transition-colors ${
+                  m.name === store.currentUser.name 
+                    ? 'bg-sky-50 text-[#0284C7] font-bold border border-sky-100' 
+                    : 'text-slate-700 hover:bg-slate-50 font-medium'
+                }"
+              >
+                <div>
+                  <div class="text-xs font-bold">${m.name}</div>
+                  <div class="text-[10px] text-slate-500">${m.role} &bull; ${m.dept}</div>
+                </div>
+                ${m.name === store.currentUser.name ? '<span class="text-xs font-bold text-[#0284C7]">✓</span>' : ''}
+              </button>
+            `).join('')}
+          </div>
+        </div>
       </div>
     </header>
   `;
@@ -1162,35 +1318,137 @@ function renderStep1(proj) {
         </div>
       </div>
 
-      <!-- Revision History Table -->
-      <div>
-        <div class="flex items-center justify-between mb-2">
-          <label class="text-xs font-bold text-[#0B2447] uppercase tracking-wider">I. Revision History</label>
-          <button type="button" onclick="window.TRSA.addRevisionRow()" class="text-xs font-bold text-[#0284C7] hover:text-[#0369A1]">+ Add Revision</button>
+      <!-- Section I: Revision History Matrix -->
+      <div class="space-y-3">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2 border-b border-slate-200">
+          <div>
+            <div class="flex items-center gap-2">
+              <span class="w-2.5 h-2.5 rounded-full bg-[#0284C7] animate-pulse"></span>
+              <label class="text-xs font-bold text-[#0F172A] uppercase tracking-wider">I. Revision History Matrix</label>
+              <span class="text-[10px] bg-sky-50 text-[#0284C7] border border-sky-200 px-2.5 py-0.5 rounded-full font-bold">
+                Auto-User & Auto-Date on Save
+              </span>
+            </div>
+            <p class="text-[11px] text-slate-500 mt-0.5">
+              <strong class="text-slate-700">Originated By</strong> otomatis terisi dengan user aktif yang login (<span class="font-bold text-[#0284C7]">${store.currentUser.name}</span>), dan <strong class="text-slate-700">Date</strong> terisi otomatis tanggal hari ini saat revisi disimpan.
+            </p>
+          </div>
+          <div class="flex items-center gap-2">
+            <button type="button" onclick="window.TRSA.addRevisionRow()" class="btn-capiclean-primary inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold transition-all shadow-xs">
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"/></svg>
+              + Add Revision Row
+            </button>
+          </div>
         </div>
-        <div class="overflow-x-auto border border-[#E0ECF6] rounded-xl overflow-hidden">
+
+        <div class="overflow-x-auto border border-slate-200 rounded-xl overflow-hidden shadow-xs bg-white">
           <table class="w-full text-left text-xs">
-            <thead class="bg-[#0B2447] text-white font-bold">
+            <thead class="bg-[#0F2942] text-white font-bold text-[11px] uppercase tracking-wider">
               <tr>
-                <th class="p-2.5">Revision</th>
-                <th class="p-2.5">Description</th>
-                <th class="p-2.5">Originated By</th>
-                <th class="p-2.5">Date</th>
-                <th class="p-2.5 text-right">Action</th>
+                <th class="py-3 px-3.5 w-24">Revision</th>
+                <th class="py-3 px-3.5">Description of Changes</th>
+                <th class="py-3 px-3.5 w-72">Originated By (User Login)</th>
+                <th class="py-3 px-3.5 w-56">Date (Auto on Save)</th>
+                <th class="py-3 px-3.5 text-right w-24">Action</th>
               </tr>
             </thead>
-            <tbody id="revision-rows" class="divide-y divide-[#E0ECF6]">
-              ${proj.documentInfo.revisionHistory.map((rev, i) => `
-                <tr class="hover:bg-[#F0F9FF]">
-                  <td class="p-2"><input type="text" value="${rev.revision}" data-rev-idx="${i}" data-field="revision" class="w-20 p-1.5 border border-[#E0ECF6] rounded-lg text-xs font-mono font-bold text-[#0369A1]" /></td>
-                  <td class="p-2"><input type="text" value="${rev.description}" data-rev-idx="${i}" data-field="description" class="w-full p-1.5 border border-[#E0ECF6] rounded-lg text-xs" /></td>
-                  <td class="p-2"><input type="text" value="${rev.originatedBy}" data-rev-idx="${i}" data-field="originatedBy" class="w-full p-1.5 border border-[#E0ECF6] rounded-lg text-xs" /></td>
-                  <td class="p-2"><input type="date" value="${rev.date}" data-rev-idx="${i}" data-field="date" class="p-1.5 border border-[#E0ECF6] rounded-lg text-xs" /></td>
-                  <td class="p-2 text-right">
-                    <button type="button" onclick="window.TRSA.removeRevisionRow(${i})" class="text-red-500 font-bold px-2 py-1 hover:bg-red-50 rounded-lg">&times;</button>
+            <tbody id="revision-rows" class="divide-y divide-slate-200">
+              ${proj.documentInfo.revisionHistory.map((rev, i) => {
+                const isUserMatch = rev.originatedBy === store.currentUser.name;
+                return `
+                <tr class="hover:bg-sky-50/30 transition-colors">
+                  <td class="p-2.5 align-top">
+                    <input 
+                      type="text" 
+                      value="${rev.revision}" 
+                      data-rev-idx="${i}" 
+                      data-field="revision" 
+                      class="w-full p-2 border border-slate-200 rounded-lg text-xs font-mono font-bold text-[#0369A1] bg-slate-50 focus:bg-white focus:border-[#0284C7]" 
+                    />
+                  </td>
+                  <td class="p-2.5 align-top">
+                    <input 
+                      type="text" 
+                      value="${rev.description}" 
+                      data-rev-idx="${i}" 
+                      data-field="description" 
+                      placeholder="e.g. Specification update, scope amendment, trial notes..."
+                      class="w-full p-2 border border-slate-200 rounded-lg text-xs font-medium text-slate-800 bg-white focus:border-[#0284C7]" 
+                    />
+                  </td>
+                  <td class="p-2.5 align-top">
+                    <div class="space-y-1">
+                      <div class="flex items-center gap-1.5">
+                        <input 
+                          type="text" 
+                          value="${rev.originatedBy || store.currentUser.name}" 
+                          data-rev-idx="${i}" 
+                          data-field="originatedBy" 
+                          class="w-full p-2 border border-slate-200 rounded-lg text-xs font-bold text-slate-800 bg-slate-50 focus:bg-white focus:border-[#0284C7]" 
+                        />
+                        <button 
+                          type="button" 
+                          onclick="window.TRSA.stampRevisionRow(${i})" 
+                          title="Sinkronkan dengan user login (${store.currentUser.name})" 
+                          class="p-2 bg-sky-50 hover:bg-sky-100 text-[#0284C7] border border-sky-200 rounded-lg text-[11px] font-bold whitespace-nowrap transition-all shadow-xs"
+                        >
+                          Auto Set
+                        </button>
+                      </div>
+                      <div class="flex items-center gap-1.5 text-[10px] text-slate-500 font-medium">
+                        <span class="w-1.5 h-1.5 rounded-full ${isUserMatch ? 'bg-emerald-500' : 'bg-amber-500'}"></span>
+                        <span>${isUserMatch ? 'Current Logged-in User' : 'Author: ' + rev.originatedBy}</span>
+                      </div>
+                    </div>
+                  </td>
+                  <td class="p-2.5 align-top">
+                    <div class="space-y-1">
+                      <div class="flex items-center gap-1.5">
+                        <input 
+                          type="date" 
+                          value="${rev.date}" 
+                          data-rev-idx="${i}" 
+                          data-field="date" 
+                          class="w-full p-2 border border-slate-200 rounded-lg text-xs font-mono font-semibold text-slate-800 bg-slate-50 focus:bg-white focus:border-[#0284C7]" 
+                        />
+                        <button 
+                          type="button" 
+                          onclick="window.TRSA.stampRevisionRow(${i})" 
+                          title="Perbarui tanggal ke hari ini (${new Date().toISOString().split('T')[0]})" 
+                          class="p-2 bg-emerald-50 hover:bg-emerald-100 text-[#059669] border border-emerald-200 rounded-lg text-[11px] font-bold whitespace-nowrap transition-all shadow-xs"
+                        >
+                          Today
+                        </button>
+                      </div>
+                      <div class="flex items-center gap-1 text-[10px] text-slate-400 font-medium">
+                        <svg class="w-3 h-3 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                        <span>Auto-updated saat disimpan</span>
+                      </div>
+                    </div>
+                  </td>
+                  <td class="p-2.5 align-top text-right space-x-1 whitespace-nowrap">
+                    <button 
+                      type="button" 
+                      onclick="window.TRSA.stampRevisionRow(${i})" 
+                      title="Simpan baris revisi ini dengan tanggal & user saat ini" 
+                      class="text-xs px-2.5 py-1.5 bg-sky-50 text-[#0284C7] hover:bg-sky-100 rounded-lg font-bold border border-sky-200 transition-all shadow-xs"
+                    >
+                      Save
+                    </button>
+                    ${i > 0 ? `
+                      <button 
+                        type="button" 
+                        onclick="window.TRSA.removeRevisionRow(${i})" 
+                        title="Hapus baris revisi" 
+                        class="text-xs px-2 py-1.5 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-lg font-bold transition-all"
+                      >
+                        &times;
+                      </button>
+                    ` : ''}
                   </td>
                 </tr>
-              `).join('')}
+                `;
+              }).join('')}
             </tbody>
           </table>
         </div>
@@ -1336,7 +1594,8 @@ function renderStep3(proj) {
                 <div class="text-[10px] text-[#0284C7] font-bold uppercase">Moisture Content (Out)</div>
                 <input type="text" value="${p.moistureOutput}" data-prod-idx="${i}" data-field="moistureOutput" class="w-full mt-1 font-mono font-bold text-[#0284C7] focus:outline-none" />
               </div>
-              <div class="bg-white p-2.5 rounded-xl border border-[#FF7A00] font-bold uppercase">Oil Content (Out)</div>
+              <div class="bg-white p-2.5 rounded-xl border border-[#E0ECF6]">
+                <div class="text-[10px] text-[#FF7A00] font-bold uppercase">Oil Content (Out)</div>
                 <input type="text" value="${p.oilContentOutput}" data-prod-idx="${i}" data-field="oilContentOutput" class="w-full mt-1 font-mono font-bold text-[#FF7A00] focus:outline-none" />
               </div>
             </div>
@@ -2312,22 +2571,33 @@ if (typeof window !== 'undefined') {
     store.watermark = w;
     render();
   },
+  toggleUserMenu() {
+    store.showUserMenu = !store.showUserMenu;
+    render();
+  },
+  switchUser(name) {
+    store.setCurrentUser(name);
+    store.showUserMenu = false;
+    render();
+  },
+  stampRevisionRow(idx) {
+    store.stampRevisionRow(idx);
+    render();
+  },
   saveCurrentForm() {
-    store.saveProjects();
+    store.saveRevisionHistory();
+    render();
   },
   addRevisionRow() {
-    const p = store.getActiveProject();
-    p.documentInfo.revisionHistory.push({
-      revision: `0.${p.documentInfo.revisionHistory.length}`,
-      description: 'Engineering Revision Update',
-      originatedBy: 'Engineering Team',
-      date: new Date().toISOString().split('T')[0]
-    });
+    store.addRevisionRow();
     render();
   },
   removeRevisionRow(idx) {
     const p = store.getActiveProject();
-    p.documentInfo.revisionHistory.splice(idx, 1);
+    if (p.documentInfo?.revisionHistory) {
+      p.documentInfo.revisionHistory.splice(idx, 1);
+      store.saveProjects();
+    }
     render();
   },
   addContactRow() {
