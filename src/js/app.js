@@ -1755,116 +1755,422 @@ function renderStep2(proj) {
 }
 
 // Sub-step 3: Product Specifications Matrix & Process Parameters
+// Interactive Visual Engineering Canvas with Product Shape Diagrams, Specifications Matrix & Benchmarks
 function renderStep3(proj) {
+  if (typeof store.selectedProductIdx !== 'number' || store.selectedProductIdx >= proj.productSpecifications.length) {
+    store.selectedProductIdx = 0;
+  }
+  const selIdx = store.selectedProductIdx;
+  const activeProd = proj.productSpecifications[selIdx] || proj.productSpecifications[0];
+
   return `
-    <div class="dropx-card p-6 bg-white border border-[#E0ECF6] space-y-6">
-      <div class="border-b border-[#E0ECF6] pb-4 flex items-center justify-between">
+    <div class="space-y-6">
+      <!-- Top Header & Action Bar -->
+      <div class="dropx-card p-6 bg-white border border-[#E0ECF6] flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h2 class="text-base font-bold text-[#0B2447]">Product Specifications & Process Parameters</h2>
-          <p class="text-xs text-[#5A7184]">Dimensions, moisture content, bulk density, oil uptake, and frying temperatures.</p>
+          <div class="flex items-center gap-2">
+            <span class="w-2.5 h-2.5 rounded-full bg-[#0284C7] animate-pulse"></span>
+            <span class="text-[10px] font-mono px-2.5 py-0.5 bg-[#E0F2FE] text-[#0284C7] rounded-full font-bold uppercase">
+              Step 3 &bull; Section VII
+            </span>
+            <span class="text-xs text-[#5A7184] font-medium">Interactive Technical Specification Canvas</span>
+          </div>
+          <h2 class="text-lg font-bold text-[#0B2447] mt-1">Product Specifications & Process Parameters Canvas</h2>
+          <p class="text-xs text-[#5A7184]">Interactive visual diagram, 2D/3D geometry matrix, physical benchmarks, and continuous process parameters.</p>
         </div>
-        <button type="button" onclick="window.TRSA.addProductRow()" class="btn-capiclean-primary text-xs font-bold px-3 py-1.5 transition-all">
-          + Add Product Shape
-        </button>
+        <div class="flex items-center gap-2">
+          <button type="button" onclick="window.TRSA.addProductRow()" class="btn-capiclean-primary text-xs font-bold px-3.5 py-2 transition-all flex items-center gap-1.5 shadow-xs">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"/></svg>
+            + Add Product Variant
+          </button>
+        </div>
       </div>
 
-      <!-- Products Matrix -->
-      <div class="space-y-4">
-        ${proj.productSpecifications.map((p, i) => `
-          <div class="border border-[#E0ECF6] rounded-2xl p-4 bg-[#F8FBFE] hover:border-[#0284C7] transition-all">
-            <div class="flex items-center justify-between mb-3">
-              <div class="flex items-center gap-2">
-                <span class="w-6 h-6 rounded-full bg-[#0284C7] text-white flex items-center justify-center text-xs font-bold">${i + 1}</span>
-                <input type="text" value="${p.shape}" data-prod-idx="${i}" data-field="shape" class="font-bold text-[#0B2447] text-sm bg-transparent border-b border-dashed border-[#BAE6FD] focus:outline-none focus:border-[#0284C7] px-1 py-0.5" />
+      <!-- MAIN INTERACTIVE PRODUCT SPECIFICATION CANVAS -->
+      <div class="dropx-card p-6 bg-white border border-[#E0ECF6] shadow-sm space-y-6">
+        <!-- Canvas Navigation Selector / Product Tabs -->
+        <div>
+          <div class="flex items-center justify-between mb-2">
+            <label class="text-[11px] font-bold text-[#0B2447] uppercase tracking-wider flex items-center gap-2">
+              <svg class="w-4 h-4 text-[#0284C7]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"/></svg>
+              Select Product Shape Canvas:
+            </label>
+            <span class="text-[11px] text-[#5A7184] font-medium">${proj.productSpecifications.length} registered pellet variants</span>
+          </div>
+          
+          <div class="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+            ${proj.productSpecifications.map((p, idx) => `
+              <button 
+                type="button" 
+                onclick="window.TRSA.selectProductCanvas(${idx})"
+                class="p-3 rounded-2xl border text-left transition-all relative ${
+                  selIdx === idx 
+                    ? 'bg-[#0284C7] text-white border-[#0284C7] shadow-md shadow-sky-500/20' 
+                    : 'bg-[#F8FBFE] hover:bg-sky-50 text-[#0B2447] border-[#E0ECF6]'
+                }"
+              >
+                <div class="flex items-center justify-between mb-1">
+                  <span class="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full ${
+                    selIdx === idx ? 'bg-white/20 text-white' : 'bg-[#E0F2FE] text-[#0284C7]'
+                  }">Shape #${idx + 1}</span>
+                  ${proj.productSpecifications.length > 1 ? `
+                    <span 
+                      onclick="event.stopPropagation(); window.TRSA.removeProductRow(${idx})" 
+                      title="Delete this shape"
+                      class="text-xs cursor-pointer hover:scale-110 px-1 font-bold ${
+                        selIdx === idx ? 'text-white/80 hover:text-white' : 'text-red-400 hover:text-red-600'
+                      }"
+                    >&times;</span>
+                  ` : ''}
+                </div>
+                <div class="text-xs font-bold truncate">${p.shape}</div>
+                <div class="text-[10px] font-mono mt-0.5 opacity-80 truncate">${p.capacityOutput || '600 Kg/h'}</div>
+              </button>
+            `).join('')}
+          </div>
+        </div>
+
+        <!-- VISUAL CANVAS VIEWPORT (Image, SVG Diagram, Dimension Overlay & Live Preview) -->
+        <div class="border-2 border-[#BAE6FD] bg-gradient-to-br from-slate-900 via-[#0B2447] to-[#0284C7] rounded-3xl p-6 text-white relative overflow-hidden shadow-inner">
+          <div class="absolute -top-16 -right-16 w-64 h-64 bg-sky-400/20 rounded-full blur-3xl pointer-events-none"></div>
+          <div class="absolute -bottom-16 -left-16 w-64 h-64 bg-amber-400/15 rounded-full blur-3xl pointer-events-none"></div>
+
+          <div class="relative z-10 grid grid-cols-1 lg:grid-cols-12 gap-6 items-center">
+            <!-- Left: Visual Shape Geometry Canvas Graphic -->
+            <div class="lg:col-span-5 flex flex-col items-center justify-center p-4 bg-white/10 backdrop-blur-md rounded-2xl border border-white/20 text-center">
+              <div class="w-full flex items-center justify-between text-[10px] uppercase font-bold text-sky-200 mb-2">
+                <span>3D Geometry Rendering</span>
+                <span class="px-2 py-0.5 bg-emerald-500/20 text-emerald-300 border border-emerald-400/30 rounded-full font-mono">Live SVG</span>
               </div>
-              <button type="button" onclick="window.TRSA.removeProductRow(${i})" class="text-xs text-red-500 font-semibold hover:underline">Delete Shape</button>
+              
+              <!-- Dynamic Shape Visual Representation -->
+              <div class="w-full h-44 flex items-center justify-center relative my-2">
+                ${
+                  activeProd.shape.toLowerCase().includes('chicken') ? `
+                    <!-- 3D Chicken Leg Shape Graphic -->
+                    <svg class="w-40 h-40 filter drop-shadow-[0_10px_15px_rgba(0,0,0,0.5)]" viewBox="0 0 160 160" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <defs>
+                        <linearGradient id="chickGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                          <stop offset="0%" stop-color="#FCD34D"/>
+                          <stop offset="50%" stop-color="#F59E0B"/>
+                          <stop offset="100%" stop-color="#D97706"/>
+                        </linearGradient>
+                      </defs>
+                      <!-- Chicken drumstick bulbous body -->
+                      <path d="M45 40 C30 55, 30 90, 55 105 C75 118, 100 100, 110 85 C120 70, 110 40, 85 30 C65 20, 55 30, 45 40 Z" fill="url(#chickGrad)" stroke="#B45309" stroke-width="2.5"/>
+                      <!-- Perforation holes -->
+                      <circle cx="65" cy="55" r="3" fill="#92400E" opacity="0.6"/>
+                      <circle cx="85" cy="55" r="3" fill="#92400E" opacity="0.6"/>
+                      <circle cx="55" cy="75" r="3.5" fill="#92400E" opacity="0.6"/>
+                      <circle cx="75" cy="75" r="3" fill="#92400E" opacity="0.6"/>
+                      <circle cx="95" cy="75" r="3" fill="#92400E" opacity="0.6"/>
+                      <circle cx="70" cy="92" r="3" fill="#92400E" opacity="0.6"/>
+                      <!-- Bone handle / stem -->
+                      <path d="M105 90 L135 120 C138 123, 142 120, 145 117 C148 114, 145 110, 142 107 L112 77 Z" fill="#FEF3C7" stroke="#D97706" stroke-width="2"/>
+                      <circle cx="140" cy="116" r="6" fill="#FEF3C7" stroke="#D97706" stroke-width="1.5"/>
+                      <circle cx="132" cy="124" r="5" fill="#FEF3C7" stroke="#D97706" stroke-width="1.5"/>
+                    </svg>
+                  ` : activeProd.shape.toLowerCase().includes('golgappa') ? `
+                    <!-- 3D Hollow Golgappa Sphere -->
+                    <svg class="w-40 h-40 filter drop-shadow-[0_10px_15px_rgba(0,0,0,0.5)]" viewBox="0 0 160 160" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <defs>
+                        <radialGradient id="sphereGrad" cx="35%" cy="35%" r="65%">
+                          <stop offset="0%" stop-color="#FEF08A"/>
+                          <stop offset="45%" stop-color="#F59E0B"/>
+                          <stop offset="100%" stop-color="#B45309"/>
+                        </radialGradient>
+                      </defs>
+                      <circle cx="80" cy="80" r="55" fill="url(#sphereGrad)" stroke="#92400E" stroke-width="2.5"/>
+                      <ellipse cx="65" cy="65" rx="18" ry="10" fill="#FEF9C3" opacity="0.5" transform="rotate(-25 65 65)"/>
+                      <ellipse cx="80" cy="80" rx="42" ry="20" fill="none" stroke="#78350F" stroke-width="1.5" stroke-dasharray="4 3" opacity="0.5"/>
+                    </svg>
+                  ` : activeProd.shape.toLowerCase().includes('star') ? `
+                    <!-- 3D Star / Flower Shape -->
+                    <svg class="w-40 h-40 filter drop-shadow-[0_10px_15px_rgba(0,0,0,0.5)]" viewBox="0 0 160 160" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <defs>
+                        <linearGradient id="starGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                          <stop offset="0%" stop-color="#FDE68A"/>
+                          <stop offset="50%" stop-color="#F59E0B"/>
+                          <stop offset="100%" stop-color="#B45309"/>
+                        </linearGradient>
+                      </defs>
+                      <path d="M80 20 L94 58 L135 60 L103 85 L114 125 L80 102 L46 125 L57 85 L25 60 L66 58 Z" fill="url(#starGrad)" stroke="#92400E" stroke-width="2.5"/>
+                      <circle cx="80" cy="78" r="14" fill="#FEF3C7" stroke="#B45309" stroke-width="1.5"/>
+                    </svg>
+                  ` : `
+                    <!-- 2D Pierced Round Mesh Chip -->
+                    <svg class="w-40 h-40 filter drop-shadow-[0_10px_15px_rgba(0,0,0,0.5)]" viewBox="0 0 160 160" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <defs>
+                        <radialGradient id="meshGrad" cx="40%" cy="40%" r="60%">
+                          <stop offset="0%" stop-color="#FEF08A"/>
+                          <stop offset="60%" stop-color="#F59E0B"/>
+                          <stop offset="100%" stop-color="#B45309"/>
+                        </radialGradient>
+                      </defs>
+                      <circle cx="80" cy="80" r="54" fill="url(#meshGrad)" stroke="#78350F" stroke-width="2.5"/>
+                      <!-- Perforations grid -->
+                      <circle cx="60" cy="60" r="4" fill="#78350F" opacity="0.6"/>
+                      <circle cx="80" cy="60" r="4" fill="#78350F" opacity="0.6"/>
+                      <circle cx="100" cy="60" r="4" fill="#78350F" opacity="0.6"/>
+                      <circle cx="60" cy="80" r="4" fill="#78350F" opacity="0.6"/>
+                      <circle cx="80" cy="80" r="5" fill="#78350F" opacity="0.7"/>
+                      <circle cx="100" cy="80" r="4" fill="#78350F" opacity="0.6"/>
+                      <circle cx="60" cy="100" r="4" fill="#78350F" opacity="0.6"/>
+                      <circle cx="80" cy="100" r="4" fill="#78350F" opacity="0.6"/>
+                      <circle cx="100" cy="100" r="4" fill="#78350F" opacity="0.6"/>
+                    </svg>
+                  `
+                }
+              </div>
+
+              <div class="text-xs font-bold text-white tracking-wide mt-1">${activeProd.shape}</div>
+              <div class="text-[10px] text-sky-200 mt-0.5 max-w-xs truncate">${activeProd.description}</div>
             </div>
 
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs mb-3">
+            <!-- Right: Dynamic Specification Metrics and Parameter Indicators -->
+            <div class="lg:col-span-7 space-y-4">
               <div>
-                <label class="block text-[11px] font-bold text-[#5A7184] mb-0.5">Description & Geometry</label>
-                <input type="text" value="${p.description}" data-prod-idx="${i}" data-field="description" class="w-full p-2 border border-[#E0ECF6] rounded-xl bg-white" />
+                <span class="text-[10px] uppercase font-mono tracking-widest text-sky-300">Active Canvas Parameters</span>
+                <div class="flex items-center gap-3 mt-1">
+                  <input 
+                    type="text" 
+                    value="${activeProd.shape}" 
+                    data-prod-idx="${selIdx}" 
+                    data-field="shape" 
+                    class="text-base font-extrabold text-white bg-white/10 border border-white/25 rounded-xl px-3 py-1.5 focus:bg-white/20 focus:outline-none w-full" 
+                  />
+                </div>
               </div>
-              <div>
-                <label class="block text-[11px] font-bold text-[#5A7184] mb-0.5">Capacity (Output Pellet)</label>
-                <input type="text" value="${p.capacityOutput}" data-prod-idx="${i}" data-field="capacityOutput" class="w-full p-2 border border-[#E0ECF6] rounded-xl bg-white font-bold text-[#0284C7]" />
-              </div>
-            </div>
 
-            <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
-              <div class="bg-white p-2.5 rounded-xl border border-[#E0ECF6]">
-                <div class="text-[10px] text-[#5A7184] font-bold uppercase">Input Dimension</div>
-                <input type="text" value="${p.dimensionInput}" data-prod-idx="${i}" data-field="dimensionInput" class="w-full mt-1 font-mono font-medium focus:outline-none" />
+              <!-- Critical Quality Targets (KPI Gauge Bar) -->
+              <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+                <div class="p-3 rounded-xl bg-white/10 backdrop-blur-sm border border-white/15">
+                  <div class="text-[10px] text-sky-200 font-bold uppercase">Target Capacity</div>
+                  <div class="text-sm font-black text-white font-mono mt-0.5">${activeProd.capacityOutput || '600 Kg/h'}</div>
+                  <div class="text-[9px] text-emerald-300 font-medium">Output pellet</div>
+                </div>
+                <div class="p-3 rounded-xl bg-white/10 backdrop-blur-sm border border-white/15">
+                  <div class="text-[10px] text-sky-200 font-bold uppercase">Moisture Out</div>
+                  <div class="text-sm font-black text-cyan-200 font-mono mt-0.5">${activeProd.moistureOutput}</div>
+                  <div class="text-[9px] text-cyan-300 font-medium">L-C-R &le; 0.3% gap</div>
+                </div>
+                <div class="p-3 rounded-xl bg-white/10 backdrop-blur-sm border border-white/15">
+                  <div class="text-[10px] text-amber-200 font-bold uppercase">Oil Uptake</div>
+                  <div class="text-sm font-black text-amber-300 font-mono mt-0.5">${activeProd.oilContentOutput}</div>
+                  <div class="text-[9px] text-amber-200 font-medium">De-oiled spec</div>
+                </div>
+                <div class="p-3 rounded-xl bg-white/10 backdrop-blur-sm border border-white/15">
+                  <div class="text-[10px] text-sky-200 font-bold uppercase">Bulk Density</div>
+                  <div class="text-xs font-black text-white font-mono mt-0.5 truncate">${activeProd.bulkDensityOutput}</div>
+                  <div class="text-[9px] text-sky-200 font-medium">Grams / Liter</div>
+                </div>
               </div>
-              <div class="bg-white p-2.5 rounded-xl border border-[#E0ECF6]">
-                <div class="text-[10px] text-[#5A7184] font-bold uppercase">Bulk Density (In &rarr; Out)</div>
-                <input type="text" value="${p.bulkDensityInput} &rarr; ${p.bulkDensityOutput}" data-prod-idx="${i}" data-field="bulkDensity" class="w-full mt-1 font-mono font-medium focus:outline-none" />
-              </div>
-              <div class="bg-white p-2.5 rounded-xl border border-[#E0ECF6]">
-                <div class="text-[10px] text-[#0284C7] font-bold uppercase">Moisture Content (Out)</div>
-                <input type="text" value="${p.moistureOutput}" data-prod-idx="${i}" data-field="moistureOutput" class="w-full mt-1 font-mono font-bold text-[#0284C7] focus:outline-none" />
-              </div>
-              <div class="bg-white p-2.5 rounded-xl border border-[#E0ECF6]">
-                <div class="text-[10px] text-[#FF7A00] font-bold uppercase">Oil Content (Out)</div>
-                <input type="text" value="${p.oilContentOutput}" data-prod-idx="${i}" data-field="oilContentOutput" class="w-full mt-1 font-mono font-bold text-[#FF7A00] focus:outline-none" />
+
+              <!-- Geometric Dimensions Overlay -->
+              <div class="p-3.5 rounded-xl bg-white/10 backdrop-blur-sm border border-white/15 space-y-1.5 text-xs">
+                <div class="text-[10px] font-bold text-sky-200 uppercase tracking-wider">Geometric Dimensions & Expansion</div>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px]">
+                  <div><span class="text-sky-300 font-semibold">Raw Infeed:</span> <span class="font-mono font-bold">${activeProd.dimensionInput}</span></div>
+                  <div><span class="text-sky-300 font-semibold">Fried Output:</span> <span class="font-mono font-bold">${activeProd.dimensionOutput}</span></div>
+                </div>
               </div>
             </div>
           </div>
-        `).join('')}
+        </div>
+
+        <!-- COMPREHENSIVE PRODUCT SPECIFICATION TABLE (Editable Data Matrix) -->
+        <div class="space-y-3">
+          <div class="flex items-center justify-between pb-2 border-b border-slate-200">
+            <h3 class="text-xs font-bold text-[#0B2447] uppercase tracking-wider">
+              Product Specification Matrix (Input vs Output Physical Properties)
+            </h3>
+            <span class="text-[11px] text-[#5A7184] font-medium">Editable cells sync directly to official TRSA tender document</span>
+          </div>
+
+          <div class="overflow-x-auto border border-slate-200 rounded-2xl overflow-hidden bg-white shadow-xs">
+            <table class="w-full text-left text-xs">
+              <thead class="bg-[#0F2942] text-white font-bold text-[11px] uppercase tracking-wider">
+                <tr>
+                  <th class="py-3 px-3.5 w-12">#</th>
+                  <th class="py-3 px-3.5 w-44">Product Shape</th>
+                  <th class="py-3 px-3.5">Description & Geometry</th>
+                  <th class="py-3 px-3.5 w-32">Input Dim</th>
+                  <th class="py-3 px-3.5 w-32">Output Dim</th>
+                  <th class="py-3 px-3.5 w-28">Capacity</th>
+                  <th class="py-3 px-3.5 w-32">Bulk Density (In&rarr;Out)</th>
+                  <th class="py-3 px-3.5 w-28 text-cyan-300">Moisture (Out)</th>
+                  <th class="py-3 px-3.5 w-28 text-amber-300">Oil Content (Out)</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-slate-200">
+                ${proj.productSpecifications.map((p, idx) => `
+                  <tr class="transition-colors ${selIdx === idx ? 'bg-sky-50/70 border-l-4 border-l-[#0284C7]' : 'hover:bg-slate-50'}">
+                    <td class="p-2.5 text-center font-bold text-slate-500">${idx + 1}</td>
+                    <td class="p-2.5">
+                      <input 
+                        type="text" 
+                        value="${p.shape}" 
+                        data-prod-idx="${idx}" 
+                        data-field="shape" 
+                        class="w-full p-1.5 border border-slate-200 rounded-lg text-xs font-bold text-[#0B2447] bg-white focus:border-[#0284C7]" 
+                      />
+                    </td>
+                    <td class="p-2.5">
+                      <input 
+                        type="text" 
+                        value="${p.description}" 
+                        data-prod-idx="${idx}" 
+                        data-field="description" 
+                        class="w-full p-1.5 border border-slate-200 rounded-lg text-xs text-slate-700 bg-white focus:border-[#0284C7]" 
+                      />
+                    </td>
+                    <td class="p-2.5">
+                      <input 
+                        type="text" 
+                        value="${p.dimensionInput}" 
+                        data-prod-idx="${idx}" 
+                        data-field="dimensionInput" 
+                        class="w-full p-1.5 border border-slate-200 rounded-lg text-xs font-mono text-slate-700 bg-white focus:border-[#0284C7]" 
+                      />
+                    </td>
+                    <td class="p-2.5">
+                      <input 
+                        type="text" 
+                        value="${p.dimensionOutput}" 
+                        data-prod-idx="${idx}" 
+                        data-field="dimensionOutput" 
+                        class="w-full p-1.5 border border-slate-200 rounded-lg text-xs font-mono text-slate-700 bg-white focus:border-[#0284C7]" 
+                      />
+                    </td>
+                    <td class="p-2.5">
+                      <input 
+                        type="text" 
+                        value="${p.capacityOutput}" 
+                        data-prod-idx="${idx}" 
+                        data-field="capacityOutput" 
+                        class="w-full p-1.5 border border-slate-200 rounded-lg text-xs font-bold text-[#0284C7] bg-white focus:border-[#0284C7]" 
+                      />
+                    </td>
+                    <td class="p-2.5">
+                      <input 
+                        type="text" 
+                        value="${p.bulkDensityInput} / ${p.bulkDensityOutput}" 
+                        data-prod-idx="${idx}" 
+                        data-field="bulkDensity" 
+                        class="w-full p-1.5 border border-slate-200 rounded-lg text-xs font-mono text-slate-700 bg-white focus:border-[#0284C7]" 
+                      />
+                    </td>
+                    <td class="p-2.5">
+                      <input 
+                        type="text" 
+                        value="${p.moistureOutput}" 
+                        data-prod-idx="${idx}" 
+                        data-field="moistureOutput" 
+                        class="w-full p-1.5 border border-slate-200 rounded-lg text-xs font-bold text-[#0284C7] bg-white focus:border-[#0284C7]" 
+                      />
+                    </td>
+                    <td class="p-2.5">
+                      <input 
+                        type="text" 
+                        value="${p.oilContentOutput}" 
+                        data-prod-idx="${idx}" 
+                        data-field="oilContentOutput" 
+                        class="w-full p-1.5 border border-slate-200 rounded-lg text-xs font-bold text-[#EA580C] bg-white focus:border-[#0284C7]" 
+                      />
+                    </td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          </div>
+        </div>
       </div>
 
-      <!-- Process Operating Parameters -->
-      <div class="border-t border-[#E0ECF6] pt-5 space-y-4">
-        <h3 class="text-xs font-bold text-[#0B2447] uppercase tracking-wider">Frying & Seasoning Operating Benchmarks</h3>
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <!-- Frying Box (Capiclean Coral Accent) -->
-          <div class="p-4 rounded-2xl border border-orange-200 bg-[#FFF7ED] space-y-3">
-            <div class="text-xs font-black text-[#EA580C] uppercase tracking-wider flex items-center gap-1.5">
-              <span class="w-2 h-2 rounded-full bg-[#FF7A00]"></span>
-              Frying Process Parameters
+      <!-- PROCESS OPERATING PARAMETERS BENCHMARKS CANVAS (Frying & Seasoning Operating Panels) -->
+      <div class="dropx-card p-6 bg-white border border-[#E0ECF6] shadow-sm space-y-4">
+        <div class="flex items-center justify-between pb-2 border-b border-[#E0ECF6]">
+          <div>
+            <h3 class="text-xs font-bold text-[#0B2447] uppercase tracking-wider flex items-center gap-2">
+              <span class="w-2.5 h-2.5 rounded-full bg-[#EA580C]"></span>
+              Process Parameters & Operating Benchmarks
+            </h3>
+            <p class="text-[11px] text-[#5A7184] mt-0.5">Critical technical thresholds for continuous frying and precision seasoning application.</p>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+          <!-- Frying Process Benchmark Box (Capiclean Amber/Coral Accent) -->
+          <div class="p-5 rounded-2xl border border-orange-200 bg-gradient-to-br from-[#FFF7ED] to-white space-y-4 shadow-xs">
+            <div class="flex items-center justify-between border-b border-orange-200 pb-2.5">
+              <div class="text-xs font-black text-[#EA580C] uppercase tracking-wider flex items-center gap-2">
+                <span class="w-2.5 h-2.5 rounded-full bg-[#FF7A00] animate-pulse"></span>
+                Frying Operating Parameters
+              </div>
+              <span class="text-[10px] font-mono font-bold bg-orange-100 text-orange-800 px-2 py-0.5 rounded-full border border-orange-200">
+                14 Fryer Items
+              </span>
             </div>
-            <div class="grid grid-cols-2 gap-2 text-xs">
+
+            <div class="grid grid-cols-2 gap-3 text-xs">
               <div>
-                <label class="text-[10px] text-slate-500 font-semibold">Temperature Range</label>
-                <input type="text" id="proc-fry-temp" value="${proj.processParameters.frying.temperatureRange}" class="w-full p-2 border border-orange-200 rounded-xl bg-white font-mono font-bold text-[#EA580C]" />
+                <label class="block text-[10px] text-slate-500 font-bold mb-1">Temperature Range</label>
+                <input type="text" id="proc-fry-temp" value="${proj.processParameters.frying.temperatureRange}" class="w-full p-2 border border-orange-200 rounded-xl bg-white font-mono font-bold text-[#EA580C] focus:border-[#EA580C] focus:outline-none" />
               </div>
               <div>
-                <label class="text-[10px] text-slate-500 font-semibold">Dwell Time</label>
-                <input type="text" id="proc-fry-dwell" value="${proj.processParameters.frying.dwellTime}" class="w-full p-2 border border-orange-200 rounded-xl bg-white font-mono" />
+                <label class="block text-[10px] text-slate-500 font-bold mb-1">Dwell Time</label>
+                <input type="text" id="proc-fry-dwell" value="${proj.processParameters.frying.dwellTime}" class="w-full p-2 border border-orange-200 rounded-xl bg-white font-mono font-bold text-slate-800 focus:border-[#EA580C] focus:outline-none" />
               </div>
               <div>
-                <label class="text-[10px] text-slate-500 font-semibold">Oil Capacity</label>
-                <input type="text" id="proc-fry-oil" value="${proj.processParameters.frying.oilCapacityInFryer}" class="w-full p-2 border border-orange-200 rounded-xl bg-white font-mono" />
+                <label class="block text-[10px] text-slate-500 font-bold mb-1">Feeder Rate</label>
+                <input type="text" id="proc-fry-feeder" value="${proj.processParameters.frying.feederRate || '1.5 – 2.5 kg/batch'}" class="w-full p-2 border border-orange-200 rounded-xl bg-white font-mono text-slate-800 focus:border-[#EA580C] focus:outline-none" />
               </div>
               <div>
-                <label class="text-[10px] text-slate-500 font-semibold">Spinner Rotation</label>
-                <input type="text" id="proc-fry-spinner" value="${proj.processParameters.frying.spinnerRotationTime}" class="w-full p-2 border border-orange-200 rounded-xl bg-white font-mono" />
+                <label class="block text-[10px] text-slate-500 font-bold mb-1">Oil Capacity in Fryer</label>
+                <input type="text" id="proc-fry-oil" value="${proj.processParameters.frying.oilCapacityInFryer}" class="w-full p-2 border border-orange-200 rounded-xl bg-white font-mono text-slate-800 focus:border-[#EA580C] focus:outline-none" />
+              </div>
+              <div>
+                <label class="block text-[10px] text-slate-500 font-bold mb-1">Spinner Rotation Time</label>
+                <input type="text" id="proc-fry-spinner" value="${proj.processParameters.frying.spinnerRotationTime}" class="w-full p-2 border border-orange-200 rounded-xl bg-white font-mono text-slate-800 focus:border-[#EA580C] focus:outline-none" />
+              </div>
+              <div>
+                <label class="block text-[10px] text-slate-500 font-bold mb-1">Hopper Gate Opening</label>
+                <input type="text" id="proc-fry-hopper" value="${proj.processParameters.frying.hopperGateOpening || 'Min 8.5 cm – Max 12 cm'}" class="w-full p-2 border border-orange-200 rounded-xl bg-white font-mono text-slate-800 focus:border-[#EA580C] focus:outline-none" />
               </div>
             </div>
           </div>
 
-          <!-- Seasoning Box (Capiclean Sky Accent) -->
-          <div class="p-4 rounded-2xl border border-sky-200 bg-[#F0F9FF] space-y-3">
-            <div class="text-xs font-black text-[#0369A1] uppercase tracking-wider flex items-center gap-1.5">
-              <span class="w-2 h-2 rounded-full bg-[#0284C7]"></span>
-              Seasoning Process Parameters
+          <!-- Seasoning Process Benchmark Box (Capiclean Sky Blue Accent) -->
+          <div class="p-5 rounded-2xl border border-sky-200 bg-gradient-to-br from-[#F0F9FF] to-white space-y-4 shadow-xs">
+            <div class="flex items-center justify-between border-b border-sky-200 pb-2.5">
+              <div class="text-xs font-black text-[#0369A1] uppercase tracking-wider flex items-center gap-2">
+                <span class="w-2.5 h-2.5 rounded-full bg-[#0284C7] animate-pulse"></span>
+                Seasoning Operating Parameters
+              </div>
+              <span class="text-[10px] font-mono font-bold bg-sky-100 text-sky-800 px-2 py-0.5 rounded-full border border-sky-200">
+                7 Seasoning Items
+              </span>
             </div>
-            <div class="grid grid-cols-2 gap-2 text-xs">
+
+            <div class="grid grid-cols-2 gap-3 text-xs">
               <div>
-                <label class="text-[10px] text-slate-500 font-semibold">Required Seasoning</label>
-                <input type="text" id="proc-seas-type" value="${proj.processParameters.seasoning.requiredSeasoning}" class="w-full p-2 border border-sky-200 rounded-xl bg-white font-mono font-bold text-[#0369A1]" />
+                <label class="block text-[10px] text-slate-500 font-bold mb-1">Required Seasoning</label>
+                <input type="text" id="proc-seas-type" value="${proj.processParameters.seasoning.requiredSeasoning}" class="w-full p-2 border border-sky-200 rounded-xl bg-white font-mono font-bold text-[#0369A1] focus:border-[#0284C7] focus:outline-none" />
               </div>
               <div>
-                <label class="text-[10px] text-slate-500 font-semibold">Application Rate</label>
-                <input type="text" id="proc-seas-rate" value="${proj.processParameters.seasoning.seasoningApplicationRate}" class="w-full p-2 border border-sky-200 rounded-xl bg-white font-mono" />
+                <label class="block text-[10px] text-slate-500 font-bold mb-1">Application Rate (%w/w)</label>
+                <input type="text" id="proc-seas-rate" value="${proj.processParameters.seasoning.seasoningApplicationRate}" class="w-full p-2 border border-sky-200 rounded-xl bg-white font-mono font-bold text-slate-800 focus:border-[#0284C7] focus:outline-none" />
               </div>
               <div>
-                <label class="text-[10px] text-slate-500 font-semibold">Salt Content (%SA)</label>
-                <input type="text" id="proc-seas-salt" value="${proj.processParameters.seasoning.saltContentBaseExcluded}" class="w-full p-2 border border-sky-200 rounded-xl bg-white font-mono" />
+                <label class="block text-[10px] text-slate-500 font-bold mb-1">Salt Content (%SA Base Excl.)</label>
+                <input type="text" id="proc-seas-salt" value="${proj.processParameters.seasoning.saltContentBaseExcluded}" class="w-full p-2 border border-sky-200 rounded-xl bg-white font-mono text-slate-800 focus:border-[#0284C7] focus:outline-none" />
               </div>
               <div>
-                <label class="text-[10px] text-slate-500 font-semibold">Seasoning Capacity</label>
-                <input type="text" id="proc-seas-cap" value="${proj.processParameters.seasoning.seasoningCapacity}" class="w-full p-2 border border-sky-200 rounded-xl bg-white font-mono" />
+                <label class="block text-[10px] text-slate-500 font-bold mb-1">Seasoning Capacity</label>
+                <input type="text" id="proc-seas-cap" value="${proj.processParameters.seasoning.seasoningCapacity}" class="w-full p-2 border border-sky-200 rounded-xl bg-white font-mono font-bold text-[#0284C7] focus:border-[#0284C7] focus:outline-none" />
+              </div>
+              <div class="col-span-2">
+                <label class="block text-[10px] text-slate-500 font-bold mb-1">Powder Type Specification</label>
+                <input type="text" id="proc-seas-spec" value="${proj.processParameters.seasoning.seasoningType || 'Dry seasoning powder'}" class="w-full p-2 border border-sky-200 rounded-xl bg-white font-medium text-slate-800 focus:border-[#0284C7] focus:outline-none" />
               </div>
             </div>
           </div>
@@ -2693,6 +2999,31 @@ function attachEventHandlers(activeProject) {
     });
   }
 
+  // Process benchmark inputs
+  const fryTemp = document.getElementById('proc-fry-temp');
+  if (fryTemp) fryTemp.addEventListener('input', (e) => activeProject.processParameters.frying.temperatureRange = e.target.value);
+  const fryDwell = document.getElementById('proc-fry-dwell');
+  if (fryDwell) fryDwell.addEventListener('input', (e) => activeProject.processParameters.frying.dwellTime = e.target.value);
+  const fryFeeder = document.getElementById('proc-fry-feeder');
+  if (fryFeeder) fryFeeder.addEventListener('input', (e) => activeProject.processParameters.frying.feederRate = e.target.value);
+  const fryOil = document.getElementById('proc-fry-oil');
+  if (fryOil) fryOil.addEventListener('input', (e) => activeProject.processParameters.frying.oilCapacityInFryer = e.target.value);
+  const frySpinner = document.getElementById('proc-fry-spinner');
+  if (frySpinner) frySpinner.addEventListener('input', (e) => activeProject.processParameters.frying.spinnerRotationTime = e.target.value);
+  const fryHopper = document.getElementById('proc-fry-hopper');
+  if (fryHopper) fryHopper.addEventListener('input', (e) => activeProject.processParameters.frying.hopperGateOpening = e.target.value);
+
+  const seasType = document.getElementById('proc-seas-type');
+  if (seasType) seasType.addEventListener('input', (e) => activeProject.processParameters.seasoning.requiredSeasoning = e.target.value);
+  const seasRate = document.getElementById('proc-seas-rate');
+  if (seasRate) seasRate.addEventListener('input', (e) => activeProject.processParameters.seasoning.seasoningApplicationRate = e.target.value);
+  const seasSalt = document.getElementById('proc-seas-salt');
+  if (seasSalt) seasSalt.addEventListener('input', (e) => activeProject.processParameters.seasoning.saltContentBaseExcluded = e.target.value);
+  const seasCap = document.getElementById('proc-seas-cap');
+  if (seasCap) seasCap.addEventListener('input', (e) => activeProject.processParameters.seasoning.seasoningCapacity = e.target.value);
+  const seasSpec = document.getElementById('proc-seas-spec');
+  if (seasSpec) seasSpec.addEventListener('input', (e) => activeProject.processParameters.seasoning.seasoningType = e.target.value);
+
   // Scope specs inputs
   document.querySelectorAll('[data-scope-idx]').forEach(input => {
     input.addEventListener('input', (e) => {
@@ -2874,9 +3205,16 @@ if (typeof window !== 'undefined') {
     });
     render();
   },
+  selectProductCanvas(idx) {
+    store.selectedProductIdx = idx;
+    render();
+  },
   removeProductRow(idx) {
     const p = store.getActiveProject();
     p.productSpecifications.splice(idx, 1);
+    if (store.selectedProductIdx >= p.productSpecifications.length) {
+      store.selectedProductIdx = Math.max(0, p.productSpecifications.length - 1);
+    }
     render();
   },
   addScopeItem(type) {

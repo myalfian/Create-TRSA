@@ -175,4 +175,43 @@ describe('TRSA Store and Business Logic Tests', () => {
     store.setCurrentUser('Murdani');
     assert.strictEqual(store.isAdmin(), false, 'Murdani must not have admin privileges');
   });
+
+  test('Product Specifications & Process Parameters Canvas: Visual canvas selection and data integrity', () => {
+    const store = new TRSAStore();
+    const proj = store.getActiveProject();
+
+    // Verify default 4 products loaded
+    assert.strictEqual(proj.productSpecifications.length, 4);
+    assert.strictEqual(proj.productSpecifications[0].shape, '3D Chicken Legs');
+    assert.strictEqual(proj.productSpecifications[1].shape, '3D Golgappa Pellets');
+    assert.strictEqual(proj.productSpecifications[2].shape, '3D Star Pellets');
+    assert.strictEqual(proj.productSpecifications[3].shape, '2D Pierced Chips');
+
+    // Verify Process Parameters integrity
+    assert.strictEqual(proj.processParameters.frying.dwellTime, '20 – 30 seconds');
+    assert.strictEqual(proj.processParameters.seasoning.requiredSeasoning, 'Dry only');
+
+    // Test selection of canvas tab
+    store.selectedProductIdx = 2; // 3D Star Pellets
+    assert.strictEqual(store.selectedProductIdx, 2);
+    assert.strictEqual(proj.productSpecifications[store.selectedProductIdx].shape, '3D Star Pellets');
+
+    // Test adding product variant
+    proj.productSpecifications.push({
+      id: 'prod-new',
+      shape: '3D Pillow Snack',
+      description: 'Pillow shape filled snack',
+      dimensionInput: '25 x 25 mm',
+      dimensionOutput: 'NA',
+      capacityOutput: '600 Kg/hour',
+      bulkDensityInput: '320 g/l',
+      bulkDensityOutput: '55 g/l',
+      moistureInput: '10.5%',
+      moistureOutput: '1.5%',
+      oilContentInput: 'N/A',
+      oilContentOutput: '30%'
+    });
+    assert.strictEqual(proj.productSpecifications.length, 5);
+    assert.strictEqual(proj.productSpecifications[4].shape, '3D Pillow Snack');
+  });
 });
