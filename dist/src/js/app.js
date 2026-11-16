@@ -1977,22 +1977,6 @@ function renderStep1(proj) {
           </div>
         </div>
         <div>
-          <label class="block text-xs font-semibold text-slate-700 mb-1">Tender Status</label>
-          <select id="doc-status" class="corp-select font-bold text-[#0369A1]">
-            <option value="Draft" ${proj.documentInfo.status === 'Draft' ? 'selected' : ''}>Draft</option>
-            <option value="Under Review" ${proj.documentInfo.status === 'Under Review' ? 'selected' : ''}>Under Review</option>
-            <option value="Published" ${proj.documentInfo.status === 'Published' ? 'selected' : ''}>Published</option>
-            <option value="Approved" ${proj.documentInfo.status === 'Approved' ? 'selected' : ''}>Approved</option>
-          </select>
-        </div>
-        <div>
-          <label class="block text-xs font-semibold text-slate-700 mb-1">Plant Location</label>
-          <select id="doc-plant-location" class="corp-select font-semibold text-slate-700">
-            <option value="Semarang Plant" ${proj.documentInfo.plantLocation === 'Semarang Plant' ? 'selected' : ''}>Semarang Plant</option>
-            <option value="Cikupa Plant" ${proj.documentInfo.plantLocation === 'Cikupa Plant' ? 'selected' : ''}>Cikupa Plant</option>
-          </select>
-        </div>
-        <div>
           <label class="block text-xs font-semibold text-slate-700 mb-1">Vendor Origin</label>
           <select id="doc-vendor-origin" class="corp-select font-bold text-[#0B2447]">
             <option value="Foreign" ${(proj.documentInfo.vendorOrigin || 'Foreign') === 'Foreign' ? 'selected' : ''}>Foreign (International OEM)</option>
