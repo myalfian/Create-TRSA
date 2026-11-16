@@ -20,6 +20,7 @@ import { test, describe } from 'node:test';
 import assert from 'node:assert';
 import { defaultTRSAProject } from '../src/data/defaultTRSA.js';
 import { TRSAStore, PLANT_DATABASE, getPlantDatabase } from '../src/js/app.js';
+import { getAuditLogs } from '../src/js/auditService.js';
 
 describe('TRSA Store and Business Logic Tests', () => {
   // Mock store calculation logic
@@ -213,5 +214,33 @@ describe('TRSA Store and Business Logic Tests', () => {
     });
     assert.strictEqual(proj.productSpecifications.length, 5);
     assert.strictEqual(proj.productSpecifications[4].shape, '3D Pillow Snack');
+  });
+
+  test('Audit Trail & Traceability: Automatically records who, when, and what changed during store operations', () => {
+    const store = new TRSAStore();
+    const proj = store.getActiveProject();
+
+    // 1. Initial baseline audit entry exists
+    const initialLogs = getAuditLogs();
+    assert.ok(initialLogs.length >= 1, 'Initial baseline audit log must exist');
+
+    // 2. Perform an operation: Change plant location
+    store.setCurrentUser('Moh Yusuf Alfian');
+    store.updatePlantLocation('Cikupa Plant');
+
+    const updatedLogs = getAuditLogs(proj.id);
+    assert.ok(updatedLogs.length >= 2, 'New audit entry should be added');
+
+    const latest = updatedLogs[0];
+    assert.strictEqual(latest.action, 'PLANT_CHANGE', 'Action must reflect plant change');
+    assert.strictEqual(latest.userName, 'Moh Yusuf Alfian', 'Must record who made the change');
+    assert.strictEqual(latest.projectId, proj.id);
+    assert.ok(latest.createdAt, 'Must record when the change was made');
+
+    // Verify detailed before & after diffs
+    assert.ok(latest.diffDetails && latest.diffDetails.length > 0, 'Must record what was changed');
+    const plantDiff = latest.diffDetails.find(d => d.category.includes('Plant'));
+    assert.ok(plantDiff, 'Must contain plant diff');
+    assert.strictEqual(plantDiff.to, 'Cikupa Plant', 'Must record new value');
   });
 });

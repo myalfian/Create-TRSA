@@ -13,7 +13,12 @@ import {
   createAuditEntry, 
   appendAuditLog, 
   getAuditLogs, 
-  detectProjectChanges 
+  detectProjectChanges,
+  detectDetailedProjectChanges,
+  formatAuditTimestamp,
+  getRelativeTime,
+  exportAuditLogsToJSON,
+  exportAuditLogsToCSV
 } from './auditService.js';
 import { 
   getSupabaseConfig, 
@@ -181,6 +186,11 @@ export class TRSAStore {
     this.currentUser = this.loadUser();
     this.showUserMenu = false;
     this.showSupabaseModal = false;
+    this.showAuditModal = false;
+    this.auditSearchQuery = '';
+    this.auditProjectFilter = 'all';
+    this.lastProjectSnapshots = {};
+
     this.projects = this.loadProjects();
     this.activeProjectId = this.projects[0]?.id || 'trsa-006-ifm-2024';
     this.currentView = 'dashboard'; // 'dashboard' | 'projects' | 'builder' | 'studio'
@@ -190,6 +200,27 @@ export class TRSAStore {
     this.plantFilter = 'all';
     this.watermark = 'OFFICIAL';
     this.notification = null;
+
+    // Initialize baseline snapshots and seed initial audit log if empty
+    if (this.projects && this.projects.length > 0) {
+      this.projects.forEach(p => this.takeSnapshot(p));
+      if (getAuditLogs().length === 0) {
+        const p0 = this.projects[0];
+        const seedEntry = createAuditEntry(
+          p0.id,
+          'CREATE',
+          [{ category: 'Initial Document Baseline', description: 'Tender specification scaffolded with 21 equipment modules & 4 snack pellet variants', from: 'Empty Template', to: p0.documentInfo?.docNumber || '006/RAP/TRSA – 1403/MFG-IFM/VIII/2024' }],
+          { name: 'Refin A Putra', role: 'Project Engineer', dept: 'MFG', initials: 'RAP' },
+          p0.documentInfo?.docNumber
+        );
+        appendAuditLog(seedEntry);
+      }
+    }
+  }
+
+  takeSnapshot(project) {
+    if (!project || !project.id) return;
+    this.lastProjectSnapshots[project.id] = JSON.parse(JSON.stringify(project));
   }
 
   loadUser() {
@@ -236,6 +267,7 @@ export class TRSAStore {
     const proj = projectId ? this.projects.find(p => p.id === projectId) : this.getActiveProject();
     if (!proj) return null;
 
+    const oldPlant = proj.documentInfo.plantLocation || 'Unknown';
     proj.documentInfo.plantLocation = plantLocation;
     const plantData = getPlantDatabase(plantLocation);
 
@@ -261,7 +293,12 @@ export class TRSAStore {
       });
     }
 
-    this.saveProjects();
+    this.saveProjects('PLANT_CHANGE', [{
+      category: 'Plant Location',
+      description: `Factory location & invoicing updated to ${plantData.plantName} (${plantData.code})`,
+      from: oldPlant,
+      to: plantLocation
+    }]);
     this.showNotification(`Plant Location & Invoicing Address updated to ${plantData.plantName} (${plantData.code})`, 'info');
     return plantData;
   }
@@ -289,7 +326,7 @@ export class TRSAStore {
     return initial;
   }
 
-  saveProjects() {
+  saveProjects(customAction = 'UPDATE', customDiffs = null) {
     try {
       // 1. Security & Hardening: Deep payload sanitization against XSS
       const sanitized = sanitizeProject(this.projects);
@@ -298,19 +335,40 @@ export class TRSAStore {
         localStorage.setItem(this.STORAGE_KEY, JSON.stringify(sanitized));
       }
 
-      // 2. Audit Trail: Generate immutable audit log entry
+      // 2. Audit Trail: Generate immutable forensic audit log entry
       const active = this.getActiveProject();
       if (active) {
-        const user = this.getCurrentUser();
-        const role = this.isAdmin() ? ROLES.ADMIN : ROLES.ENGINEER;
-        const entry = createAuditEntry(active.id, 'UPDATE', ['projectData'], { name: user.name, role });
-        appendAuditLog(entry);
+        const prev = this.lastProjectSnapshots[active.id];
+        const diffs = customDiffs || (prev ? detectDetailedProjectChanges(prev, active) : []);
 
-        // 3. PostgreSQL Sync: Sync to Supabase or queue if offline
-        syncProjectToPostgres(active, 'UPDATE').catch(e => console.warn('Supabase sync:', e));
+        // Log if there are actual diffs or if it's an explicit action
+        if (diffs.length > 0 || customAction !== 'UPDATE') {
+          const user = this.getCurrentUser();
+          const role = this.isAdmin() ? ROLES.ADMIN : (user.role || ROLES.ENGINEER);
+          const entry = createAuditEntry(
+            active.id,
+            customAction,
+            diffs.length > 0 ? diffs : [{ category: 'Document Update', description: 'Specifications updated and saved', from: '', to: '' }],
+            {
+              name: user.name,
+              role,
+              dept: user.dept || 'MFG',
+              email: user.email || '',
+              initials: user.initials
+            },
+            active.documentInfo?.docNumber
+          );
+          appendAuditLog(entry);
+
+          // 3. PostgreSQL Sync: Sync to Supabase or queue if offline
+          syncProjectToPostgres(active, customAction).catch(e => console.warn('Supabase sync:', e));
+        }
+
+        // Refresh snapshot
+        this.takeSnapshot(active);
       }
 
-      this.showNotification('All changes saved successfully.', 'success');
+      this.showNotification('All changes saved and logged.', 'success');
     } catch (e) {
       this.showNotification('Error saving project data.', 'error');
     }
@@ -358,7 +416,13 @@ export class TRSAStore {
     this.activeProjectId = newProj.id;
     this.currentView = 'builder';
     this.builderStep = 1;
-    this.saveProjects();
+    this.takeSnapshot(newProj);
+    this.saveProjects('CREATE', [{
+      category: 'Document Creation',
+      description: `New TRSA tender initialized: "${title}"`,
+      from: 'Template',
+      to: newProj.documentInfo.docNumber
+    }]);
     return newProj;
   }
 
@@ -391,7 +455,13 @@ export class TRSAStore {
     }];
     this.projects.unshift(cloned);
     this.activeProjectId = cloned.id;
-    this.saveProjects();
+    this.takeSnapshot(cloned);
+    this.saveProjects('DUPLICATE', [{
+      category: 'Document Cloned',
+      description: `Cloned from ${source.documentInfo?.docNumber || source.title}`,
+      from: source.documentInfo?.docNumber || '',
+      to: cloned.documentInfo.docNumber
+    }]);
     this.showNotification(`Project duplicated with next Doc No. (${nextSeq})`, 'success');
   }
 
@@ -607,6 +677,9 @@ export function render() {
       <!-- Supabase Modal -->
       ${store.showSupabaseModal ? renderSupabaseModal() : ''}
 
+      <!-- Audit Trail Forensic Modal -->
+      ${store.showAuditModal ? renderAuditModal() : ''}
+
       <!-- Toast Notification Container -->
       <div id="notification-toast" class="hidden"></div>
     </div>
@@ -728,6 +801,219 @@ function renderSupabaseModal() {
   `;
 }
 
+// Forensic Audit Trail & Change Traceability Modal
+function renderAuditModal() {
+  const activeProj = store.getActiveProject();
+  let allLogs = getAuditLogs();
+
+  // Filter by project if current selected
+  if (store.auditProjectFilter === 'current' && activeProj) {
+    allLogs = allLogs.filter(l => l.projectId === activeProj.id);
+  }
+
+  // Filter by search query if any
+  if (store.auditSearchQuery) {
+    const q = store.auditSearchQuery.toLowerCase();
+    allLogs = allLogs.filter(l => 
+      (l.userName && l.userName.toLowerCase().includes(q)) ||
+      (l.action && l.action.toLowerCase().includes(q)) ||
+      (l.projectDocNumber && l.projectDocNumber.toLowerCase().includes(q)) ||
+      (l.changedFields && l.changedFields.some(f => f.toLowerCase().includes(q))) ||
+      (l.diffDetails && l.diffDetails.some(d => 
+        (d.description && d.description.toLowerCase().includes(q)) ||
+        (d.from && String(d.from).toLowerCase().includes(q)) ||
+        (d.to && String(d.to).toLowerCase().includes(q))
+      ))
+    );
+  }
+
+  return `
+    <div class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4 animate-fadeIn">
+      <div class="bg-white rounded-3xl shadow-2xl border border-slate-200 w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden animate-scaleUp">
+        <!-- Header -->
+        <div class="p-6 bg-gradient-to-r from-[#0F2942] via-[#16365C] to-[#0284C7] text-white flex items-center justify-between flex-shrink-0">
+          <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-2xl bg-white/10 backdrop-blur-md flex items-center justify-center border border-white/20 shadow-md">
+              <svg class="w-5 h-5 text-sky-200" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+            </div>
+            <div>
+              <div class="flex items-center gap-2">
+                <h3 class="text-base font-bold">Audit Trail & Forensic Change History</h3>
+                <span class="bg-sky-400/20 text-sky-200 border border-sky-300/30 text-[10px] font-extrabold px-2 py-0.5 rounded-full">
+                  ${allLogs.length} Records
+                </span>
+              </div>
+              <p class="text-xs text-sky-200 mt-0.5">Penelusuran lengkap: <strong>Kapan</strong> waktu perubahan, <strong>Siapa</strong> yang merubah, dan <strong>Apa</strong> nilai sebelum & sesudah diubah.</p>
+            </div>
+          </div>
+          <button onclick="window.TRSA.closeAuditModal()" class="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-white transition-all text-sm font-bold">
+            &times;
+          </button>
+        </div>
+
+        <!-- Filter & Action Bar -->
+        <div class="p-4 bg-slate-50 border-b border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs flex-shrink-0">
+          <div class="flex items-center gap-2 w-full sm:w-auto">
+            <!-- Project Filter Dropdown -->
+            <select 
+              id="audit-project-filter" 
+              onchange="window.TRSA.setAuditProjectFilter(this.value)"
+              class="text-xs font-semibold bg-white border border-slate-200 rounded-xl px-3 py-1.5 text-slate-700 focus:outline-none focus:border-[#0284C7]"
+            >
+              <option value="all" ${store.auditProjectFilter === 'all' ? 'selected' : ''}>All Agreements History</option>
+              <option value="current" ${store.auditProjectFilter === 'current' ? 'selected' : ''}>Active Agreement Only (${activeProj.documentInfo?.docNumber || 'Current'})</option>
+            </select>
+
+            <!-- Search Field -->
+            <div class="relative flex-1 sm:w-64">
+              <input 
+                type="text" 
+                id="audit-search-input" 
+                placeholder="Filter by author, field, or value..." 
+                value="${store.auditSearchQuery || ''}"
+                oninput="window.TRSA.setAuditSearch(this.value)"
+                class="w-full text-xs pl-8 pr-3 py-1.5 bg-white border border-slate-200 focus:border-[#0284C7] rounded-xl focus:outline-none"
+              />
+              <svg class="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+            </div>
+          </div>
+
+          <!-- Export Actions -->
+          <div class="flex items-center gap-2 w-full sm:w-auto justify-end">
+            <button onclick="window.TRSA.downloadAuditJSON()" class="px-3 py-1.5 rounded-xl border border-slate-200 hover:bg-white text-slate-700 font-bold text-xs flex items-center gap-1.5 transition-all shadow-2xs">
+              <svg class="w-3.5 h-3.5 text-sky-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+              Export JSON
+            </button>
+            <button onclick="window.TRSA.downloadAuditCSV()" class="btn-capiclean-accent text-xs px-3.5 py-1.5 font-bold flex items-center gap-1.5 shadow-xs">
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+              Export CSV
+            </button>
+          </div>
+        </div>
+
+        <!-- Scrollable Timeline Body -->
+        <div class="p-6 overflow-y-auto space-y-6 flex-1 bg-[#F8FAFC]">
+          ${allLogs.length === 0 ? `
+            <div class="text-center py-16 space-y-3">
+              <div class="w-12 h-12 rounded-full bg-slate-100 text-slate-400 flex items-center justify-center mx-auto text-lg font-bold">∅</div>
+              <div class="text-sm font-bold text-slate-700">No matching audit records found</div>
+              <div class="text-xs text-slate-400 max-w-sm mx-auto">Every change made to agreements, specifications, parameters, and revisions is automatically logged here with forensic detail.</div>
+            </div>
+          ` : `
+            <div class="relative pl-6 space-y-6 before:content-[''] before:absolute before:left-3 before:top-2 before:bottom-2 before:w-0.5 before:bg-slate-200">
+              ${allLogs.map(log => {
+                const actionColors = {
+                  CREATE: 'bg-emerald-50 text-emerald-800 border-emerald-300',
+                  UPDATE: 'bg-sky-50 text-sky-800 border-sky-300',
+                  PLANT_CHANGE: 'bg-indigo-50 text-indigo-800 border-indigo-300',
+                  REVISION_STAMP: 'bg-amber-50 text-amber-800 border-amber-300',
+                  DUPLICATE: 'bg-purple-50 text-purple-800 border-purple-300',
+                  STATUS_CHANGE: 'bg-blue-50 text-blue-800 border-blue-300'
+                };
+                const actionBadgeClass = actionColors[log.action] || 'bg-slate-50 text-slate-800 border-slate-300';
+                const formattedTime = formatAuditTimestamp(log.createdAt);
+                const relTime = getRelativeTime(log.createdAt);
+
+                return `
+                  <div class="relative bg-white border border-slate-200 rounded-2xl p-4 shadow-xs space-y-3">
+                    <!-- Timeline Node Indicator -->
+                    <div class="absolute -left-[31px] top-4 w-4 h-4 rounded-full bg-white border-3 border-[#0284C7] shadow-xs"></div>
+
+                    <!-- Event Header: Siapa & Kapan -->
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2.5 border-b border-slate-100">
+                      <!-- Siapa yang merubah -->
+                      <div class="flex items-center gap-2.5">
+                        <div class="w-7 h-7 rounded-full bg-[#0284C7] text-white flex items-center justify-center text-[10px] font-extrabold shadow-2xs">
+                          ${log.userInitials || 'IFM'}
+                        </div>
+                        <div>
+                          <div class="text-xs font-bold text-slate-900 leading-tight">
+                            ${log.userName}
+                            <span class="ml-1 text-[10px] font-semibold text-slate-500">(${log.userRole} &bull; ${log.userDept || 'MFG'})</span>
+                          </div>
+                          ${log.userEmail ? `<div class="text-[10px] text-slate-400 font-mono">${log.userEmail}</div>` : ''}
+                        </div>
+                      </div>
+
+                      <!-- Kapan (Waktu perubahan) -->
+                      <div class="text-right">
+                        <div class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full border text-[10px] font-bold ${actionBadgeClass}">
+                          <span>${log.action}</span>
+                        </div>
+                        <div class="text-[10px] text-slate-500 mt-0.5 flex items-center justify-end gap-1.5">
+                          <span class="font-mono">${formattedTime}</span>
+                          <span class="text-slate-400 font-medium">(${relTime})</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <!-- Document Reference Tag -->
+                    ${log.projectDocNumber ? `
+                      <div class="inline-flex items-center gap-1.5 text-[10px] font-mono font-semibold text-slate-600 bg-slate-50 border border-slate-200 px-2.5 py-1 rounded-lg">
+                        <svg class="w-3 h-3 text-[#0284C7]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                        ${log.projectDocNumber}
+                      </div>
+                    ` : ''}
+
+                    <!-- Apa yang diubah (Detailed Semantic Diffs) -->
+                    <div class="space-y-2">
+                      <div class="text-[11px] font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1">
+                        <svg class="w-3 h-3 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                        Detail Perubahan (Apa yang diubah):
+                      </div>
+
+                      <div class="grid grid-cols-1 gap-2">
+                        ${(log.diffDetails && log.diffDetails.length > 0 ? log.diffDetails : [{
+                          category: 'General Update',
+                          description: (log.changedFields || []).join(', ') || 'Parameters modified',
+                          from: 'Previous state',
+                          to: 'Saved state'
+                        }]).map(diff => `
+                          <div class="p-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs space-y-1.5">
+                            <div class="flex items-center justify-between">
+                              <span class="inline-block text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-md bg-white border border-slate-200 text-[#0284C7]">
+                                ${diff.category || 'Specification'}
+                              </span>
+                              <span class="text-[11px] font-semibold text-slate-700">${diff.description}</span>
+                            </div>
+
+                            ${diff.from || diff.to ? `
+                              <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px] pt-1 border-t border-slate-200/60 font-mono">
+                                <div class="p-1.5 rounded-lg bg-rose-50/60 border border-rose-200 text-rose-800">
+                                  <div class="text-[9px] font-bold uppercase text-rose-500 mb-0.5">Nilai Sebelum:</div>
+                                  <div class="break-words line-through opacity-85">${diff.from || '(None)'}</div>
+                                </div>
+                                <div class="p-1.5 rounded-lg bg-emerald-50/60 border border-emerald-200 text-emerald-900">
+                                  <div class="text-[9px] font-bold uppercase text-emerald-600 mb-0.5">Nilai Sesudah:</div>
+                                  <div class="break-words font-bold">${diff.to || '(Empty)'}</div>
+                                </div>
+                              </div>
+                            ` : ''}
+                          </div>
+                        `).join('')}
+                      </div>
+                    </div>
+                  </div>
+                `;
+              }).join('')}
+            </div>
+          `}
+        </div>
+
+        <!-- Footer -->
+        <div class="p-4 bg-slate-50 border-t border-slate-200 flex items-center justify-between flex-shrink-0 text-xs">
+          <div class="text-slate-500 text-[11px]">
+            Forensic Audit Trail is immutable &bull; Stored locally & synced to PostgreSQL
+          </div>
+          <button onclick="window.TRSA.closeAuditModal()" class="btn-capiclean-accent text-xs px-5 py-2 font-bold shadow-xs">
+            Tutup
+          </button>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
 // 1. Sidebar Component (Blue Sky Theme)
 function renderSidebar(activeProject) {
   const current = store.currentView;
@@ -837,6 +1123,7 @@ function renderSidebar(activeProject) {
 // 2. Header Component
 function renderHeader(activeProject) {
   const syncStatus = getSyncStatus();
+  const auditCount = getAuditLogs().length;
   return `
     <header class="dropx-header sticky top-0 z-10 bg-white/95 backdrop-blur-md border-b border-slate-200 px-6 py-3.5 flex items-center justify-between no-print shadow-xs">
       <!-- Breadcrumbs & Plant Selector -->
@@ -898,6 +1185,18 @@ function renderHeader(activeProject) {
           <span class="w-2 h-2 rounded-full ${syncStatus.isConnected ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500'}"></span>
           <span class="hidden md:inline">${syncStatus.isConnected ? 'PostgreSQL' : 'LocalStorage'}</span>
           <svg class="w-3.5 h-3.5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+        </button>
+
+        <!-- Change History / Forensic Audit Trail Button -->
+        <button 
+          type="button" 
+          onclick="window.TRSA.openAuditModal()" 
+          class="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-xs font-bold text-slate-700 transition-all shadow-xs cursor-pointer"
+          title="Audit Trail: Telusuri kapan, siapa yang merubah, dan apa yang diubah"
+        >
+          <svg class="w-3.5 h-3.5 text-[#0284C7]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+          <span class="hidden md:inline">Change History</span>
+          <span class="bg-[#0284C7] text-white text-[10px] font-extrabold px-1.5 py-0.2 rounded-full">${auditCount}</span>
         </button>
 
         <!-- User Session Profile & Switcher -->
@@ -2664,6 +2963,19 @@ function renderStudio(proj) {
                 `).join('')}
               </tbody>
             </table>
+
+            <!-- Forensic Audit Stamp & Verification Bar -->
+            <div class="mt-2 text-[10px] text-slate-500 flex items-center justify-between border-t border-slate-200 pt-1.5 font-mono">
+              <span class="flex items-center gap-1.5 text-slate-700">
+                <svg class="w-3.5 h-3.5 text-emerald-600 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
+                <span>Audit Trail ID: <strong class="text-slate-900">${proj.id}</strong></span>
+                <span class="text-slate-400">&bull;</span>
+                <span class="text-emerald-700 font-bold">100% Traceable</span>
+              </span>
+              <span class="text-[9px] text-slate-500">
+                Logged Author: <strong>${store.currentUser.name}</strong> (${store.currentUser.role})
+              </span>
+            </div>
           </div>
 
           <!-- Section I (Bis): Project Description & Key Dates -->
@@ -3471,6 +3783,46 @@ if (typeof window !== 'undefined') {
       store.showNotification('Offline queue: change buffered for sync.', 'info');
     }
     render();
+  },
+  openAuditModal() {
+    store.showAuditModal = true;
+    render();
+  },
+  closeAuditModal() {
+    store.showAuditModal = false;
+    render();
+  },
+  setAuditProjectFilter(val) {
+    store.auditProjectFilter = val;
+    render();
+  },
+  setAuditSearch(val) {
+    store.auditSearchQuery = val;
+    render();
+  },
+  downloadAuditJSON() {
+    const projId = store.auditProjectFilter === 'current' ? store.activeProjectId : null;
+    const jsonStr = exportAuditLogsToJSON(projId);
+    const blob = new Blob([jsonStr], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `TRSA_Audit_Log_${new Date().toISOString().split('T')[0]}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+    store.showNotification('Audit log exported to JSON.', 'success');
+  },
+  downloadAuditCSV() {
+    const projId = store.auditProjectFilter === 'current' ? store.activeProjectId : null;
+    const csvStr = exportAuditLogsToCSV(projId);
+    const blob = new Blob([csvStr], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `TRSA_Audit_Log_${new Date().toISOString().split('T')[0]}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    store.showNotification('Audit log exported to CSV.', 'success');
   }
 };
 }
