@@ -3,22 +3,26 @@
 An enterprise-grade web application to author, manage, review, and print official **TRSA (Tender Requirements and Specification Agreement)** documents for food processing machinery lines.
 
 Built specifically to conform with:
-1. **Capiclean Modern Hygiene Design System** (`https://preview.themewagon.com/Capiclean/#`) (Fresh Sky Blue `#0284C7`, Deep Oceanic Navy `#0B2447`, Warm Sunny Coral `#FF7A00`, and Hygienic Mint `#10B981` on an airy light canvas `#F4F8FC`).
+1. **Capiclean Modern Hygiene Design System** (`https://preview.themewagon.com/Capiclean/#`) (Fresh Sky Blue `#0284C7`, Deep Oceanic Navy `#0F2942`, Warm Sunny Coral `#FF7A00`, and Hygienic Mint `#10B981` on an airy light canvas `#F8FAFC`).
 2. **DropX Admin Dashboard Architecture** (Sleek collapsible sidebar, executive KPI metric cards, data tables with live filters, status badges).
 3. **Clean Business Form Design (Envato A4 Standard)** (Structured corporate grid layouts, highlighted parameter tags, signature endorsement blocks, `@media print` zero-distortion pagination).
 4. **PT Indofood Fortuna Makmur TRSA Standard**:
    - Document No: `006/RAP/TRSA – 1403/MFG-IFM/VIII/2024`
-   - Project: *Supply of Sheeted Pellet Fryer & Seasoning System (Semarang Plant)*.
+   - Project: *Supply of Sheeted Pellet Fryer & Seasoning System (Semarang Plant / Cikupa Plant)*.
+5. **Supabase PostgreSQL & Cloud Architecture**:
+   - Hybrid Relational + JSONB schema with GIN indexes and Foreign Key B-Tree indexes.
+   - Offline-First sync client with automatic LocalStorage fallback and offline queue.
+   - Row-Level Security (RLS) policies and Role-Based Access Control (RBAC).
 
 ---
 
 ## 🚀 Quick Start / How to Run
 
 ### Method 1: Instant Browser Launch (Zero Installation)
-Simply double click or open [index.html](file:///e:/Create%20TRSA/index.html) directly in any modern browser (Chrome, Edge, Firefox, Safari).
+Simply double-click or open [index.html](file:///e:/Create%20TRSA/index.html) directly in any modern browser (Chrome, Edge, Firefox, Safari).
 
 ### Method 2: Windows Batch Launcher
-Double click `start.bat` in this folder:
+Double-click `start.bat` in this folder:
 ```cmd
 start.bat
 ```
@@ -32,67 +36,127 @@ Then visit `http://localhost:5173` in your browser.
 
 ---
 
-## 🌟 Key Features
+## 🧪 Testing & Verification (TDD Suite)
 
-### 1. DropX Admin Dashboard
+TRSA Studio includes a comprehensive automated test suite powered by the native Node.js Test Runner:
+
+```bash
+# Run all 45 automated unit & integration tests
+node --test tests/store.test.js tests/docNumber.test.js tests/defaultTRSA.test.js tests/sqlMigration.test.js tests/securityAudit.test.js tests/auditService.test.js tests/supabaseClient.test.js
+```
+
+### Build Production Package
+```bash
+# Verify syntax, print rules, and compile production assets to dist/
+node scripts/build.js
+```
+
+---
+
+## 🌟 Key Features & Architecture
+
+### 1. DropX Admin Dashboard & Navigation
 - **Executive Metric Cards**: Total active TRSA agreements, registered equipment modules (21 units), target line capacity (600–700 kg/h), and startup milestone tracking (End of April 2025).
 - **Interactive Projects Hub**: Search by title, document control number, or plant location with dynamic status tags (*Draft, Under Review, Published, Approved*).
 - **Template Scaffolding**: One-click creation for Sheeted Pellet Lines, Extruded Snack Lines, and Packaging Systems.
 
-### 2. Multi-Step Guided TRSA Builder
+### 2. Smart Document Control Number (No. TRSA) Generator
+Generates official document numbers conforming to PT Indofood Fortuna Makmur standards:
+```
+Contoh Format: 006/RAP/TRSA – 1403/MFG-IFM/VIII/2024
+```
+- **006**: Nomor urut dokumen 3-digit (otomatis meneruskan nomor tertinggi).
+- **RAP**: Inisial kapital dari nama pembuat (*creator/author*).
+- **TRSA**: Klasifikasi dokumen tetap (*Tender Requirements and Specification Agreement*).
+- **1402 / 1403**: Kode Plant / Lokasi Proyek (`1402`: Semarang, `1403`: Cikupa).
+- **MFG**: Kode Departemen (`MFG`, `ENG`, `QA`, `PUR`).
+- **IFM**: Identitas korporasi (*PT Indofood Fortuna Makmur*).
+- **VIII**: Bulan pertama dokumen dibuat dalam angka Romawi (`I` s/d `XII`).
+- **2024**: Tahun dokumen pertama kali dibuat.
+- **Bi-directional Sync**: Dilengkapi tombol *"Auto Next Number"* dan 7 badge visual segmen interaktif.
+
+### 3. Multi-Step Guided TRSA Builder
 - **Step 1: Document Identification & Revision Control**:
-   - Title, Sub-title, Control Number, Revision History Table (Revision, Description, Originated by, Date).
-   - Target milestones: Line start-up date, Final quotation/drawings date, Order placement date.
-- **Step 2: Key Contacts & Site Invoicing**:
-   - IFM Contacts Matrix (Project & Engineering Manager, Purchasing Supervisor, Site Engineers).
-   - Invoicing entity, Semarang plant address, and CIF shipping port details.
-- **Step 3: Product Specifications & Process Parameters**:
-   - 4 Preloaded snack shapes: *3D Chicken Legs, 3D Golgappa Pellets, 3D Star Pellets, 2D Pierced Chips*.
-   - Input/Output dimensions, bulk density, moisture content (1.0–2.1% with Left-Center-Right gap ≤ 0.3%), oil uptake (28–40%).
-   - Frying parameters: Feeder rate (1.5–2.5 kg/batch), Frying temp (180–190°C), Dwell time (20–30s), Oil capacity (175–180 kg), Spinner (20s).
-   - Seasoning parameters: Dry seasoning, 1% salt content, 7.4% application rate, 635–700 kg/h capacity.
+  - Title, Sub-title, Control Number generator, target milestone dates.
+  - **Revision History**: Kolom *Originated By* otomatis terisi nama pengguna aktif, dan *Date* otomatis terisi tanggal penyimpanan.
+- **Step 2: Key Contacts & Site Invoicing (Section IV)**:
+  - **Database Auto-Fill**: Pemilihan plant location (*Semarang 1402 / Cikupa 1403*) otomatis mengisi alamat pabrik, entitas penerima invoice, delivery port CIF/CIP, dan daftar purchasing attention.
+  - **RBAC Custom Clearance Clause**: Klausul pengurusan bea cukai dan demurrage dikunci khusus role **Admin** (*Moh Yusuf Alfian / Manager*).
+- **Step 3: Interactive Product Specifications & Process Parameters Canvas**:
+  - **Visual CAD/CAM SVG Diagram**: Menampilkan visual 3D snack pellets (*3D Chicken Legs*, *3D Golgappa Pellets*, *3D Star Pellets*, *2D Pierced Chips*).
+  - **Quality KPI Gauges**: Target kapasitas output (`600 Kg/h`), moisture out (`1.0–2.1%`, L-C-R gap &le; 0.3%), oil uptake (`28–40%`), dan bulk density.
+  - **Editable Product Matrix Table**: Tabel data spesifikasi lengkap yang dapat diedit langsung.
+  - **Process Operating Benchmarks**: Panel parameter operasional *Frying* (14 parameter) dan *Seasoning* (7 parameter).
 - **Step 4: Project Scope of Supply**:
-   - **Fryer System (14 Modules)**: Ground level pellet feed with weighing feeder, Unitized pan fryer module with automatic fresh/used oil top-up system and magnetic flow meter, Drum pre-fryer, Horizontal dual-fuel heat exchanger (gas/oil), Main oil pump, Circulation flow meter, 30 USGPM transfer pump, Interconnecting pipework, De-oiling inspection shaker with oil accumulator, 400V 50Hz SUS304 control panel with PLC and Ewon remote access router, Fryer platform, and Ancillaries.
-   - **Seasoning System (7 Modules)**: Infeed weigh conveyor, 635–700 kg/h tumble drum, PLC software with air-conditioned SUS304 panel, Loss-in-Weight metering screw feeder with 960mm scarf feeder, Spiro-flow bulk fill elevator, AB ControlLogix / CompactLogix L43 panel view, and Ancillaries.
-   - Utilities consumption rating & battery limits (power, compressed air, gas).
+  - **Fryer System (14 Modules)**: Pellet feed dengan weighing feeder, pan fryer module dengan automatic oil top-up system, drum pre-fryer, dual-fuel heat exchanger, circulation flow meter, transfer pump, de-oiling shaker, SUS304 control panel dengan Ewon router, dan fryer platform.
+  - **Seasoning System (7 Modules)**: Infeed weigh conveyor, tumble drum, loss-in-weight scarf feeder, bulk fill elevator, panel Allen-Bradley ControlLogix / CompactLogix L43.
 - **Step 5: Hygienic Design & Target Performance Tests**:
-   - Food-grade SUS304 contact requirement, Clean-In-Place (CIP) hood, calibration certificates, MSDS.
-   - Target Performance Protocols: Starting up, 7-hour continuous capability trial, 4-minute sampling interval (15 samples/hr), defect & sensory evaluation (Appearance, Aroma, Taste, Texture).
-   - 3-Month modification & failure consequence penalty clause.
+  - Food-grade SUS304 requirement, CIP hood, uji kemampuan continuous 7-jam, interval sampling 4-menit, evaluasi sensori (Appearance, Aroma, Taste, Texture), klausul konsekuensi kegagalan 3-bulan.
 - **Step 6: Commercial Terms, Tax Laws & Required Documents**:
-   - **Payment Options**: Option 1 (85% L/C, 10% T/T after running, 5% T/T retention) vs Option 2 (30% DP counter Bank Guarantee, 55% L/C, 10%, 5% retention).
-   - Indonesian Withholding Tax (PPh 26 20% / DGT Form Double Tax Treaty relief).
-   - Permanent Establishment (BUT) under PMK 35/2019 time-test rule (>6 months in 1 year).
-   - Indonesian VAT (PPN PP 44/2022) and official Materai Kwitansi requirements.
-   - Engineer working visas & expense division.
-   - 14 Mandatory seller documentation checklist (As-built, Cabling, FDS, Software specs, Annotated PLC, HMI licenses, Manuals, Halal certificate, DWG layouts).
-   - Dual signature authorization blocks (Seller & IFM Project & Engineering Manager).
+  - Payment Options: Option 1 (85% L/C, 10% T/T, 5% retention) vs Option 2 (30% DP counter BG, 55% L/C, 10%, 5% retention).
+  - Pajak PPh 26 (20% / DGT Form Treaty relief), BUT PMK 35/2019, PPN PP 44/2022, Materai Kwitansi, visa kerja engineer.
+  - 14 Dokumen wajib seller (As-built, Cabling, FDS, Software specs, Annotated PLC, Halal cert, DWG layout).
+  - Blok tanda tangan resmi ganda (Seller & IFM Project & Engineering Manager).
 
-### 3. Clean Business Form Studio (A4 Print / Save PDF)
-- Designed following the Envato Clean Business Form aesthetic.
+### 4. PostgreSQL (Supabase) Database & Cloud Integration
+- **Database Schema (`src/sql/schema.sql`)**:
+  - Tabel: `trsa_projects`, `trsa_revisions`, `trsa_key_contacts`, `trsa_audit_logs`, `trsa_plant_locations`.
+  - **Supabase Postgres Best Practices**: B-tree index pada foreign keys, GIN index pada kolom JSONB, automated `updated_at` trigger, dan Row-Level Security (RLS) pada semua tabel.
+  - Immutabilitas audit log (hanya mengizinkan `INSERT` dan `SELECT`).
+- **Offline-First Resilience (`src/js/supabaseClient.js`)**:
+  - Sinkronisasi real-time saat online; otomatis mengantre (*offline buffer queue*) dan menyimpan ke LocalStorage saat offline atau sebelum database dikonfigurasi.
+- **Security & Hardening (`src/js/security.js`)**:
+  - Role-Based Access Control (RBAC): `admin`, `engineer`, `purchaser`.
+  - Deep recursive payload sanitization untuk mencegah serangan Cross-Site Scripting (XSS).
+- **Audit Service (`src/js/auditService.js`)**:
+  - Pencatatan log perubahan dan deteksi granular diff antar revisi dokumen.
+- **UI Database Controls**:
+  - Status pill di navbar (🟢 `PostgreSQL Connected` / 🟡 `LocalStorage Active`).
+  - Modal pengaturan Supabase (URL, Anon Key, tombol *Test Ping*, dan tombol *Sync Now*).
+
+### 5. Clean Business Form Studio (A4 Print / Save PDF)
+- Mengikuti estetika Clean Business Form (Envato A4 Standard).
 - Watermark toggles (*OFFICIAL, DRAFT, CONFIDENTIAL, NONE*).
-- Formatted tables with exact print break avoidance (`page-break-inside: avoid`).
-- One-click print engine that produces official crisp PDF contracts without margins distortion.
-
-### 4. Data Import / Export & Auto-Save
-- Real-time `localStorage` persistence saves all changes instantly.
-- One-click `.json` export and import for seamless offline sharing and backup.
-- Template reset button to restore default Indofood specification anytime.
+- Presisi `@media print` tanpa distorsi margin atau potongan tabel (`page-break-inside: avoid`).
 
 ---
 
 ## 📁 File Structure
+
 ```
 e:\Create TRSA/
-├── index.html            # Main SPA entry point (DropX layout + Clean Form Studio)
-├── server.py             # Python 3 local development server
-├── start.bat             # 1-click Windows launcher
-├── README.md             # Project documentation
-└── src/
-    ├── css/
-    │   └── style.css     # DropX card effects, badges, and Clean Business Form print CSS
-    ├── data/
-    │   └── defaultTRSA.js# Full 14-page Indofood TRSA preloaded seed data
-    └── js/
-        └── app.js        # Reactive state engine, multi-step builder, and print studio
+├── index.html                        # Main SPA entry point (DropX layout + Clean Form Studio)
+├── server.py                         # Python 3 local development server
+├── start.bat                         # 1-click Windows launcher
+├── README.md                         # Comprehensive documentation
+├── scripts/
+│   └── build.js                      # Production compiler, syntax validator, and bundler
+├── src/
+│   ├── css/
+│   │   └── style.css                 # DropX card effects, badges, and Clean Business Form print CSS
+│   ├── data/
+│   │   └── defaultTRSA.js            # Seed 14-page Indofood TRSA dataset
+│   ├── js/
+│   │   ├── app.js                    # Reactive UI views, stepper navigation, and form renderer
+│   │   ├── supabaseClient.js         # Supabase PostgreSQL client & offline-first sync engine
+│   │   ├── security.js               # RBAC permissions, XSS sanitization, and user roles
+│   │   └── auditService.js           # Change diff detection and immutable audit trail logging
+│   └── sql/
+│       └── schema.sql                # Production PostgreSQL migration (Supabase Best Practices & RLS)
+├── tests/
+│   ├── defaultTRSA.test.js           # 14-page Indofood specification matrix verification
+│   ├── docNumber.test.js             # Document Control Number generation and parsing tests
+│   ├── store.test.js                 # Local store, plant auto-population, and progress tests
+│   ├── sqlMigration.test.js          # PostgreSQL schema, foreign key indexes, and RLS audit tests
+│   ├── securityAudit.test.js         # RBAC access control, admin protection, and XSS sanitization tests
+│   ├── auditService.test.js          # Audit logging, diff detection, and immutability tests
+│   └── supabaseClient.test.js        # Supabase config, offline queue, and data transformation tests
+└── dist/                             # Compiled production-ready distribution package
 ```
+
+---
+
+## 🛡️ License & Standards
+Developed for **PT Indofood Fortuna Makmur** engineering division, adhering to:
+- Hygienic Food Processing Machinery Standards (EHEDG / SUS304).
+- Clean Code, SOLID Design & Zero-Downtime Database Architecture.
