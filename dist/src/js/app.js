@@ -230,6 +230,42 @@ export function getVendorOriginConfig(origin = 'Foreign') {
   return VENDOR_ORIGIN_CONFIG[origin] || VENDOR_ORIGIN_CONFIG.Foreign;
 }
 
+export const COUNTRY_ORIGIN_OPTIONS = [
+  'Japan',
+  'Germany',
+  'Italy',
+  'Netherlands',
+  'China',
+  'United States',
+  'United Kingdom',
+  'Switzerland',
+  'Taiwan',
+  'Indonesia',
+  'Australia',
+  'France',
+  'Sweden',
+  'Spain',
+  'South Korea',
+  'Denmark',
+  'Other'
+];
+
+export function ensureGeneralInfo(project) {
+  if (!project) return null;
+  if (!project.generalInfo) {
+    project.generalInfo = {
+      plantLocation: project.documentInfo?.plantLocation || 'Semarang Plant',
+      countryOfOrigin: 'Japan',
+      machineType: project.documentInfo?.subTitle?.replace(/^For Supply of\s*/i, '') || 'Sheeted Pellet Fryer & Seasoning System',
+      vendorName: 'Heat and Control / Kiremko B.V.',
+      modelNumber: 'SPF-600 Continuous',
+      designCapacity: '600 kg/hour (Pellet Output)',
+      targetCommissioning: project.projectOverview?.keyDates?.lineStartUp || 'End of April 2025'
+    };
+  }
+  return project.generalInfo;
+}
+
 export function generateTRSANumber(options = {}) {
   const {
     seq = '001',
@@ -371,6 +407,8 @@ export class TRSAStore {
 
     const oldPlant = proj.documentInfo.plantLocation || 'Unknown';
     proj.documentInfo.plantLocation = plantLocation;
+    ensureGeneralInfo(proj);
+    proj.generalInfo.plantLocation = plantLocation;
     const plantData = getPlantDatabase(plantLocation);
 
     if (!proj.siteDescription) {
@@ -403,6 +441,20 @@ export class TRSAStore {
     }]);
     this.showNotification(`Plant Location & Invoicing Address updated to ${plantData.plantName} (${plantData.code})`, 'info');
     return plantData;
+  }
+
+  updateGeneralInfo(fields = {}, projectId = null) {
+    const proj = projectId ? this.projects.find(p => p.id === projectId) : this.getActiveProject();
+    if (!proj) return null;
+    ensureGeneralInfo(proj);
+    Object.assign(proj.generalInfo, fields);
+
+    if (fields.plantLocation && fields.plantLocation !== proj.documentInfo.plantLocation) {
+      this.updatePlantLocation(fields.plantLocation, proj.id);
+    } else {
+      this.saveProjects('UPDATE');
+    }
+    return proj.generalInfo;
   }
 
   updateVendorOrigin(vendorOrigin, projectId = null) {
@@ -448,6 +500,7 @@ export class TRSAStore {
         if (saved) {
           const parsed = JSON.parse(saved);
           if (Array.isArray(parsed) && parsed.length > 0) {
+            parsed.forEach(p => ensureGeneralInfo(p));
             return parsed;
           }
         }
@@ -456,6 +509,7 @@ export class TRSAStore {
       console.warn('Failed to parse localStorage, resetting to default.', e);
     }
     const initial = [JSON.parse(JSON.stringify(defaultTRSAProject))];
+    initial.forEach(p => ensureGeneralInfo(p));
     if (typeof localStorage !== 'undefined') {
       try {
         localStorage.setItem(this.STORAGE_KEY, JSON.stringify(initial));
@@ -528,6 +582,8 @@ export class TRSAStore {
     const plantCode = getPlantCode(plant);
 
     newProj.documentInfo.plantLocation = plant;
+    ensureGeneralInfo(newProj);
+    newProj.generalInfo.plantLocation = plant;
     const plantData = getPlantDatabase(plant);
     if (!newProj.siteDescription) newProj.siteDescription = {};
     newProj.siteDescription.invoiceRecipient = plantData.invoiceRecipient;
@@ -1721,6 +1777,10 @@ function renderProjectsHub() {
                     <span class="font-bold text-[#0369A1]">${proj.projectOverview.keyDates.lineStartUp}</span>
                   </div>
                   <div class="flex justify-between">
+                    <span class="text-[#5A7184]">Vendor / Origin:</span>
+                    <span class="font-bold text-[#0B2447] truncate max-w-[150px]">${proj.generalInfo?.vendorName || 'OEM'} (${proj.generalInfo?.countryOfOrigin || 'Japan'})</span>
+                  </div>
+                  <div class="flex justify-between">
                     <span class="text-[#5A7184]">Products:</span>
                     <span class="font-bold">${proj.productSpecifications.length} Shapes</span>
                   </div>
@@ -1872,6 +1932,7 @@ function renderBuilder(proj) {
 
 // Sub-step 1: Document Details, Revision History & Dates
 function renderStep1(proj) {
+  ensureGeneralInfo(proj);
   const parsed = parseTRSANumber(proj.documentInfo.docNumber);
   const authorName = proj.documentInfo.revisionHistory?.[0]?.originatedBy || 'Refin A Putra';
   const creationDate = proj.documentInfo.revisionHistory?.[0]?.date || new Date().toISOString().split('T')[0];
@@ -1961,6 +2022,84 @@ function renderStep1(proj) {
         </div>
         <div class="font-mono text-[10px] font-bold text-slate-600 whitespace-nowrap">
           Currency: ${(VENDOR_ORIGIN_CONFIG[proj.documentInfo.vendorOrigin || 'Foreign'] || VENDOR_ORIGIN_CONFIG.Foreign).currency}
+        </div>
+      </div>
+
+      <!-- Section: General Information Card -->
+      <div class="p-5 bg-gradient-to-br from-slate-50 to-sky-50/40 rounded-2xl border border-sky-200/80 space-y-4">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-sky-100">
+          <div>
+            <div class="flex items-center gap-2">
+              <span class="w-2.5 h-2.5 rounded-full bg-[#0284C7] ring-4 ring-sky-100"></span>
+              <h3 class="text-xs font-bold uppercase tracking-wider text-[#0F172A]">
+                General Information (Informasi Umum Proyek & Mesin)
+              </h3>
+            </div>
+            <p class="text-[11px] text-slate-500 mt-0.5">
+              Spesifikasi pokok tender: lokasi plant, negara asal pabrikan mesin (Country of Origin), jenis mesin, nama vendor/OEM, model, dan kapasitas desain.
+            </p>
+          </div>
+          <span class="inline-flex items-center gap-1.5 px-2.5 py-1 text-[10px] font-bold text-[#0369A1] bg-[#E0F2FE] border border-[#BAE6FD] rounded-lg">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+            Tender Scope Master Data
+          </span>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <!-- Plant Lokasi -->
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 mb-1">
+              Plant Lokasi <span class="text-red-500">*</span>
+            </label>
+            <select id="gen-plant-location" class="corp-select font-bold text-slate-800">
+              <option value="Semarang Plant" ${(proj.generalInfo?.plantLocation || proj.documentInfo.plantLocation) === 'Semarang Plant' ? 'selected' : ''}>1402 - Semarang Plant</option>
+              <option value="Cikupa Plant" ${(proj.generalInfo?.plantLocation || proj.documentInfo.plantLocation) === 'Cikupa Plant' ? 'selected' : ''}>1403 - Cikupa Plant</option>
+            </select>
+          </div>
+
+          <!-- Country of Origin (Dropdown) -->
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 mb-1">
+              Country of Origin (Negara Asal) <span class="text-red-500">*</span>
+            </label>
+            <select id="gen-country-origin" class="corp-select font-bold text-[#0284C7]">
+              ${COUNTRY_ORIGIN_OPTIONS.map(c => `
+                <option value="${c}" ${(proj.generalInfo?.countryOfOrigin || 'Japan') === c ? 'selected' : ''}>${c}</option>
+              `).join('')}
+            </select>
+          </div>
+
+          <!-- Jenis Mesin -->
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 mb-1">
+              Jenis Mesin (Machine Type) <span class="text-red-500">*</span>
+            </label>
+            <input type="text" id="gen-machine-type" value="${proj.generalInfo?.machineType || ''}" placeholder="e.g. Sheeted Pellet Fryer & Seasoning System" class="corp-input font-medium" />
+          </div>
+
+          <!-- Nama Vendor -->
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 mb-1">
+              Nama Vendor (OEM / Manufacturer) <span class="text-red-500">*</span>
+            </label>
+            <input type="text" id="gen-vendor-name" value="${proj.generalInfo?.vendorName || ''}" placeholder="e.g. Heat and Control / Kiremko B.V." class="corp-input font-bold text-slate-900" />
+          </div>
+
+          <!-- Model / Line Tag -->
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 mb-1">
+              Model / Line Tag (dll)
+            </label>
+            <input type="text" id="gen-model-number" value="${proj.generalInfo?.modelNumber || ''}" placeholder="e.g. SPF-600 Continuous" class="corp-input font-mono text-xs" />
+          </div>
+
+          <!-- Kapasitas Desain -->
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 mb-1">
+              Kapasitas Desain (dll)
+            </label>
+            <input type="text" id="gen-design-capacity" value="${proj.generalInfo?.designCapacity || ''}" placeholder="e.g. 600 kg/hour (Pellet Output)" class="corp-input font-medium text-emerald-800" />
+          </div>
         </div>
       </div>
 
@@ -3006,6 +3145,7 @@ function renderStep6(proj) {
 
 // 6. Clean Business Form Studio (Envato Print Design Inspired with Capiclean Refresh)
 function renderStudio(proj) {
+  ensureGeneralInfo(proj);
   const watermark = store.watermark;
 
   return `
@@ -3063,6 +3203,50 @@ function renderStudio(proj) {
                 Origin: ${proj.documentInfo.vendorOrigin || 'Foreign'} Vendor
               </span>
             </div>
+          </div>
+
+          <!-- Section General Information -->
+          <div class="mb-6">
+            <h2 class="text-xs font-bold text-[#0B2447] uppercase tracking-wider mb-2 flex items-center justify-between">
+              <span>General Information</span>
+              <span class="text-[9px] font-mono text-[#0284C7] font-bold">Standard Procurement Specification</span>
+            </h2>
+            <table class="clean-form-table">
+              <tbody>
+                <tr>
+                  <th style="width: 25%;">Plant Lokasi</th>
+                  <td style="width: 25%; font-weight: 600;">${proj.generalInfo?.plantLocation || proj.documentInfo.plantLocation || 'Semarang Plant'}</td>
+                  <th style="width: 25%;">Country of Origin</th>
+                  <td style="width: 25%; font-weight: 700; color: #0284C7;">${proj.generalInfo?.countryOfOrigin || 'Japan'}</td>
+                </tr>
+                <tr>
+                  <th>Jenis Mesin</th>
+                  <td style="font-weight: 600;">${proj.generalInfo?.machineType || proj.documentInfo.subTitle || 'Sheeted Pellet Fryer & Seasoning System'}</td>
+                  <th>Nama Vendor</th>
+                  <td style="font-weight: 700; color: #0B2447;">${proj.generalInfo?.vendorName || 'Heat and Control / Kiremko B.V.'}</td>
+                </tr>
+                <tr>
+                  <th>Model / Line Tag</th>
+                  <td class="font-mono text-slate-700">${proj.generalInfo?.modelNumber || 'SPF-600 Continuous'}</td>
+                  <th>Kapasitas Desain</th>
+                  <td style="font-weight: 700; color: #059669;">${proj.generalInfo?.designCapacity || '600 kg/hour (Pellet Output)'}</td>
+                </tr>
+                <tr>
+                  <th>Vendor Sourcing Origin</th>
+                  <td>
+                    <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase ${
+                      (proj.documentInfo.vendorOrigin || 'Foreign') === 'Local' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' :
+                      (proj.documentInfo.vendorOrigin || 'Foreign') === 'Mixed' ? 'bg-purple-50 text-purple-700 border border-purple-200' :
+                      'bg-sky-50 text-[#0284C7] border border-sky-200'
+                    }">
+                      ${proj.documentInfo.vendorOrigin || 'Foreign'}
+                    </span>
+                  </td>
+                  <th>Target Commissioning</th>
+                  <td>${proj.generalInfo?.targetCommissioning || proj.projectOverview.keyDates.lineStartUp}</td>
+                </tr>
+              </tbody>
+            </table>
           </div>
 
           <!-- Section I: Revision History -->
@@ -3541,6 +3725,51 @@ function attachEventHandlers(activeProject) {
     });
   }
 
+  // General Information inputs
+  const genPlantLoc = document.getElementById('gen-plant-location');
+  if (genPlantLoc) {
+    genPlantLoc.addEventListener('change', (e) => {
+      store.updatePlantLocation(e.target.value);
+      render();
+    });
+  }
+
+  const genCountry = document.getElementById('gen-country-origin');
+  if (genCountry) {
+    genCountry.addEventListener('change', (e) => {
+      ensureGeneralInfo(activeProject).countryOfOrigin = e.target.value;
+      render();
+    });
+  }
+
+  const genMachine = document.getElementById('gen-machine-type');
+  if (genMachine) {
+    genMachine.addEventListener('input', (e) => {
+      ensureGeneralInfo(activeProject).machineType = e.target.value;
+    });
+  }
+
+  const genVendor = document.getElementById('gen-vendor-name');
+  if (genVendor) {
+    genVendor.addEventListener('input', (e) => {
+      ensureGeneralInfo(activeProject).vendorName = e.target.value;
+    });
+  }
+
+  const genModel = document.getElementById('gen-model-number');
+  if (genModel) {
+    genModel.addEventListener('input', (e) => {
+      ensureGeneralInfo(activeProject).modelNumber = e.target.value;
+    });
+  }
+
+  const genCap = document.getElementById('gen-design-capacity');
+  if (genCap) {
+    genCap.addEventListener('input', (e) => {
+      ensureGeneralInfo(activeProject).designCapacity = e.target.value;
+    });
+  }
+
   if (docNumber) {
     docNumber.addEventListener('input', (e) => {
       activeProject.documentInfo.docNumber = e.target.value;
@@ -3706,6 +3935,11 @@ if (typeof window !== 'undefined') {
     store.updateVendorOrigin(origin);
     render();
   },
+  updateGeneralInfo(fields) {
+    store.updateGeneralInfo(fields);
+    render();
+  },
+  COUNTRY_ORIGIN_OPTIONS,
   deleteProject(id) {
     store.deleteProject(id);
     render();

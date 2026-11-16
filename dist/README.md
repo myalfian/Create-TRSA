@@ -76,8 +76,14 @@ Contoh Format: 006/RAP/TRSA – 1403/MFG-IFM/VIII/2024
 - **Bi-directional Sync**: Dilengkapi tombol *"Auto Next Number"* dan 7 badge visual segmen interaktif.
 
 ### 3. Multi-Step Guided TRSA Builder
-- **Step 1: Document Identification & Revision Control**:
-  - Title, Sub-title, Control Number generator, target milestone dates.
+- **Step 1: Document Identification, General Information & Revision Control**:
+  - **General Information Master Section**:
+    - **Plant Lokasi**: Pemilihan pabrik tujuan (*1402 - Semarang Plant / 1403 - Cikupa Plant*).
+    - **Country of Origin (Dropdown)**: Pilihan negara asal pabrikan mesin (*Japan, Germany, Italy, Netherlands, China, United States, United Kingdom, Switzerland, Taiwan, Indonesia, Australia, dll*).
+    - **Jenis Mesin (Machine Type)**: Klasifikasi tipe mesin & sistem peralatan (misal: *Sheeted Pellet Fryer & Seasoning System*).
+    - **Nama Vendor (OEM / Manufacturer)**: Nama manufaktur / prinsipal vendor (misal: *Heat and Control / Kiremko B.V.*).
+    - **Model / Line Tag & Kapasitas Desain (dll)**: Tag model mesin dan kapasitas desain (misal: *SPF-600 Continuous, 600 kg/hour*).
+  - **Official Document Control**: Title, Sub-title, Nomor Dokumen TRSA resmi (Read-Only dengan Auto sequential generator).
   - **Vendor Procurement Origin Sourcing**: Pilihan asal vendor (**Foreign**, **Local**, dan **Mixed**) yang secara dinamis menyesuaikan klausul pengiriman (CIF/CIP vs Franco Pabrik), regulasi perpajakan (PPh 26 treaty vs PPh 23 lokal), mata uang (USD/EUR vs IDR), dan persyaratan visa kerja tenaga ahli.
   - **Revision History**: Kolom *Originated By* otomatis terisi nama pengguna aktif, dan *Date* otomatis terisi tanggal penyimpanan.
 - **Step 2: Key Contacts & Site Invoicing (Section IV)**:

@@ -170,6 +170,50 @@ export function detectDetailedProjectChanges(prev = {}, next = {}) {
     });
   }
 
+  // 3b. General Information (Country of Origin, Machine Type, Vendor Name, etc.)
+  const prevGen = prev.generalInfo || {};
+  const nextGen = next.generalInfo || {};
+  if (prevGen.countryOfOrigin !== nextGen.countryOfOrigin && nextGen.countryOfOrigin) {
+    diffs.push({
+      category: 'Country of Origin',
+      description: 'Machinery manufacturing country of origin updated',
+      from: prevGen.countryOfOrigin || 'None',
+      to: nextGen.countryOfOrigin
+    });
+  }
+  if (prevGen.machineType !== nextGen.machineType && nextGen.machineType) {
+    diffs.push({
+      category: 'Machine Type',
+      description: 'Machine type / equipment classification modified',
+      from: prevGen.machineType || 'None',
+      to: nextGen.machineType
+    });
+  }
+  if (prevGen.vendorName !== nextGen.vendorName && nextGen.vendorName) {
+    diffs.push({
+      category: 'Vendor Name',
+      description: 'Vendor / OEM manufacturer name updated',
+      from: prevGen.vendorName || 'None',
+      to: nextGen.vendorName
+    });
+  }
+  if (prevGen.modelNumber !== nextGen.modelNumber && nextGen.modelNumber !== undefined) {
+    diffs.push({
+      category: 'Model / Line Tag',
+      description: 'Machine model number or line tag modified',
+      from: prevGen.modelNumber || 'None',
+      to: nextGen.modelNumber
+    });
+  }
+  if (prevGen.designCapacity !== nextGen.designCapacity && nextGen.designCapacity !== undefined) {
+    diffs.push({
+      category: 'Design Capacity',
+      description: 'Rated equipment design capacity updated',
+      from: prevGen.designCapacity || 'None',
+      to: nextGen.designCapacity
+    });
+  }
+
   // 4. Project Workflow Status
   if (prev.status !== next.status && next.status) {
     diffs.push({

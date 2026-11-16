@@ -19,7 +19,7 @@ globalThis.document = {
 import { test, describe } from 'node:test';
 import assert from 'node:assert';
 import { defaultTRSAProject } from '../src/data/defaultTRSA.js';
-import { TRSAStore, PLANT_DATABASE, getPlantDatabase, VENDOR_ORIGIN_CONFIG, getVendorOriginConfig } from '../src/js/app.js';
+import { TRSAStore, PLANT_DATABASE, getPlantDatabase, VENDOR_ORIGIN_CONFIG, getVendorOriginConfig, COUNTRY_ORIGIN_OPTIONS, ensureGeneralInfo } from '../src/js/app.js';
 import { getAuditLogs } from '../src/js/auditService.js';
 
 describe('TRSA Store and Business Logic Tests', () => {
@@ -273,5 +273,51 @@ describe('TRSA Store and Business Logic Tests', () => {
     // 4. Fallback on invalid origin
     store.updateVendorOrigin('InvalidOrigin');
     assert.strictEqual(proj.documentInfo.vendorOrigin, 'Foreign', 'Invalid origin should fall back to Foreign');
+  });
+
+  test('General Information Section: Verification of Plant Location, Country of Origin dropdown, Machine Type, Vendor Name, and auto-sync', () => {
+    globalThis.localStorage.clear();
+    const store = new TRSAStore();
+    const proj = store.getActiveProject();
+
+    // 1. Ensure generalInfo is populated
+    assert.ok(proj.generalInfo, 'generalInfo object must exist');
+    assert.strictEqual(proj.generalInfo.plantLocation, 'Semarang Plant');
+    assert.strictEqual(proj.generalInfo.countryOfOrigin, 'Japan');
+
+    // 2. Verify Country of Origin Options list
+    assert.ok(Array.isArray(COUNTRY_ORIGIN_OPTIONS), 'COUNTRY_ORIGIN_OPTIONS must be an array');
+    assert.ok(COUNTRY_ORIGIN_OPTIONS.includes('Japan'));
+    assert.ok(COUNTRY_ORIGIN_OPTIONS.includes('Germany'));
+    assert.ok(COUNTRY_ORIGIN_OPTIONS.includes('Italy'));
+    assert.ok(COUNTRY_ORIGIN_OPTIONS.includes('Netherlands'));
+    assert.ok(COUNTRY_ORIGIN_OPTIONS.includes('China'));
+    assert.ok(COUNTRY_ORIGIN_OPTIONS.includes('Indonesia'));
+
+    // 3. Update General Information fields
+    store.setCurrentUser('Moh Yusuf Alfian');
+    store.updateGeneralInfo({
+      countryOfOrigin: 'Germany',
+      machineType: 'Continuous Rotary Pellet Fryer System',
+      vendorName: 'Kiremko B.V. & Florigo',
+      modelNumber: 'KRM-750 Pro',
+      designCapacity: '750 kg/hour (Pellet Output)'
+    });
+
+    assert.strictEqual(proj.generalInfo.countryOfOrigin, 'Germany');
+    assert.strictEqual(proj.generalInfo.machineType, 'Continuous Rotary Pellet Fryer System');
+    assert.strictEqual(proj.generalInfo.vendorName, 'Kiremko B.V. & Florigo');
+    assert.strictEqual(proj.generalInfo.modelNumber, 'KRM-750 Pro');
+    assert.strictEqual(proj.generalInfo.designCapacity, '750 kg/hour (Pellet Output)');
+
+    // 4. Updating Plant Location synchronizes generalInfo.plantLocation
+    store.updatePlantLocation('Cikupa Plant');
+    assert.strictEqual(proj.documentInfo.plantLocation, 'Cikupa Plant');
+    assert.strictEqual(proj.generalInfo.plantLocation, 'Cikupa Plant');
+
+    // 5. Audit Trail captures General Information updates
+    const logs = getAuditLogs(proj.id);
+    assert.ok(logs.length >= 1, 'Audit log must record updates');
+    assert.ok(logs.some(l => l.userName === 'Moh Yusuf Alfian'));
   });
 });

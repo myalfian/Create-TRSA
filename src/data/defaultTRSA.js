@@ -19,6 +19,15 @@ export const defaultTRSAProject = {
       }
     ]
   },
+  generalInfo: {
+    plantLocation: "Semarang Plant",
+    countryOfOrigin: "Japan",
+    machineType: "Sheeted Pellet Fryer & Seasoning System",
+    vendorName: "Heat and Control / Kiremko B.V.",
+    modelNumber: "SPF-600 Continuous",
+    designCapacity: "600 kg/hour (Pellet Output)",
+    targetCommissioning: "End of April 2025"
+  },
   projectOverview: {
     description: "The purpose of this project is to supply one (1) Frying System and one (1) Seasoning System for Sheeted Pellet Lines Snacks, conforming to the product specifications of PT Indofood Fortuna Makmur Semarang.",
     keyDates: {
