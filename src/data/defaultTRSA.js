@@ -416,6 +416,7 @@ export const defaultTRSAProject = {
         target: "Salt content: 1.0% (base excluded); Application rate: 7.4%; Seasoning capacity: 635 – 700 kg/h."
       }
     ],
+    finalAcceptance: "Final Site Acceptance will be certified upon successful completion of the continuous 7-hour capability trial meeting all throughput (600 kg/h), moisture (1.0–2.1%, L-C-R ≤0.3%), oil uptake (28–40%), and seasoning consistency criteria. Both Seller and Indofood representatives shall execute the official Final Acceptance Certificate.",
     failureConsequence: "If The Seller cannot achieve target performance, Seller must rectify and modify within 3 months. All extra costs for modification, replacement machines, and raw materials must be borne by The Seller."
   },
   commercialTerms: {

@@ -2932,11 +2932,11 @@ function renderStudio(proj) {
 
           <!-- Document Header -->
           <div class="text-center pb-6 border-b-2 border-[#0B2447] mb-6">
-            <div class="text-xs font-extrabold tracking-widest text-[#0284C7] uppercase mb-1">PT Indofood Fortuna Makmur</div>
+            <div class="text-xs font-black tracking-widest text-[#0284C7] uppercase mb-1">Tender Requirements and Specification Agreement</div>
             <h1 class="text-xl font-black text-[#0B2447] uppercase tracking-tight">${proj.documentInfo.title}</h1>
-            <div class="text-sm font-bold text-[#16365C] mt-1">${proj.documentInfo.subTitle}</div>
+            ${proj.documentInfo.subTitle ? `<div class="text-sm font-semibold text-[#16365C] mt-1">${proj.documentInfo.subTitle}</div>` : ''}
             <div class="mt-2 inline-block px-3 py-1 bg-[#F0F9FF] border border-[#BAE6FD] font-mono text-xs font-bold text-[#0369A1] rounded">
-              (No : ${proj.documentInfo.docNumber})
+              (${proj.documentInfo.docNumber})
             </div>
           </div>
 
@@ -2978,14 +2978,17 @@ function renderStudio(proj) {
             </div>
           </div>
 
-          <!-- Section I (Bis): Project Description & Key Dates -->
+          <!-- Section II: Project Description -->
           <div class="mb-6">
-            <h2 class="text-xs font-bold text-[#0B2447] uppercase tracking-wider mb-2">I. Project Description</h2>
+            <h2 class="text-xs font-bold text-[#0B2447] uppercase tracking-wider mb-2">II. Project Description</h2>
             <p class="text-xs text-slate-700 leading-relaxed mb-4">
               ${proj.projectOverview.description}
             </p>
+          </div>
 
-            <h2 class="text-xs font-bold text-[#0B2447] uppercase tracking-wider mb-2">II. Key Dates</h2>
+          <!-- Section III: Key Dates -->
+          <div class="mb-6">
+            <h2 class="text-xs font-bold text-[#0B2447] uppercase tracking-wider mb-2">III. Key Dates</h2>
             <ul class="text-xs space-y-1.5 text-slate-700 list-disc pl-5">
               <li>Line start-up is targeted for the <strong class="text-[#0284C7]">${proj.projectOverview.keyDates.lineStartUp}</strong></li>
               <li>The final quotation, drawings, and signed agreement are expected by <strong>${proj.projectOverview.keyDates.finalQuotationDrawings}</strong></li>
@@ -2993,9 +2996,9 @@ function renderStudio(proj) {
             </ul>
           </div>
 
-          <!-- Section III: Key Contacts -->
+          <!-- Section IV: Key Contacts -->
           <div class="mb-6">
-            <h2 class="text-xs font-bold text-[#0B2447] uppercase tracking-wider mb-2">III. Key Contacts</h2>
+            <h2 class="text-xs font-bold text-[#0B2447] uppercase tracking-wider mb-2">IV. Key Contacts</h2>
             <p class="text-[11px] text-[#5A7184] mb-2">All correspondence pertaining to this project with PT. Indofood Fortuna Makmur shall be directed through the following individuals:</p>
             <table class="clean-form-table table-header-orange">
               <thead>
@@ -3017,9 +3020,9 @@ function renderStudio(proj) {
             </table>
           </div>
 
-          <!-- Section IV: Site Description -->
+          <!-- Section V: Site Description -->
           <div class="mb-6">
-            <h2 class="text-xs font-bold text-[#0B2447] uppercase tracking-wider mb-2">IV. Site Description</h2>
+            <h2 class="text-xs font-bold text-[#0B2447] uppercase tracking-wider mb-2">V. Site Description</h2>
             <div class="text-xs text-slate-700 space-y-1 bg-[#F4F8FC] p-3 border border-[#D6E6F2] rounded">
               <div class="font-bold text-[#0B2447]">Company address / Site Location (All invoices should be issued to) :</div>
               <div class="font-bold">${proj.siteDescription.invoiceRecipient}</div>
@@ -3031,14 +3034,14 @@ function renderStudio(proj) {
             </div>
           </div>
 
-          <!-- Section V & VI: Confidentiality & Language -->
+          <!-- Section VI & VII: Confidentiality & Language Requirements -->
           <div class="mb-6 grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <h2 class="text-xs font-bold text-[#0B2447] uppercase tracking-wider mb-1">V. Confidentiality</h2>
+              <h2 class="text-xs font-bold text-[#0B2447] uppercase tracking-wider mb-1">VI. Confidentiality</h2>
               <p class="text-[11px] text-slate-600 leading-relaxed text-justify">${proj.projectOverview.confidentialityClause}</p>
             </div>
             <div>
-              <h2 class="text-xs font-bold text-[#0B2447] uppercase tracking-wider mb-1">VI. Language</h2>
+              <h2 class="text-xs font-bold text-[#0B2447] uppercase tracking-wider mb-1">VII. Language Requirements</h2>
               <p class="text-[11px] text-slate-600 leading-relaxed text-justify">${proj.projectOverview.languageRequirement}</p>
             </div>
           </div>
@@ -3046,9 +3049,9 @@ function renderStudio(proj) {
           <!-- Page Break For Clean Business Form Print Standard -->
           <div class="page-break my-6"></div>
 
-          <!-- Section VII: Product Specifications -->
+          <!-- Section VIII: Product Specifications -->
           <div class="mb-6">
-            <h2 class="text-xs font-bold text-[#0B2447] uppercase tracking-wider mb-2">VII. Product Specifications</h2>
+            <h2 class="text-xs font-bold text-[#0B2447] uppercase tracking-wider mb-2">VIII. Product Specifications</h2>
             
             ${proj.productSpecifications.map(p => `
               <div class="mb-4">
@@ -3147,11 +3150,11 @@ function renderStudio(proj) {
             </table>
           </div>
 
-          <!-- Section VIII: Project Scope of Supply -->
+          <!-- Section IX: Scope of Supply -->
           <div class="page-break my-6"></div>
 
           <div class="mb-6">
-            <h2 class="text-xs font-bold text-[#0B2447] uppercase tracking-wider mb-2">VIII. Project Scope of Supply</h2>
+            <h2 class="text-xs font-bold text-[#0B2447] uppercase tracking-wider mb-2">IX. Scope of Supply</h2>
             
             <div class="font-bold text-xs text-[#FF7A00] mb-2 uppercase tracking-wide">A) Fryer System</div>
             <div class="space-y-3 mb-6">
@@ -3178,11 +3181,11 @@ function renderStudio(proj) {
             </div>
           </div>
 
-          <!-- Section IX: Target Performance Test -->
+          <!-- Section X: Target Performance Test -->
           <div class="page-break my-6"></div>
 
           <div class="mb-6">
-            <h2 class="text-xs font-bold text-[#0B2447] uppercase tracking-wider mb-2">IX. Target Performance Test & Commissioning</h2>
+            <h2 class="text-xs font-bold text-[#0B2447] uppercase tracking-wider mb-2">X. Target Performance Test</h2>
             <table class="clean-form-table">
               <thead>
                 <tr>
@@ -3204,17 +3207,28 @@ function renderStudio(proj) {
               </tbody>
             </table>
 
-            <div class="p-3 bg-[#F0F9FF] border border-[#BAE6FD] text-xs rounded mb-4">
+            <div class="p-3 bg-[#F0F9FF] border border-[#BAE6FD] text-xs rounded mt-3">
               <strong class="text-[#0369A1]">Commissioning Mechanism:</strong> ${proj.performanceAcceptance.commissioningDuration}
             </div>
+          </div>
 
-            <div class="p-3 bg-red-50 border border-red-200 text-xs text-red-950 rounded">
-              <strong class="text-red-800">XI. Consequences If Target is Not Reached:</strong>
+          <!-- Section XI: Final Acceptance -->
+          <div class="mb-6">
+            <h2 class="text-xs font-bold text-[#0B2447] uppercase tracking-wider mb-2">XI. Final Acceptance</h2>
+            <div class="p-3 bg-emerald-50 border border-emerald-200 text-xs text-emerald-950 rounded leading-relaxed">
+              ${proj.performanceAcceptance.finalAcceptance || "Final Acceptance will be certified upon successful completion of the continuous 7-hour capability trial meeting all throughput, moisture, oil uptake, and seasoning consistency criteria. Both Seller and Indofood representatives shall execute the official Final Acceptance Certificate."}
+            </div>
+          </div>
+
+          <!-- Section XII: Consequences If Target is Not Reached -->
+          <div class="mb-6">
+            <h2 class="text-xs font-bold text-[#0B2447] uppercase tracking-wider mb-2">XII. Consequences If Target is Not Reached</h2>
+            <div class="p-3 bg-red-50 border border-red-200 text-xs text-red-950 rounded leading-relaxed">
               ${proj.performanceAcceptance.failureConsequence}
             </div>
           </div>
 
-          <!-- Section XIII: Terms of Payment -->
+          <!-- Section XIII: Term of Payment -->
           <div class="mb-6">
             <h2 class="text-xs font-bold text-[#0B2447] uppercase tracking-wider mb-2">XIII. Term of Payment (Selected: ${proj.commercialTerms.selectedPaymentOption})</h2>
             <table class="clean-form-table table-header-orange">
@@ -3242,14 +3256,42 @@ function renderStudio(proj) {
                 </tr>
               </tbody>
             </table>
-            <div class="text-[11px] text-slate-700 bg-[#F4F8FC] p-2.5 border border-[#D6E6F2] rounded">
+            <div class="text-[11px] text-slate-700 bg-[#F4F8FC] p-2.5 border border-[#D6E6F2] rounded mt-2">
               <strong class="text-[#0284C7]">Engineering Services:</strong> ${proj.commercialTerms.engineeringServicesPayment}
             </div>
           </div>
 
-          <!-- Section XIV: Required Documentation Checklist -->
+          <!-- Section XIV: Shipment and Delivery -->
           <div class="mb-6">
-            <h2 class="text-xs font-bold text-[#0B2447] uppercase tracking-wider mb-2">XIV. Required Documentation (14 Items)</h2>
+            <h2 class="text-xs font-bold text-[#0B2447] uppercase tracking-wider mb-2">XIV. Shipment and Delivery</h2>
+            <div class="p-3 bg-[#F4F8FC] border border-[#D6E6F2] text-xs text-slate-700 rounded leading-relaxed">
+              ${proj.commercialTerms.shipmentTerms}
+            </div>
+          </div>
+
+          <!-- Section XV: Warranty -->
+          <div class="mb-6">
+            <h2 class="text-xs font-bold text-[#0B2447] uppercase tracking-wider mb-2">XV. Warranty</h2>
+            <div class="p-3 bg-[#F0F9FF] border border-[#BAE6FD] text-xs text-[#0369A1] rounded leading-relaxed font-medium">
+              ${proj.commercialTerms.warranty}
+            </div>
+          </div>
+
+          <!-- Section XVI: Administrative Provisions -->
+          <div class="mb-6">
+            <h2 class="text-xs font-bold text-[#0B2447] uppercase tracking-wider mb-2">XVI. Administrative Provisions</h2>
+            <div class="space-y-2 text-xs text-slate-700">
+              ${(proj.legalAndTaxProvisions || []).map(p => `
+                <div class="p-2.5 bg-slate-50 border border-slate-200 rounded">
+                  <strong class="text-[#0B2447]">${p.title}:</strong> ${p.description}
+                </div>
+              `).join('')}
+            </div>
+          </div>
+
+          <!-- Section XVII: Required Documentation -->
+          <div class="mb-6">
+            <h2 class="text-xs font-bold text-[#0B2447] uppercase tracking-wider mb-2">XVII. Required Documentation (14 Items)</h2>
             <div class="grid grid-cols-2 gap-x-4 gap-y-1 text-[11px] text-slate-700">
               ${proj.requiredDocumentation.map(d => `
                 <div class="flex items-center gap-1.5">
@@ -3262,7 +3304,7 @@ function renderStudio(proj) {
 
           <!-- Signature Blocks (Envato Clean Business Form Design with Capiclean Refresh) -->
           <div class="mt-8 pt-6 border-t-2 border-[#0B2447]">
-            <div class="text-xs font-bold text-[#0B2447] uppercase tracking-wider mb-6">Acknowledged and Approved by</div>
+            <div class="text-xs font-bold text-[#0B2447] uppercase tracking-wider mb-6">Acknowledged and Approved by,</div>
             
             <div class="grid grid-cols-2 gap-8 text-xs">
               <!-- Seller Endorsement -->

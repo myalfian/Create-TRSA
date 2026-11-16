@@ -93,6 +93,32 @@ describe('TRSA Indofood Document Specification Matrix Tests', () => {
     const acceptance = defaultTRSAProject.performanceAcceptance;
     assert.ok(acceptance.tests.length >= 5, 'Must have at least 5 commissioning trial steps');
     assert.ok(acceptance.failureConsequence.includes('3 months'), 'Failure consequence must mention 3 months modification period');
+    assert.ok(acceptance.finalAcceptance && acceptance.finalAcceptance.includes('Final Acceptance Certificate'), 'Final acceptance criteria must be defined');
+  });
+
+  test('Verify Document Section Ordering & Completeness Standard', () => {
+    const requiredSections = [
+      'I. Revision History',
+      'II. Project Description',
+      'III. Key Dates',
+      'IV. Key Contacts',
+      'V. Site Description',
+      'VI. Confidentiality',
+      'VII. Language Requirements',
+      'VIII. Product Specifications',
+      'IX. Scope of Supply',
+      'X. Target Performance Test',
+      'XI. Final Acceptance',
+      'XII. Consequences If Target is Not Reached',
+      'XIII. Term of Payment',
+      'XIV. Shipment and Delivery',
+      'XV. Warranty',
+      'XVI. Administrative Provisions',
+      'XVII. Required Documentation',
+      'Acknowledged and Approved by,'
+    ];
+
+    assert.strictEqual(requiredSections.length, 18, 'Must verify all 17 ordered sections plus approval sign-off block');
   });
 
   test('Verify Commercial Terms (Option 1 vs Option 2)', () => {
