@@ -1,4 +1,29 @@
 import { defaultTRSAProject } from '../data/defaultTRSA.js';
+import { 
+  ROLES, 
+  getCurrentRole, 
+  setCurrentRole, 
+  canEditCustomClearance, 
+  canDeleteProject, 
+  canChangeProjectStatus,
+  sanitizeProject,
+  sanitizeInput 
+} from './security.js';
+import { 
+  createAuditEntry, 
+  appendAuditLog, 
+  getAuditLogs, 
+  detectProjectChanges 
+} from './auditService.js';
+import { 
+  getSupabaseConfig, 
+  setSupabaseConfig, 
+  isConfigured, 
+  testConnection, 
+  getSyncStatus, 
+  syncProjectToPostgres, 
+  fetchProjectsFromPostgres 
+} from './supabaseClient.js';
 
 // ==========================================================================
 // Official Document Control Number (No. TRSA) Utilities & Generators
@@ -155,6 +180,7 @@ export class TRSAStore {
     ];
     this.currentUser = this.loadUser();
     this.showUserMenu = false;
+    this.showSupabaseModal = false;
     this.projects = this.loadProjects();
     this.activeProjectId = this.projects[0]?.id || 'trsa-006-ifm-2024';
     this.currentView = 'dashboard'; // 'dashboard' | 'projects' | 'builder' | 'studio'
@@ -265,12 +291,28 @@ export class TRSAStore {
 
   saveProjects() {
     try {
+      // 1. Security & Hardening: Deep payload sanitization against XSS
+      const sanitized = sanitizeProject(this.projects);
+
       if (typeof localStorage !== 'undefined') {
-        localStorage.setItem(this.STORAGE_KEY, JSON.stringify(this.projects));
+        localStorage.setItem(this.STORAGE_KEY, JSON.stringify(sanitized));
       }
+
+      // 2. Audit Trail: Generate immutable audit log entry
+      const active = this.getActiveProject();
+      if (active) {
+        const user = this.getCurrentUser();
+        const role = this.isAdmin() ? ROLES.ADMIN : ROLES.ENGINEER;
+        const entry = createAuditEntry(active.id, 'UPDATE', ['projectData'], { name: user.name, role });
+        appendAuditLog(entry);
+
+        // 3. PostgreSQL Sync: Sync to Supabase or queue if offline
+        syncProjectToPostgres(active, 'UPDATE').catch(e => console.warn('Supabase sync:', e));
+      }
+
       this.showNotification('All changes saved successfully.', 'success');
     } catch (e) {
-      this.showNotification('Error saving to local storage.', 'error');
+      this.showNotification('Error saving project data.', 'error');
     }
   }
 
@@ -562,12 +604,128 @@ export function render() {
         </main>
       </div>
 
+      <!-- Supabase Modal -->
+      ${store.showSupabaseModal ? renderSupabaseModal() : ''}
+
       <!-- Toast Notification Container -->
       <div id="notification-toast" class="hidden"></div>
     </div>
   `;
 
   attachEventHandlers(activeProject);
+}
+
+// Supabase Configuration Modal Component
+function renderSupabaseModal() {
+  const config = getSupabaseConfig();
+  const syncStatus = getSyncStatus();
+
+  return `
+    <div class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4 animate-fadeIn">
+      <div class="bg-white rounded-3xl shadow-2xl border border-slate-200 w-full max-w-xl overflow-hidden animate-scaleUp">
+        <!-- Header -->
+        <div class="p-6 bg-gradient-to-r from-[#0F2942] to-[#0284C7] text-white flex items-center justify-between">
+          <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-2xl bg-white/10 backdrop-blur-md flex items-center justify-center border border-white/20">
+              <svg class="w-5 h-5 text-sky-200" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4"/></svg>
+            </div>
+            <div>
+              <h3 class="text-base font-bold">PostgreSQL / Supabase Integration</h3>
+              <p class="text-xs text-sky-200">Connect cloud database with offline LocalStorage fallback</p>
+            </div>
+          </div>
+          <button onclick="window.TRSA.closeSupabaseModal()" class="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-white transition-all text-sm font-bold">
+            &times;
+          </button>
+        </div>
+
+        <!-- Body -->
+        <div class="p-6 space-y-4 text-xs">
+          <!-- Status Banner -->
+          <div class="p-3.5 rounded-2xl border flex items-center justify-between ${
+            syncStatus.isConnected 
+              ? 'bg-emerald-50 border-emerald-200 text-emerald-800' 
+              : 'bg-amber-50 border-amber-200 text-amber-800'
+          }">
+            <div class="flex items-center gap-2.5">
+              <span class="w-2.5 h-2.5 rounded-full ${syncStatus.isConnected ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500'}"></span>
+              <div>
+                <div class="font-bold text-xs">${syncStatus.statusText}</div>
+                <div class="text-[11px] opacity-80">${syncStatus.pendingCount} pending offline change(s)</div>
+              </div>
+            </div>
+            <button onclick="window.TRSA.testSupabaseConnection()" class="btn-capiclean-accent text-[11px] px-3 py-1 font-semibold">
+              Test Ping
+            </button>
+          </div>
+
+          <!-- Test Connection Result Message -->
+          <div id="supabase-test-result" class="hidden p-3 rounded-xl text-xs font-medium"></div>
+
+          <!-- Form Inputs -->
+          <div class="space-y-3">
+            <div>
+              <label class="block text-slate-700 font-bold mb-1">Supabase Project URL</label>
+              <input 
+                type="url" 
+                id="supabase-url-input" 
+                placeholder="https://xyzcompany.supabase.co" 
+                value="${config.url || ''}"
+                class="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-[#0284C7] focus:outline-none font-mono text-xs"
+              />
+            </div>
+
+            <div>
+              <label class="block text-slate-700 font-bold mb-1">Supabase Public Anon Key</label>
+              <input 
+                type="password" 
+                id="supabase-key-input" 
+                placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..." 
+                value="${config.anonKey || ''}"
+                class="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-[#0284C7] focus:outline-none font-mono text-xs"
+              />
+            </div>
+
+            <div class="flex items-center gap-2 pt-1">
+              <input 
+                type="checkbox" 
+                id="supabase-enable-input" 
+                ${config.enabled ? 'checked' : ''}
+                class="w-4 h-4 text-[#0284C7] rounded-sm focus:ring-[#0284C7]"
+              />
+              <label for="supabase-enable-input" class="text-slate-700 font-semibold cursor-pointer">
+                Enable Cloud PostgreSQL Sync (Fallback to LocalStorage when unconfigured)
+              </label>
+            </div>
+          </div>
+
+          <!-- SQL Schema Reference Note -->
+          <div class="p-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-600 text-[11px] space-y-1">
+            <div class="font-bold text-slate-800 flex items-center gap-1.5">
+              <svg class="w-3.5 h-3.5 text-[#0284C7]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+              PostgreSQL Database Schema (src/sql/schema.sql)
+            </div>
+            <p>Pre-configured with RLS security policies, GIN indexes on JSONB specifications, and foreign key B-tree indexes conforming to Supabase Postgres Best Practices.</p>
+          </div>
+        </div>
+
+        <!-- Footer Actions -->
+        <div class="p-4 bg-slate-50 border-t border-slate-200 flex items-center justify-between">
+          <button onclick="window.TRSA.closeSupabaseModal()" class="px-4 py-2 text-xs font-semibold text-slate-600 hover:text-slate-800">
+            Cancel
+          </button>
+          <div class="flex items-center gap-2">
+            <button onclick="window.TRSA.syncToPostgresNow()" class="px-4 py-2 rounded-xl text-xs font-bold border border-[#0284C7] text-[#0284C7] hover:bg-sky-50 transition-all">
+              Sync Now
+            </button>
+            <button onclick="window.TRSA.saveSupabaseConfigFromModal()" class="btn-capiclean-accent text-xs px-4 py-2 font-bold shadow-md">
+              Save Settings
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
 }
 
 // 1. Sidebar Component (Blue Sky Theme)
@@ -678,6 +836,7 @@ function renderSidebar(activeProject) {
 
 // 2. Header Component
 function renderHeader(activeProject) {
+  const syncStatus = getSyncStatus();
   return `
     <header class="dropx-header sticky top-0 z-10 bg-white/95 backdrop-blur-md border-b border-slate-200 px-6 py-3.5 flex items-center justify-between no-print shadow-xs">
       <!-- Breadcrumbs & Plant Selector -->
@@ -724,6 +883,22 @@ function renderHeader(activeProject) {
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
           <input type="file" id="import-file-input" accept=".json" class="hidden" />
         </label>
+
+        <!-- PostgreSQL Database Status Pill -->
+        <button 
+          type="button" 
+          onclick="window.TRSA.openSupabaseModal()" 
+          class="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border text-xs font-bold transition-all shadow-xs cursor-pointer ${
+            syncStatus.isConnected 
+              ? 'bg-emerald-50 text-emerald-800 border-emerald-200 hover:bg-emerald-100' 
+              : 'bg-amber-50 text-amber-800 border-amber-200 hover:bg-amber-100'
+          }"
+          title="Database: ${syncStatus.statusText} (Click to configure Supabase)"
+        >
+          <span class="w-2 h-2 rounded-full ${syncStatus.isConnected ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500'}"></span>
+          <span class="hidden md:inline">${syncStatus.isConnected ? 'PostgreSQL' : 'LocalStorage'}</span>
+          <svg class="w-3.5 h-3.5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+        </button>
 
         <!-- User Session Profile & Switcher -->
         <div class="relative ml-1 pl-3 border-l border-slate-200">
@@ -3147,6 +3322,8 @@ if (typeof window !== 'undefined') {
   },
   switchUser(name) {
     store.setCurrentUser(name);
+    const role = store.isAdmin() ? ROLES.ADMIN : ROLES.ENGINEER;
+    setCurrentRole(role);
     store.showUserMenu = false;
     render();
   },
@@ -3241,6 +3418,58 @@ if (typeof window !== 'undefined') {
   removeScopeItem(type, idx) {
     const p = store.getActiveProject();
     p.scopeOfSupply[type].splice(idx, 1);
+    render();
+  },
+  openSupabaseModal() {
+    store.showSupabaseModal = true;
+    render();
+  },
+  closeSupabaseModal() {
+    store.showSupabaseModal = false;
+    render();
+  },
+  async testSupabaseConnection() {
+    const url = document.getElementById('supabase-url-input')?.value;
+    const anonKey = document.getElementById('supabase-key-input')?.value;
+    const resultBox = document.getElementById('supabase-test-result');
+    if (!resultBox) return;
+
+    resultBox.classList.remove('hidden', 'bg-emerald-50', 'text-emerald-800', 'bg-red-50', 'text-red-800');
+    resultBox.classList.add('bg-sky-50', 'text-sky-800');
+    resultBox.innerText = 'Pinging PostgreSQL / Supabase REST endpoint...';
+
+    const res = await testConnection(url, anonKey);
+    resultBox.classList.remove('bg-sky-50', 'text-sky-800');
+    if (res.success) {
+      resultBox.classList.add('bg-emerald-50', 'text-emerald-800');
+      resultBox.innerText = '✓ ' + res.message;
+    } else {
+      resultBox.classList.add('bg-red-50', 'text-red-800');
+      resultBox.innerText = '✗ ' + res.message;
+    }
+  },
+  saveSupabaseConfigFromModal() {
+    const url = document.getElementById('supabase-url-input')?.value || '';
+    const anonKey = document.getElementById('supabase-key-input')?.value || '';
+    const enabled = document.getElementById('supabase-enable-input')?.checked || false;
+
+    setSupabaseConfig({ url, anonKey, enabled });
+    store.showSupabaseModal = false;
+    store.showNotification(
+      enabled ? 'Supabase PostgreSQL configuration saved.' : 'Offline LocalStorage mode active.', 
+      'success'
+    );
+    render();
+  },
+  async syncToPostgresNow() {
+    store.showNotification('Syncing project to PostgreSQL...', 'info');
+    const p = store.getActiveProject();
+    const res = await syncProjectToPostgres(p, 'SYNC');
+    if (res.success) {
+      store.showNotification('Project synced with PostgreSQL successfully.', 'success');
+    } else {
+      store.showNotification('Offline queue: change buffered for sync.', 'info');
+    }
     render();
   }
 };

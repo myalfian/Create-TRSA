@@ -21,6 +21,10 @@ const requiredFiles = [
   'start.bat',
   'src/data/defaultTRSA.js',
   'src/js/app.js',
+  'src/js/security.js',
+  'src/js/auditService.js',
+  'src/js/supabaseClient.js',
+  'src/sql/schema.sql',
   'src/css/style.css'
 ];
 
@@ -40,6 +44,9 @@ for (const relPath of requiredFiles) {
 console.log('\n[2/4] Validating JavaScript & CSS Syntax...');
 const jsFiles = [
   'src/data/defaultTRSA.js',
+  'src/js/security.js',
+  'src/js/auditService.js',
+  'src/js/supabaseClient.js',
   'src/js/app.js'
 ];
 
