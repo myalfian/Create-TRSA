@@ -1,0 +1,22 @@
+{
+  "name": "trsa-studio",
+  "version": "1.0.0",
+  "description": "Enterprise Tender Requirements & Specification Agreement Application",
+  "type": "module",
+  "scripts": {
+    "test": "node tests/run.js",
+    "build": "node scripts/build.js",
+    "lint": "node scripts/lint.js",
+    "start": "python server.py"
+  },
+  "keywords": [
+    "trsa",
+    "indofood",
+    "tender",
+    "specification",
+    "engineering",
+    "dropx"
+  ],
+  "author": "Indofood Fortuna Makmur Engineering",
+  "license": "UNLICENSED"
+}
