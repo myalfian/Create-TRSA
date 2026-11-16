@@ -1,0 +1,2390 @@
+import { defaultTRSAProject } from '../data/defaultTRSA.js';
+
+// ==========================================================================
+// Official Document Control Number (No. TRSA) Utilities & Generators
+// Conforming to PT Indofood Fortuna Makmur Engineering Specifications
+// Format: 006/RAP/TRSA – 1403/MFG-IFM/VIII/2024
+// Breakdown:
+//   - 006  : Auto sequential 3-digit document number
+//   - RAP  : Uppercase initials of creator/author name
+//   - TRSA : Fixed document classification
+//   - 1403 : Project location / Plant code (e.g. 1402: Semarang, 1403: Cikupa)
+//   - MFG  : Department (MFG: Manufacturing, ENG: Engineering, etc.)
+//   - IFM  : Fixed corporate entity (PT Indofood Fortuna Makmur)
+//   - VIII : Month when document was first created (Roman numerals I-XII)
+//   - 2024 : 4-digit creation year
+// ==========================================================================
+
+export function toRomanMonth(month) {
+  const romans = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII'];
+  const m = parseInt(month, 10);
+  if (isNaN(m) || m < 1 || m > 12) return 'I';
+  return romans[m - 1];
+}
+
+export function fromRomanMonth(roman) {
+  const romans = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII'];
+  const idx = romans.indexOf(String(roman || '').trim().toUpperCase());
+  return idx >= 0 ? idx + 1 : 1;
+}
+
+export function getInitials(name) {
+  if (!name || typeof name !== 'string') return 'ENG';
+  const clean = name.trim().replace(/[^a-zA-Z0-9\s]/g, '');
+  const words = clean.split(/\s+/).filter(Boolean);
+  if (words.length === 0) return 'ENG';
+  return words.map(w => w[0].toUpperCase()).join('').slice(0, 5);
+}
+
+export function getNextSequenceNumber(projects) {
+  if (!Array.isArray(projects) || projects.length === 0) return '001';
+  let maxSeq = 0;
+  for (const p of projects) {
+    const docNum = p?.documentInfo?.docNumber || '';
+    const match = docNum.match(/^(\d{1,4})\//);
+    if (match) {
+      const num = parseInt(match[1], 10);
+      if (!isNaN(num) && num > maxSeq) {
+        maxSeq = num;
+      }
+    }
+  }
+  const next = maxSeq > 0 ? maxSeq + 1 : 1;
+  return String(next).padStart(3, '0');
+}
+
+export function getPlantCode(plantLocation = '') {
+  const loc = String(plantLocation || '').toLowerCase();
+  if (loc.includes('cikupa')) return '1403';
+  if (loc.includes('semarang')) return '1402';
+  return '1402';
+}
+
+export function generateTRSANumber(options = {}) {
+  const {
+    seq = '001',
+    creatorName = 'Refin A Putra',
+    plantCode = '1402',
+    dept = 'MFG',
+    date = new Date()
+  } = options;
+
+  const paddedSeq = String(seq).padStart(3, '0');
+  const initials = getInitials(creatorName);
+  
+  let d = date;
+  if (typeof date === 'string') {
+    d = new Date(date);
+    if (isNaN(d.getTime())) d = new Date();
+  }
+  const month = d.getMonth() + 1;
+  const romanMonth = toRomanMonth(month);
+  const year = d.getFullYear();
+
+  // Standard official format with en-dash \u2013 and spaces
+  return `${paddedSeq}/${initials}/TRSA \u2013 ${plantCode}/${dept}-IFM/${romanMonth}/${year}`;
+}
+
+export function parseTRSANumber(docNum = '') {
+  if (!docNum || typeof docNum !== 'string') return null;
+  const regex = /^(\d+)\/([A-Z0-9]+)\/TRSA\s*[\u2013\-]\s*([A-Z0-9]+)\/([A-Z0-9]+)-IFM\/([IVXLCDM]+)\/(\d{4})/i;
+  const match = docNum.trim().match(regex);
+  if (!match) return null;
+  return {
+    seq: match[1].padStart(3, '0'),
+    initials: match[2].toUpperCase(),
+    trsa: 'TRSA',
+    plantCode: match[3],
+    dept: match[4].toUpperCase(),
+    ifm: 'IFM',
+    romanMonth: match[5].toUpperCase(),
+    year: match[6]
+  };
+}
+
+// Application State Management
+class TRSAStore {
+  constructor() {
+    this.STORAGE_KEY = 'TRSA_ENTERPRISE_PROJECTS_V1';
+    this.projects = this.loadProjects();
+    this.activeProjectId = this.projects[0]?.id || 'trsa-006-ifm-2024';
+    this.currentView = 'dashboard'; // 'dashboard' | 'projects' | 'builder' | 'studio'
+    this.builderStep = 1; // 1 to 6
+    this.searchQuery = '';
+    this.statusFilter = 'all';
+    this.plantFilter = 'all';
+    this.watermark = 'OFFICIAL';
+    this.notification = null;
+  }
+
+  loadProjects() {
+    try {
+      if (typeof localStorage !== 'undefined') {
+        const saved = localStorage.getItem(this.STORAGE_KEY);
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            return parsed;
+          }
+        }
+      }
+    } catch (e) {
+      console.warn('Failed to parse localStorage, resetting to default.', e);
+    }
+    const initial = [JSON.parse(JSON.stringify(defaultTRSAProject))];
+    if (typeof localStorage !== 'undefined') {
+      try {
+        localStorage.setItem(this.STORAGE_KEY, JSON.stringify(initial));
+      } catch (e) {}
+    }
+    return initial;
+  }
+
+  saveProjects() {
+    try {
+      if (typeof localStorage !== 'undefined') {
+        localStorage.setItem(this.STORAGE_KEY, JSON.stringify(this.projects));
+      }
+      this.showNotification('All changes saved successfully.', 'success');
+    } catch (e) {
+      this.showNotification('Error saving to local storage.', 'error');
+    }
+  }
+
+  getActiveProject() {
+    return this.projects.find(p => p.id === this.activeProjectId) || this.projects[0];
+  }
+
+  createProject(title = 'New TRSA Project', creator = 'Refin A Putra', plant = 'Semarang Plant') {
+    const newProj = JSON.parse(JSON.stringify(defaultTRSAProject));
+    newProj.id = 'trsa-' + Date.now();
+    newProj.documentInfo.title = title;
+    
+    const now = new Date();
+    const dateStr = now.toISOString().split('T')[0];
+    const nextSeq = getNextSequenceNumber(this.projects);
+    const plantCode = getPlantCode(plant);
+
+    newProj.documentInfo.plantLocation = plant;
+    newProj.documentInfo.docNumber = generateTRSANumber({
+      seq: nextSeq,
+      creatorName: creator,
+      plantCode: plantCode,
+      dept: 'MFG',
+      date: now
+    });
+    newProj.documentInfo.status = 'Draft';
+    newProj.documentInfo.revisionHistory = [{
+      revision: '0.0',
+      description: 'First Document Draft',
+      originatedBy: creator,
+      date: dateStr
+    }];
+    this.projects.unshift(newProj);
+    this.activeProjectId = newProj.id;
+    this.currentView = 'builder';
+    this.builderStep = 1;
+    this.saveProjects();
+    return newProj;
+  }
+
+  duplicateProject(id) {
+    const source = this.projects.find(p => p.id === id);
+    if (!source) return;
+    const cloned = JSON.parse(JSON.stringify(source));
+    cloned.id = 'trsa-' + Date.now();
+    cloned.documentInfo.title = cloned.documentInfo.title + ' (Copy)';
+    
+    const nextSeq = getNextSequenceNumber(this.projects);
+    const creator = cloned.documentInfo.revisionHistory?.[0]?.originatedBy || 'Refin A Putra';
+    const parsed = parseTRSANumber(cloned.documentInfo.docNumber);
+    const plantCode = parsed?.plantCode || getPlantCode(cloned.documentInfo.plantLocation);
+    const dept = parsed?.dept || 'MFG';
+
+    cloned.documentInfo.docNumber = generateTRSANumber({
+      seq: nextSeq,
+      creatorName: creator,
+      plantCode: plantCode,
+      dept: dept,
+      date: new Date()
+    });
+    cloned.documentInfo.status = 'Draft';
+    this.projects.unshift(cloned);
+    this.activeProjectId = cloned.id;
+    this.saveProjects();
+    this.showNotification(`Project duplicated with next Doc No. (${nextSeq})`, 'success');
+  }
+
+  deleteProject(id) {
+    if (this.projects.length <= 1) {
+      alert('Cannot delete the last remaining project. Please create a new one first.');
+      return;
+    }
+    if (confirm('Are you sure you want to delete this TRSA project?')) {
+      this.projects = this.projects.filter(p => p.id !== id);
+      this.activeProjectId = this.projects[0].id;
+      this.saveProjects();
+      this.showNotification('Project deleted.', 'info');
+    }
+  }
+
+  resetToDefault(id) {
+    if (confirm('Reset this project back to the official Indofood TRSA standard specifications?')) {
+      const idx = this.projects.findIndex(p => p.id === id);
+      if (idx !== -1) {
+        this.projects[idx] = JSON.parse(JSON.stringify(defaultTRSAProject));
+        this.projects[idx].id = id;
+        this.saveProjects();
+        this.showNotification('Project reset to default Indofood standard template.', 'success');
+      }
+    }
+  }
+
+  exportJSON(id) {
+    const proj = this.projects.find(p => p.id === id) || this.getActiveProject();
+    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(proj, null, 2));
+    const downloadAnchor = document.createElement('a');
+    downloadAnchor.setAttribute("href", dataStr);
+    downloadAnchor.setAttribute("download", `${proj.documentInfo.docNumber.replace(/[^a-zA-Z0-9_-]/g, '_')}_TRSA.json`);
+    document.body.appendChild(downloadAnchor);
+    downloadAnchor.click();
+    downloadAnchor.remove();
+    this.showNotification('TRSA Project exported as JSON.', 'success');
+  }
+
+  importJSON(jsonString) {
+    try {
+      const parsed = JSON.parse(jsonString);
+      if (!parsed.documentInfo || !parsed.productSpecifications) {
+        throw new Error('Invalid TRSA format');
+      }
+      parsed.id = 'trsa-' + Date.now();
+      this.projects.unshift(parsed);
+      this.activeProjectId = parsed.id;
+      this.saveProjects();
+      this.showNotification('TRSA project imported successfully!', 'success');
+      this.currentView = 'builder';
+    } catch (e) {
+      alert('Failed to parse JSON file. Please ensure it is a valid TRSA project export.');
+    }
+  }
+
+  calculateProgress(proj) {
+    let score = 0;
+    const total = 7;
+    if (proj.documentInfo?.docNumber) score++;
+    if (proj.keyContacts?.length > 0) score++;
+    if (proj.productSpecifications?.length > 0) score++;
+    if (proj.scopeOfSupply?.fryer?.length > 0) score++;
+    if (proj.scopeOfSupply?.seasoning?.length > 0) score++;
+    if (proj.performanceAcceptance?.tests?.length > 0) score++;
+    if (proj.commercialTerms?.selectedPaymentOption) score++;
+    return Math.round((score / total) * 100);
+  }
+
+  showNotification(msg, type = 'info') {
+    this.notification = { msg, type, timestamp: Date.now() };
+    if (typeof document === 'undefined') return;
+    const banner = document.getElementById('notification-toast');
+    if (banner) {
+      banner.className = `fixed bottom-5 right-5 z-50 flex items-center gap-3 px-5 py-3 rounded-2xl shadow-xl transition-all duration-300 ${
+        type === 'success' ? 'bg-[#10B981] text-white shadow-emerald-500/20' : 
+        type === 'error' ? 'bg-red-600 text-white shadow-red-500/20' : 
+        'bg-[#0B2447] text-white shadow-sky-950/30'
+      }`;
+      banner.innerHTML = `
+        <span class="w-2 h-2 rounded-full bg-white animate-ping"></span>
+        <span class="text-xs font-semibold">${msg}</span>
+        <button onclick="document.getElementById('notification-toast').classList.add('hidden')" class="opacity-70 hover:opacity-100 text-sm ml-2">&times;</button>
+      `;
+      banner.classList.remove('hidden');
+      setTimeout(() => {
+        if (banner) banner.classList.add('hidden');
+      }, 3500);
+    }
+  }
+}
+
+export const store = new TRSAStore();
+
+// Application UI Engine
+export function initApp() {
+  render();
+
+  // Global listeners
+  if (typeof window !== 'undefined') {
+    window.addEventListener('popstate', () => render());
+    
+    // Quick Search Keybinding
+    window.addEventListener('keydown', (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+        e.preventDefault();
+        const searchInput = document.getElementById('global-search');
+        if (searchInput) searchInput.focus();
+      }
+    });
+  }
+}
+
+export function setView(view, step = 1) {
+  store.currentView = view;
+  if (step) store.builderStep = step;
+  render();
+  if (typeof window !== 'undefined' && window.scrollTo) {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+}
+
+export function setActiveProject(id, targetView = null) {
+  store.activeProjectId = id;
+  if (targetView) store.currentView = targetView;
+  render();
+}
+
+export function render() {
+  const root = document.getElementById('app');
+  if (!root) return;
+
+  const activeProject = store.getActiveProject();
+
+  root.innerHTML = `
+    <div class="flex min-h-screen bg-[#F8FAFC] text-[#0F172A] antialiased">
+      <!-- Blue Sky Corporate Sidebar -->
+      ${renderSidebar(activeProject)}
+
+      <!-- Main Layout Content -->
+      <div class="flex-1 flex flex-col min-w-0 overflow-x-hidden">
+        <!-- Top Navigation -->
+        ${renderHeader(activeProject)}
+
+        <!-- Main Workspace Area -->
+        <main class="flex-1 p-6 md:p-8 max-w-7xl w-full mx-auto">
+          ${
+            store.currentView === 'dashboard' ? renderDashboard() :
+            store.currentView === 'projects' ? renderProjectsHub() :
+            store.currentView === 'builder' ? renderBuilder(activeProject) :
+            store.currentView === 'studio' ? renderStudio(activeProject) : ''
+          }
+        </main>
+      </div>
+
+      <!-- Toast Notification Container -->
+      <div id="notification-toast" class="hidden"></div>
+    </div>
+  `;
+
+  attachEventHandlers(activeProject);
+}
+
+// 1. Sidebar Component (Blue Sky Theme)
+function renderSidebar(activeProject) {
+  const current = store.currentView;
+  return `
+    <aside class="dropx-sidebar w-64 text-white flex-shrink-0 flex flex-col justify-between hidden md:flex z-20 no-print select-none shadow-xl">
+      <div>
+        <!-- Brand Header with Crisp White Emblem -->
+        <div class="p-6 border-b border-white/20 flex items-center justify-between">
+          <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-2xl bg-white flex items-center justify-center text-[#0284C7] font-extrabold text-lg shadow-lg shadow-sky-900/20">
+              <svg class="w-5 h-5 text-[#0284C7]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"/></svg>
+            </div>
+            <div>
+              <div class="font-black tracking-tight text-white text-base">TRSA Studio</div>
+              <div class="text-[10px] text-sky-100 font-bold tracking-widest uppercase flex items-center gap-1.5">
+                <span class="w-1.5 h-1.5 rounded-full bg-white animate-pulse"></span>
+                PT Indofood Fortuna
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Navigation Section -->
+        <nav class="p-4 space-y-6">
+          <div>
+            <div class="text-[10px] font-extrabold text-white/80 uppercase tracking-widest px-3 mb-2">Workspace Hub</div>
+            <div class="space-y-1">
+              <button onclick="window.TRSA.setView('dashboard')" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold transition-all ${
+                current === 'dashboard' ? 'dropx-nav-active' : 'hover:bg-white/15 text-white/90 hover:text-white'
+              }">
+                <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
+                Dashboard Overview
+              </button>
+              <button onclick="window.TRSA.setView('projects')" class="w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-bold transition-all ${
+                current === 'projects' ? 'dropx-nav-active' : 'hover:bg-white/15 text-white/90 hover:text-white'
+              }">
+                <span class="flex items-center gap-3">
+                  <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>
+                  TRSA Projects
+                </span>
+                <span class="px-2 py-0.5 text-[10px] rounded-full bg-white/20 text-white font-black border border-white/30">${store.projects.length}</span>
+              </button>
+            </div>
+          </div>
+
+          <div>
+            <div class="text-[10px] font-extrabold text-white/80 uppercase tracking-widest px-3 mb-2">Authoring & Forms</div>
+            <div class="space-y-1">
+              <button onclick="window.TRSA.setView('builder', 1)" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold transition-all ${
+                current === 'builder' ? 'dropx-nav-active' : 'hover:bg-white/15 text-white/90 hover:text-white'
+              }">
+                <svg class="w-4 h-4 text-[#FFD166]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+                TRSA Builder (Form)
+              </button>
+              <button onclick="window.TRSA.setView('studio')" class="w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-bold transition-all ${
+                current === 'studio' ? 'dropx-nav-active' : 'hover:bg-white/15 text-white/90 hover:text-white'
+              }">
+                <span class="flex items-center gap-3">
+                  <svg class="w-4 h-4 text-[#A7F3D0]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                  Clean Business Form
+                </span>
+                <span class="px-2 py-0.5 text-[9px] rounded-full bg-white/20 text-white font-extrabold uppercase tracking-wider border border-white/30">A4 Print</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Active Project Snapshot Widget (Glassmorphic White on Sky Blue) -->
+          <div class="p-4 rounded-2xl bg-white/15 backdrop-blur-md border border-white/25 shadow-lg text-white">
+            <div class="text-[10px] uppercase font-black text-sky-100 mb-1 flex items-center justify-between">
+              <span>Active Agreement</span>
+              <span class="w-2 h-2 rounded-full bg-white shadow-sm shadow-white/50"></span>
+            </div>
+            <div class="font-extrabold text-white text-xs truncate" title="${activeProject.documentInfo.title}">
+              ${activeProject.documentInfo.title}
+            </div>
+            <div class="text-[10px] text-sky-100 font-mono mt-0.5 truncate">${activeProject.documentInfo.docNumber}</div>
+            <div class="mt-3 flex items-center justify-between text-[11px]">
+              <span class="text-sky-100 font-medium">Completeness</span>
+              <span class="font-black text-white">${store.calculateProgress(activeProject)}%</span>
+            </div>
+            <div class="w-full h-1.5 bg-black/15 rounded-full mt-1.5 overflow-hidden">
+              <div class="h-full bg-white rounded-full shadow" style="width: ${store.calculateProgress(activeProject)}%"></div>
+            </div>
+          </div>
+        </nav>
+      </div>
+
+      <!-- User & Footer Info -->
+      <div class="p-4 border-t border-white/20">
+        <div class="flex items-center gap-3">
+          <div class="w-8 h-8 rounded-full bg-white flex items-center justify-center text-xs font-black text-[#0284C7] shadow-md">
+            IFM
+          </div>
+          <div class="truncate">
+            <div class="text-xs font-bold text-white truncate">PT Indofood Fortuna</div>
+            <div class="text-[10px] text-sky-100 truncate">Engineering & Machinery</div>
+          </div>
+        </div>
+      </div>
+    </aside>
+  `;
+}
+
+// 2. Header Component
+function renderHeader(activeProject) {
+  return `
+    <header class="dropx-header sticky top-0 z-10 bg-white/95 backdrop-blur-md border-b border-slate-200 px-6 py-3.5 flex items-center justify-between no-print shadow-xs">
+      <!-- Breadcrumbs & Plant Selector -->
+      <div class="flex items-center gap-4">
+        <div class="flex items-center gap-2 text-xs text-slate-500 font-medium">
+          <span class="hover:text-[#0284C7] cursor-pointer">IFM Engineering</span>
+          <span>/</span>
+          <span class="text-[#0F172A] font-bold capitalize">${store.currentView}</span>
+        </div>
+
+        <div class="hidden sm:flex items-center gap-2 pl-4 border-l border-slate-200">
+          <span class="text-xs text-slate-500 font-medium">Plant:</span>
+          <select id="plant-selector" class="text-xs font-semibold bg-slate-50 border border-slate-200 rounded-xl px-3 py-1 text-slate-700 focus:ring-2 focus:ring-[#0284C7]/20 focus:border-[#0284C7] cursor-pointer">
+            <option value="all" ${store.plantFilter === 'all' ? 'selected' : ''}>All Locations</option>
+            <option value="Semarang Plant" ${store.plantFilter === 'Semarang Plant' ? 'selected' : ''}>Semarang Plant</option>
+            <option value="Cikupa Plant" ${store.plantFilter === 'Cikupa Plant' ? 'selected' : ''}>Cikupa Plant</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Quick Search & Actions -->
+      <div class="flex items-center gap-3">
+        <div class="relative hidden lg:block w-72">
+          <input 
+            type="text" 
+            id="global-search" 
+            placeholder="Search specs, tender #, items... (Ctrl+K)" 
+            value="${store.searchQuery}"
+            class="w-full text-xs pl-8 pr-3 py-1.5 bg-slate-50 border border-slate-200 focus:border-[#0284C7] focus:bg-white rounded-xl focus:outline-none transition-all placeholder:text-slate-400"
+          />
+          <svg class="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+        </div>
+
+        <button onclick="window.TRSA.createProject()" class="btn-capiclean-accent inline-flex items-center gap-1.5 text-xs px-3.5 py-1.5 transition-all">
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"/></svg>
+          New TRSA
+        </button>
+
+        <button onclick="window.TRSA.exportJSON('${activeProject.id}')" title="Export Current Project to JSON" class="p-1.5 text-slate-600 hover:text-slate-900 bg-slate-100 hover:bg-slate-200 rounded-xl transition-all">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+        </button>
+
+        <label for="import-file-input" title="Import TRSA JSON" class="p-1.5 text-slate-600 hover:text-slate-900 bg-slate-100 hover:bg-slate-200 rounded-xl cursor-pointer transition-all">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
+          <input type="file" id="import-file-input" accept=".json" class="hidden" />
+        </label>
+      </div>
+    </header>
+  `;
+}
+
+// 3. Dashboard View (Modern Clean Corporate Aesthetic)
+function renderDashboard() {
+  const activeProject = store.getActiveProject();
+  const totalScopeItems = (activeProject.scopeOfSupply?.fryer?.length || 0) + (activeProject.scopeOfSupply?.seasoning?.length || 0);
+
+  return `
+    <div class="space-y-8 animate-fadeIn">
+      <!-- Clean Corporate Executive Welcome Banner -->
+      <div class="dropx-card p-7 bg-gradient-to-r from-[#0F172A] via-[#1E293B] to-[#0369A1] text-white relative overflow-hidden shadow-lg border border-slate-700/50">
+        <div class="relative z-10 max-w-2xl">
+          <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 text-sky-200 border border-white/15 text-[11px] font-semibold mb-3 backdrop-blur-sm">
+            <span class="w-2 h-2 rounded-full bg-[#10B981] animate-pulse"></span>
+            Tender Requirements & Specification Agreement Platform
+          </div>
+          <h1 class="text-2xl font-bold tracking-tight text-white sm:text-3xl">TRSA Industrial Engineering Studio</h1>
+          <p class="text-xs text-slate-300 mt-2 leading-relaxed">
+            Standardized engineering agreement matrix for PT Indofood Fortuna Makmur food machinery lines. Conforms to industrial hygienic design, 7-hour continuous capability protocols, and Indonesian commercial tax regulations.
+          </p>
+          <div class="mt-5 flex flex-wrap items-center gap-3">
+            <button onclick="window.TRSA.setView('builder', 1)" class="btn-capiclean-accent text-xs px-4 py-2 flex items-center gap-2 shadow-md">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/></svg>
+              Open Specification Builder
+            </button>
+            <button onclick="window.TRSA.setView('studio')" class="bg-white/10 hover:bg-white/20 text-white font-semibold text-xs px-4 py-2 rounded-xl border border-white/20 transition-all flex items-center gap-2 backdrop-blur-sm">
+              <svg class="w-4 h-4 text-sky-200" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
+              Clean Business Form (A4)
+            </button>
+          </div>
+        </div>
+        <!-- Ambient Glowing Blue Droplet Effect -->
+        <div class="absolute -right-10 -bottom-10 w-80 h-80 bg-sky-500/15 rounded-full blur-3xl pointer-events-none"></div>
+      </div>
+
+      <!-- Clean Corporate Continuous Processing Line Diagram -->
+      <div class="dropx-card p-6 bg-white border border-slate-200 space-y-3">
+        <div class="flex items-center justify-between pb-3 border-b border-slate-100">
+          <div class="flex items-center gap-2.5">
+            <span class="w-2.5 h-2.5 rounded-full bg-[#0284C7] animate-pulse"></span>
+            <span class="text-xs font-bold uppercase tracking-wider text-[#0F172A]">Indofood Continuous Pellet Production Line Architecture</span>
+          </div>
+          <span class="text-[11px] font-semibold text-[#0284C7] bg-sky-50 px-2.5 py-0.5 rounded-full border border-sky-200">
+            7-Hour Capability Protocol
+          </span>
+        </div>
+        <div class="grid grid-cols-1 sm:grid-cols-5 gap-3 pt-1">
+          <!-- 1. Pellet Infeed -->
+          <div class="p-3.5 rounded-xl border border-sky-100 bg-sky-50/40 hover:border-sky-200 hover:bg-sky-50/70 transition-all">
+            <div class="flex items-center justify-between mb-1.5">
+              <span class="w-6 h-6 rounded-lg bg-[#0284C7] text-white flex items-center justify-center text-xs font-bold">1</span>
+              <span class="text-[10px] font-bold text-[#0369A1] uppercase tracking-wider">Raw Infeed</span>
+            </div>
+            <div class="font-bold text-xs text-[#0F172A]">Pellet Feed System</div>
+            <div class="text-[10px] text-slate-500 mt-0.5">Weigh feeder & hopper >70L</div>
+            <div class="mt-2 text-[10px] font-mono font-bold text-[#0284C7]">Rate: 1.5 - 2.5 kg</div>
+          </div>
+          <!-- 2. Drum Pre-Fryer -->
+          <div class="p-3.5 rounded-xl border border-amber-100 bg-amber-50/40 hover:border-amber-200 hover:bg-amber-50/70 transition-all">
+            <div class="flex items-center justify-between mb-1.5">
+              <span class="w-6 h-6 rounded-lg bg-[#D97706] text-white flex items-center justify-center text-xs font-bold">2</span>
+              <span class="text-[10px] font-bold text-amber-700 uppercase tracking-wider">Pre-Clean</span>
+            </div>
+            <div class="font-bold text-xs text-[#0F172A]">Drum Pre-Fryer</div>
+            <div class="text-[10px] text-slate-500 mt-0.5">60 Mesh screen + air-knife</div>
+            <div class="mt-2 text-[10px] font-mono font-bold text-amber-700">Fines auger</div>
+          </div>
+          <!-- 3. Fryer Module -->
+          <div class="p-3.5 rounded-xl border border-orange-100 bg-orange-50/40 hover:border-orange-200 hover:bg-orange-50/70 transition-all">
+            <div class="flex items-center justify-between mb-1.5">
+              <span class="w-6 h-6 rounded-lg bg-[#EA580C] text-white flex items-center justify-center text-xs font-bold">3</span>
+              <span class="text-[10px] font-bold text-[#EA580C] uppercase tracking-wider">Thermal</span>
+            </div>
+            <div class="font-bold text-xs text-[#0F172A]">Unitized Pan Fryer</div>
+            <div class="text-[10px] text-slate-500 mt-0.5">CIP Hood, auto oil top-up</div>
+            <div class="mt-2 text-[10px] font-mono font-bold text-[#EA580C]">180 - 190 °C (20-30s)</div>
+          </div>
+          <!-- 4. De-Oiling Shaker -->
+          <div class="p-3.5 rounded-xl border border-indigo-100 bg-indigo-50/40 hover:border-indigo-200 hover:bg-indigo-50/70 transition-all">
+            <div class="flex items-center justify-between mb-1.5">
+              <span class="w-6 h-6 rounded-lg bg-[#4F46E5] text-white flex items-center justify-center text-xs font-bold">4</span>
+              <span class="text-[10px] font-bold text-indigo-700 uppercase tracking-wider">Recovery</span>
+            </div>
+            <div class="font-bold text-xs text-[#0F172A]">De-Oiling Shaker</div>
+            <div class="text-[10px] text-slate-500 mt-0.5">Oil accumulator & return</div>
+            <div class="mt-2 text-[10px] font-mono font-bold text-indigo-700">Moisture: 1 - 2.1%</div>
+          </div>
+          <!-- 5. Seasoning Tumble -->
+          <div class="p-3.5 rounded-xl border border-emerald-100 bg-emerald-50/40 hover:border-emerald-200 hover:bg-emerald-50/70 transition-all">
+            <div class="flex items-center justify-between mb-1.5">
+              <span class="w-6 h-6 rounded-lg bg-[#059669] text-white flex items-center justify-center text-xs font-bold">5</span>
+              <span class="text-[10px] font-bold text-[#059669] uppercase tracking-wider">Flavoring</span>
+            </div>
+            <div class="font-bold text-xs text-[#0F172A]">Tumble Drum</div>
+            <div class="text-[10px] text-slate-500 mt-0.5">Loss-in-Weight screw</div>
+            <div class="mt-2 text-[10px] font-mono font-bold text-[#059669]">Cap: 635 - 700 kg/h</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- KPI Metrics Row (Corporate Cards) -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <!-- Metric 1: Total Projects -->
+        <div class="dropx-card p-5 bg-white border border-slate-200">
+          <div class="flex items-center justify-between text-slate-500 text-xs font-semibold uppercase tracking-wider">
+            <span>Total Projects</span>
+            <div class="w-8 h-8 rounded-xl bg-sky-50 text-[#0284C7] border border-sky-100 flex items-center justify-center shadow-xs">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+            </div>
+          </div>
+          <div class="text-2xl font-bold text-[#0F172A] mt-2">${store.projects.length}</div>
+          <div class="text-[11px] text-[#0284C7] font-semibold mt-1 flex items-center gap-1.5">
+            <span class="w-1.5 h-1.5 rounded-full bg-[#0284C7]"></span>
+            <span>1 Active published agreement</span>
+          </div>
+        </div>
+
+        <!-- Metric 2: Scope Items -->
+        <div class="dropx-card p-5 bg-white border border-slate-200">
+          <div class="flex items-center justify-between text-slate-500 text-xs font-semibold uppercase tracking-wider">
+            <span>Equipment Modules</span>
+            <div class="w-8 h-8 rounded-xl bg-emerald-50 text-[#059669] border border-emerald-100 flex items-center justify-center shadow-xs">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>
+            </div>
+          </div>
+          <div class="text-2xl font-bold text-[#0F172A] mt-2">${totalScopeItems} Units</div>
+          <div class="text-[11px] text-[#059669] font-semibold mt-1">14 Fryer & 7 Seasoning items</div>
+        </div>
+
+        <!-- Metric 3: Target Output Capacity -->
+        <div class="dropx-card p-5 bg-white border border-slate-200">
+          <div class="flex items-center justify-between text-slate-500 text-xs font-semibold uppercase tracking-wider">
+            <span>Target Line Output</span>
+            <div class="w-8 h-8 rounded-xl bg-amber-50 text-[#D97706] border border-amber-100 flex items-center justify-center shadow-xs">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+            </div>
+          </div>
+          <div class="text-2xl font-bold text-[#0F172A] mt-2">600 - 700 kg/h</div>
+          <div class="text-[11px] text-[#D97706] font-semibold mt-1">4 Product variants registered</div>
+        </div>
+
+        <!-- Metric 4: Target Start-up -->
+        <div class="dropx-card p-5 bg-white border border-slate-200">
+          <div class="flex items-center justify-between text-slate-500 text-xs font-semibold uppercase tracking-wider">
+            <span>Line Start-Up Target</span>
+            <div class="w-8 h-8 rounded-xl bg-sky-50 text-[#0369A1] border border-sky-100 flex items-center justify-center shadow-xs">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+            </div>
+          </div>
+          <div class="text-base font-bold text-[#0F172A] mt-2 truncate">${activeProject.projectOverview?.keyDates?.lineStartUp || 'End April 2025'}</div>
+          <div class="text-[11px] text-[#0369A1] font-semibold mt-1">Semarang Line Installation</div>
+        </div>
+      </div>
+
+      <!-- Projects Table Section -->
+      <div class="dropx-card overflow-hidden bg-white border border-slate-200">
+        <div class="p-5 border-b border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div>
+            <h2 class="text-base font-bold text-[#0F172A]">Registered TRSA Tender Agreements</h2>
+            <p class="text-xs text-slate-500 mt-0.5">Manage agreements, monitor revision history, and export official documentation.</p>
+          </div>
+          <div class="flex items-center gap-2">
+            <button onclick="window.TRSA.createProject()" class="text-xs bg-sky-50 text-[#0284C7] hover:bg-sky-100 border border-sky-200 font-semibold px-3 py-1.5 rounded-xl transition-all">
+              + Add New Project
+            </button>
+          </div>
+        </div>
+
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-xs">
+            <thead class="bg-slate-50 border-b border-slate-200 text-slate-500 uppercase tracking-wider font-semibold text-[11px]">
+              <tr>
+                <th class="py-3 px-5">Tender / Agreement Title</th>
+                <th class="py-3 px-4">Doc Number</th>
+                <th class="py-3 px-4">Plant & Location</th>
+                <th class="py-3 px-4">Status</th>
+                <th class="py-3 px-4">Progress</th>
+                <th class="py-3 px-5 text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-200">
+              ${store.projects.map(proj => {
+                const isSelected = proj.id === store.activeProjectId;
+                const progress = store.calculateProgress(proj);
+                return `
+                  <tr class="hover:bg-slate-50/70 transition-colors ${isSelected ? 'bg-sky-50/30' : ''}">
+                    <td class="py-3.5 px-5">
+                      <div class="font-semibold text-[#0F172A] text-xs">${proj.documentInfo.title}</div>
+                      <div class="text-[11px] text-slate-500 truncate max-w-xs">${proj.documentInfo.subTitle || proj.projectOverview.description}</div>
+                    </td>
+                    <td class="py-3.5 px-4 font-mono font-medium text-[#0369A1]">
+                      ${proj.documentInfo.docNumber}
+                    </td>
+                    <td class="py-3.5 px-4 text-slate-500">
+                      ${proj.documentInfo.plantLocation || 'Semarang Plant'}
+                    </td>
+                    <td class="py-3.5 px-4">
+                      <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-semibold ${
+                        proj.documentInfo.status === 'Published' ? 'badge-published' :
+                        proj.documentInfo.status === 'Approved' ? 'badge-approved' :
+                        proj.documentInfo.status === 'Under Review' ? 'badge-review' : 'badge-draft'
+                      }">
+                        ${proj.documentInfo.status}
+                      </span>
+                    </td>
+                    <td class="py-3.5 px-4">
+                      <div class="flex items-center gap-2">
+                        <div class="w-16 h-1.5 bg-slate-200 rounded-full overflow-hidden">
+                          <div class="h-full bg-[#0284C7] rounded-full" style="width: ${progress}%"></div>
+                        </div>
+                        <span class="text-[10px] font-bold text-[#0284C7]">${progress}%</span>
+                      </div>
+                    </td>
+                    <td class="py-3.5 px-5 text-right space-x-1 whitespace-nowrap">
+                      <button onclick="window.TRSA.setActiveProject('${proj.id}', 'builder')" class="px-2.5 py-1 text-slate-700 hover:text-[#0284C7] hover:bg-slate-100 rounded-lg font-medium text-[11px] transition-all">
+                        Edit
+                      </button>
+                      <button onclick="window.TRSA.setActiveProject('${proj.id}', 'studio')" class="px-2.5 py-1 text-[#0284C7] hover:bg-sky-50 rounded-lg font-semibold text-[11px] transition-all">
+                        Clean Form A4
+                      </button>
+                      <button onclick="window.TRSA.duplicateProject('${proj.id}')" class="px-2 py-1 text-[#5A7184] hover:text-[#0B2447] rounded-lg font-semibold text-[11px]" title="Duplicate">
+                        Clone
+                      </button>
+                      <button onclick="window.TRSA.deleteProject('${proj.id}')" class="px-2 py-1 text-red-500 hover:text-red-700 rounded-lg font-semibold text-[11px]" title="Delete">
+                        &times;
+                      </button>
+                    </td>
+                  </tr>
+                `;
+              }).join('')}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Quick Template Scaffolding Cards -->
+      <div>
+        <h3 class="text-sm font-bold text-[#0B2447] mb-3">Pre-Engineered Equipment Templates</h3>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div class="dropx-card p-4 hover:border-[#0284C7] cursor-pointer transition-all bg-white" onclick="window.TRSA.resetToDefault('${activeProject.id}')">
+            <div class="text-xs font-bold text-[#0B2447]">Sheeted Pellet Fryer & Seasoning System</div>
+            <p class="text-[11px] text-[#5A7184] mt-1">Full 14-page Indofood Semarang standard (4 products, 21 scope units, continuous 7h trial).</p>
+            <div class="mt-3 text-[10px] font-bold text-[#0284C7] flex items-center gap-1">
+              Load Official Template &rarr;
+            </div>
+          </div>
+          <div class="dropx-card p-4 hover:border-[#FF7A00] cursor-pointer transition-all bg-white" onclick="window.TRSA.createProject('Extruded Snack Line Agreement')">
+            <div class="text-xs font-bold text-[#0B2447]">Extruded Corn & Rice Snack Line</div>
+            <p class="text-[11px] text-[#5A7184] mt-1">Twin-screw extruder, pneumatic transfer, dryer oven & slurry seasoning system.</p>
+            <div class="mt-3 text-[10px] font-bold text-[#FF7A00] flex items-center gap-1">
+              Scaffold Extruder TRSA &rarr;
+            </div>
+          </div>
+          <div class="dropx-card p-4 hover:border-[#10B981] cursor-pointer transition-all bg-white" onclick="window.TRSA.createProject('Packaging & Multipack Cartoning Line')">
+            <div class="text-xs font-bold text-[#0B2447]">High-Speed VFFS Packaging & Multipack</div>
+            <p class="text-[11px] text-[#5A7184] mt-1">Multi-head weigher, nitrogen flushing, metal detector, and automatic case packer.</p>
+            <div class="mt-3 text-[10px] font-bold text-[#10B981] flex items-center gap-1">
+              Scaffold Packaging TRSA &rarr;
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+// 4. Projects Hub View
+function renderProjectsHub() {
+  const filtered = store.projects.filter(p => {
+    const matchesSearch = store.searchQuery === '' ||
+      p.documentInfo.title.toLowerCase().includes(store.searchQuery.toLowerCase()) ||
+      p.documentInfo.docNumber.toLowerCase().includes(store.searchQuery.toLowerCase()) ||
+      p.projectOverview.description.toLowerCase().includes(store.searchQuery.toLowerCase());
+    const matchesStatus = store.statusFilter === 'all' || p.documentInfo.status === store.statusFilter;
+    const matchesPlant = store.plantFilter === 'all' || p.documentInfo.plantLocation === store.plantFilter;
+    return matchesSearch && matchesStatus && matchesPlant;
+  });
+
+  return `
+    <div class="space-y-6 animate-fadeIn">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h1 class="text-xl font-bold text-[#0B2447]">TRSA Projects Hub</h1>
+          <p class="text-xs text-[#5A7184]">Browse, filter, and organize all Tender Requirements & Specification Agreements.</p>
+        </div>
+        <div class="flex items-center gap-2">
+          <button onclick="window.TRSA.createProject()" class="btn-capiclean-accent font-semibold text-xs px-4 py-2 transition-all">
+            + New TRSA Project
+          </button>
+        </div>
+      </div>
+
+      <!-- Filters Row -->
+      <div class="flex flex-wrap items-center gap-3 bg-white p-3.5 rounded-2xl border border-[#E0ECF6] text-xs">
+        <span class="text-[#5A7184] font-bold text-[11px] uppercase tracking-wider">Filter:</span>
+        <button onclick="window.TRSA.setStatusFilter('all')" class="px-3 py-1 rounded-xl font-bold ${store.statusFilter === 'all' ? 'bg-[#0B2447] text-white' : 'text-[#5A7184] hover:bg-[#F0F9FF]'}">All</button>
+        <button onclick="window.TRSA.setStatusFilter('Published')" class="px-3 py-1 rounded-xl font-bold ${store.statusFilter === 'Published' ? 'bg-[#0284C7] text-white' : 'text-[#5A7184] hover:bg-[#F0F9FF]'}">Published</button>
+        <button onclick="window.TRSA.setStatusFilter('Under Review')" class="px-3 py-1 rounded-xl font-bold ${store.statusFilter === 'Under Review' ? 'bg-[#FF7A00] text-white' : 'text-[#5A7184] hover:bg-[#F0F9FF]'}">Under Review</button>
+        <button onclick="window.TRSA.setStatusFilter('Draft')" class="px-3 py-1 rounded-xl font-bold ${store.statusFilter === 'Draft' ? 'bg-slate-500 text-white' : 'text-[#5A7184] hover:bg-[#F0F9FF]'}">Draft</button>
+      </div>
+
+      <!-- Grid Cards -->
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+        ${filtered.map(proj => {
+          const progress = store.calculateProgress(proj);
+          return `
+            <div class="dropx-card p-5 flex flex-col justify-between hover:shadow-lg transition-all bg-white border border-[#E0ECF6]">
+              <div>
+                <div class="flex items-center justify-between mb-2">
+                  <span class="text-[10px] font-mono px-2 py-0.5 bg-[#E0F2FE] text-[#0369A1] rounded-lg font-bold">${proj.documentInfo.docNumber}</span>
+                  <span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold ${
+                    proj.documentInfo.status === 'Published' ? 'badge-published' :
+                    proj.documentInfo.status === 'Approved' ? 'badge-approved' :
+                    proj.documentInfo.status === 'Under Review' ? 'badge-review' : 'badge-draft'
+                  }">${proj.documentInfo.status}</span>
+                </div>
+                <h3 class="text-sm font-bold text-[#0B2447]">${proj.documentInfo.title}</h3>
+                <p class="text-xs text-[#5A7184] line-clamp-2 mt-1.5">${proj.projectOverview.description}</p>
+                <div class="mt-4 pt-4 border-t border-[#E0ECF6] space-y-2 text-[11px] text-[#0B2447]">
+                  <div class="flex justify-between">
+                    <span class="text-[#5A7184]">Target Start-Up:</span>
+                    <span class="font-bold text-[#0369A1]">${proj.projectOverview.keyDates.lineStartUp}</span>
+                  </div>
+                  <div class="flex justify-between">
+                    <span class="text-[#5A7184]">Products:</span>
+                    <span class="font-bold">${proj.productSpecifications.length} Shapes</span>
+                  </div>
+                  <div class="flex justify-between">
+                    <span class="text-[#5A7184]">Scope Modules:</span>
+                    <span class="font-bold">${(proj.scopeOfSupply.fryer.length + proj.scopeOfSupply.seasoning.length)} Units</span>
+                  </div>
+                </div>
+              </div>
+
+              <div class="mt-5 pt-3 border-t border-[#E0ECF6]">
+                <div class="flex items-center justify-between mb-1.5 text-[10px]">
+                  <span class="text-[#5A7184] font-semibold">Agreement Completeness</span>
+                  <span class="font-bold text-[#0284C7]">${progress}%</span>
+                </div>
+                <div class="w-full h-1.5 bg-[#E0ECF6] rounded-full overflow-hidden mb-4">
+                  <div class="h-full bg-gradient-to-r from-[#0284C7] to-[#38BDF8] rounded-full" style="width: ${progress}%"></div>
+                </div>
+                <div class="flex items-center justify-between gap-2">
+                  <button onclick="window.TRSA.setActiveProject('${proj.id}', 'builder')" class="flex-1 bg-[#0B2447] hover:bg-[#07192C] text-white font-bold text-xs py-2 rounded-xl text-center transition-all">
+                    Edit Form
+                  </button>
+                  <button onclick="window.TRSA.setActiveProject('${proj.id}', 'studio')" class="flex-1 bg-[#E0F2FE] hover:bg-[#BAE6FD] text-[#0284C7] font-bold text-xs py-2 rounded-xl text-center transition-all">
+                    A4 View
+                  </button>
+                </div>
+              </div>
+            </div>
+          `;
+        }).join('')}
+      </div>
+    </div>
+  `;
+}
+
+// 5. TRSA Builder View (Multi-Step Guided Form)
+function renderBuilder(proj) {
+  const step = store.builderStep;
+
+  return `
+    <div class="space-y-6 animate-fadeIn pb-24">
+      <!-- Top Title & Navigation -->
+      <div class="dropx-card p-5 bg-white border border-[#E0ECF6] flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <div class="flex items-center gap-2">
+            <span class="text-[10px] font-mono px-2.5 py-0.5 bg-[#E0F2FE] text-[#0284C7] rounded-full font-bold uppercase">
+              Step ${step} of 6
+            </span>
+            <span class="text-xs text-[#5A7184] font-medium">Document Form Editor</span>
+          </div>
+          <h1 class="text-lg font-bold text-[#0B2447] mt-1">${proj.documentInfo.title}</h1>
+          <p class="text-xs text-[#0369A1] font-mono">${proj.documentInfo.docNumber}</p>
+        </div>
+
+        <div class="flex items-center gap-2">
+          <button onclick="window.TRSA.setView('studio')" class="bg-[#E0F2FE] text-[#0284C7] hover:bg-[#BAE6FD] font-bold text-xs px-3.5 py-2 rounded-xl transition-all flex items-center gap-1.5">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+            Live A4 Preview
+          </button>
+          <button onclick="window.TRSA.saveCurrentForm()" class="btn-capiclean-primary font-bold text-xs px-4 py-2 transition-all">
+            Save Changes
+          </button>
+        </div>
+      </div>
+
+      <!-- Modern Capiclean Stepper Navigation Tabs -->
+      <div class="grid grid-cols-2 md:grid-cols-6 gap-2">
+        ${[
+          { s: 1, title: '1. Document & Dates', icon: 'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z' },
+          { s: 2, title: '2. Contacts & Site', icon: 'M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z' },
+          { s: 3, title: '3. Product Specs', icon: 'M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10' },
+          { s: 4, title: '4. Scope of Supply', icon: 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4' },
+          { s: 5, title: '5. Tests & Hygiene', icon: 'M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z' },
+          { s: 6, title: '6. Terms, Tax & Docs', icon: 'M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z' }
+        ].map(item => `
+          <button 
+            onclick="window.TRSA.setStep(${item.s})" 
+            class="p-3 rounded-2xl border text-left transition-all ${
+              step === item.s 
+                ? 'bg-[#0284C7] text-white border-[#0284C7] shadow-md shadow-sky-500/20' 
+                : 'bg-white hover:bg-[#F0F9FF] text-[#0B2447] border-[#E0ECF6]'
+            }"
+          >
+            <div class="flex items-center gap-1.5 mb-1 ${step === item.s ? 'text-white' : 'text-[#0284C7]'}">
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="${item.icon}"/></svg>
+              <span class="text-[10px] font-bold">Step ${item.s}</span>
+            </div>
+            <div class="text-xs font-bold truncate">${item.title.split('. ')[1]}</div>
+          </button>
+        `).join('')}
+      </div>
+
+      <!-- Step Content Container -->
+      <form id="trsa-builder-form" onsubmit="event.preventDefault();" class="space-y-6">
+        ${
+          step === 1 ? renderStep1(proj) :
+          step === 2 ? renderStep2(proj) :
+          step === 3 ? renderStep3(proj) :
+          step === 4 ? renderStep4(proj) :
+          step === 5 ? renderStep5(proj) :
+          step === 6 ? renderStep6(proj) : ''
+        }
+      </form>
+
+      <!-- Sticky Footer Actions -->
+      <div class="floating-actions fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-md border-t border-[#E0ECF6] px-6 py-3.5 z-30 shadow-lg flex items-center justify-between no-print max-w-7xl mx-auto md:left-64">
+        <div>
+          <button 
+            type="button" 
+            onclick="window.TRSA.setStep(${Math.max(1, step - 1)})" 
+            class="px-4 py-2 text-xs font-bold rounded-xl border border-[#CBD5E1] text-[#0B2447] hover:bg-[#F0F9FF] transition-all ${step === 1 ? 'opacity-40 cursor-not-allowed' : ''}"
+            ${step === 1 ? 'disabled' : ''}
+          >
+            &larr; Previous Step
+          </button>
+        </div>
+
+        <div class="flex items-center gap-3">
+          <button 
+            type="button" 
+            onclick="window.TRSA.saveCurrentForm()" 
+            class="px-4 py-2 text-xs font-bold rounded-xl bg-[#E0F2FE] text-[#0369A1] hover:bg-[#BAE6FD] transition-all"
+          >
+            Save Draft
+          </button>
+          ${
+            step < 6 
+              ? `<button 
+                  type="button" 
+                  onclick="window.TRSA.setStep(${step + 1})" 
+                  class="btn-capiclean-primary px-5 py-2 text-xs font-bold transition-all"
+                >
+                  Continue &rarr;
+                </button>`
+              : `<button 
+                  type="button" 
+                  onclick="window.TRSA.saveCurrentForm(); window.TRSA.setView('studio');" 
+                  class="btn-capiclean-accent px-5 py-2 text-xs font-bold transition-all flex items-center gap-1.5"
+                >
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
+                  Finish & View Official A4
+                </button>`
+          }
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+// Sub-step 1: Document Details, Revision History & Dates
+function renderStep1(proj) {
+  const parsed = parseTRSANumber(proj.documentInfo.docNumber);
+  const authorName = proj.documentInfo.revisionHistory?.[0]?.originatedBy || 'Refin A Putra';
+  const creationDate = proj.documentInfo.revisionHistory?.[0]?.date || new Date().toISOString().split('T')[0];
+  const plantLoc = proj.documentInfo.plantLocation || 'Semarang Plant';
+  const currentPlantCode = parsed?.plantCode || getPlantCode(plantLoc);
+  const currentSeq = parsed?.seq || getNextSequenceNumber(store.projects);
+  const currentInitials = parsed?.initials || getInitials(authorName);
+  const currentDept = parsed?.dept || 'MFG';
+  const currentMonth = parsed?.romanMonth || toRomanMonth(new Date(creationDate).getMonth() + 1);
+  const currentYear = parsed?.year || new Date(creationDate).getFullYear().toString();
+
+  return `
+    <div class="dropx-card p-6 bg-white border border-slate-200 space-y-6">
+      <div class="border-b border-slate-200 pb-4">
+        <h2 class="text-base font-bold text-[#0F172A]">Document Identification & Revision Control</h2>
+        <p class="text-xs text-slate-500">Official document title, tracking number, and revision records conforming to Indofood standards.</p>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">Document Title</label>
+          <input type="text" id="doc-title" value="${proj.documentInfo.title}" class="corp-input font-medium" />
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">Sub Title / Equipment Line</label>
+          <input type="text" id="doc-subtitle" value="${proj.documentInfo.subTitle}" class="corp-input font-medium" />
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">Tender Status</label>
+          <select id="doc-status" class="corp-select font-bold text-[#0369A1]">
+            <option value="Draft" ${proj.documentInfo.status === 'Draft' ? 'selected' : ''}>Draft</option>
+            <option value="Under Review" ${proj.documentInfo.status === 'Under Review' ? 'selected' : ''}>Under Review</option>
+            <option value="Published" ${proj.documentInfo.status === 'Published' ? 'selected' : ''}>Published</option>
+            <option value="Approved" ${proj.documentInfo.status === 'Approved' ? 'selected' : ''}>Approved</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">Plant Location</label>
+          <select id="doc-plant-location" class="corp-select font-semibold text-slate-700">
+            <option value="Semarang Plant" ${proj.documentInfo.plantLocation === 'Semarang Plant' ? 'selected' : ''}>Semarang Plant</option>
+            <option value="Cikupa Plant" ${proj.documentInfo.plantLocation === 'Cikupa Plant' ? 'selected' : ''}>Cikupa Plant</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Official TRSA Document Control Number Architecture -->
+      <div class="p-5 bg-gradient-to-br from-slate-50 to-sky-50/40 rounded-2xl border border-sky-200/80 space-y-4">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-sky-100">
+          <div>
+            <div class="flex items-center gap-2">
+              <span class="w-2.5 h-2.5 rounded-full bg-[#0284C7] animate-pulse"></span>
+              <h3 class="text-xs font-bold uppercase tracking-wider text-[#0F172A]">
+                Document Control Number (No. TRSA) Generator
+              </h3>
+            </div>
+            <p class="text-[11px] text-slate-500 mt-0.5">
+              Standar format: <span class="font-mono font-bold text-[#0284C7]">006/RAP/TRSA – 1403/MFG-IFM/VIII/2024</span>
+            </p>
+          </div>
+          <div class="flex items-center gap-2">
+            <button type="button" onclick="window.TRSA.autoGenerateDocNumber()" class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold bg-[#0284C7] text-white hover:bg-[#0369A1] rounded-xl shadow-xs transition-all">
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+              Auto Next Number (${getNextSequenceNumber(store.projects)})
+            </button>
+          </div>
+        </div>
+
+        <!-- Visual Segment Badges -->
+        <div>
+          <div class="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">Numbering Structure Breakdown:</div>
+          <div class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2 text-center text-xs">
+            <div class="p-2.5 rounded-xl bg-white border border-slate-200 shadow-xs">
+              <div class="font-mono font-bold text-sky-700 text-sm" id="badge-seq">${currentSeq}</div>
+              <div class="text-[9px] font-bold text-slate-500 uppercase mt-0.5">006 : No. Urut</div>
+              <div class="text-[9px] text-sky-600 font-medium">Otomatis / Meneruskan</div>
+            </div>
+            <div class="p-2.5 rounded-xl bg-white border border-slate-200 shadow-xs">
+              <div class="font-mono font-bold text-emerald-700 text-sm" id="badge-initials">${currentInitials}</div>
+              <div class="text-[9px] font-bold text-slate-500 uppercase mt-0.5">RAP : Inisial</div>
+              <div class="text-[9px] text-emerald-600 font-medium">Huruf Depan Pembuat</div>
+            </div>
+            <div class="p-2.5 rounded-xl bg-white border border-slate-200 shadow-xs">
+              <div class="font-mono font-bold text-slate-700 text-sm">TRSA</div>
+              <div class="text-[9px] font-bold text-slate-500 uppercase mt-0.5">TRSA : Fix</div>
+              <div class="text-[9px] text-slate-400 font-medium">Standard Agreement</div>
+            </div>
+            <div class="p-2.5 rounded-xl bg-white border border-slate-200 shadow-xs">
+              <div class="font-mono font-bold text-amber-700 text-sm" id="badge-plant">${currentPlantCode}</div>
+              <div class="text-[9px] font-bold text-slate-500 uppercase mt-0.5">1402 : Lokasi</div>
+              <div class="text-[9px] text-amber-600 font-medium">Plant Code Project</div>
+            </div>
+            <div class="p-2.5 rounded-xl bg-white border border-slate-200 shadow-xs">
+              <div class="font-mono font-bold text-indigo-700 text-sm" id="badge-dept">${currentDept}-IFM</div>
+              <div class="text-[9px] font-bold text-slate-500 uppercase mt-0.5">MFG / IFM : Dept</div>
+              <div class="text-[9px] text-indigo-600 font-medium">Department - IFM Fix</div>
+            </div>
+            <div class="p-2.5 rounded-xl bg-white border border-slate-200 shadow-xs">
+              <div class="font-mono font-bold text-purple-700 text-sm" id="badge-month">${currentMonth}</div>
+              <div class="text-[9px] font-bold text-slate-500 uppercase mt-0.5">VIII : Bulan</div>
+              <div class="text-[9px] text-purple-600 font-medium">Bulan Dibuat (Romawi)</div>
+            </div>
+            <div class="p-2.5 rounded-xl bg-white border border-slate-200 shadow-xs">
+              <div class="font-mono font-bold text-slate-800 text-sm" id="badge-year">${currentYear}</div>
+              <div class="text-[9px] font-bold text-slate-500 uppercase mt-0.5">2024 : Tahun</div>
+              <div class="text-[9px] text-slate-500 font-medium">Tahun Pertama Dibuat</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Generator Controls Grid -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 pt-1">
+          <div>
+            <label class="block text-[11px] font-bold text-slate-700 mb-1">Nomor Urut (3 Digit)</label>
+            <div class="flex items-center gap-1.5">
+              <input type="text" id="gen-seq" value="${currentSeq}" maxlength="4" class="corp-input font-mono font-bold text-sky-700" />
+              <button type="button" onclick="window.TRSA.setNextSequence()" title="Calculate next available number" class="px-2.5 py-2 text-xs font-bold bg-white border border-slate-200 hover:border-sky-300 rounded-xl text-slate-600 hover:text-sky-600 shadow-xs">
+                Auto
+              </button>
+            </div>
+          </div>
+          <div>
+            <label class="block text-[11px] font-bold text-slate-700 mb-1">Nama Pembuat</label>
+            <input type="text" id="gen-author" value="${authorName}" placeholder="e.g. Refin A Putra" class="corp-input font-medium" />
+          </div>
+          <div>
+            <label class="block text-[11px] font-bold text-slate-700 mb-1">Lokasi Project (Plant Code)</label>
+            <select id="gen-plant" class="corp-select font-semibold text-slate-700">
+              <option value="1402" ${currentPlantCode === '1402' ? 'selected' : ''}>1402 - Semarang Plant</option>
+              <option value="1403" ${currentPlantCode === '1403' ? 'selected' : ''}>1403 - Cikupa Plant</option>
+              <option value="1401" ${currentPlantCode === '1401' ? 'selected' : ''}>1401 - Head Office / Other</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-[11px] font-bold text-slate-700 mb-1">Department</label>
+            <select id="gen-dept" class="corp-select font-semibold text-slate-700">
+              <option value="MFG" ${currentDept === 'MFG' ? 'selected' : ''}>MFG - Manufacturing</option>
+              <option value="ENG" ${currentDept === 'ENG' ? 'selected' : ''}>ENG - Engineering</option>
+              <option value="PRD" ${currentDept === 'PRD' ? 'selected' : ''}>PRD - Production</option>
+              <option value="QA" ${currentDept === 'QA' ? 'selected' : ''}>QA - Quality Assurance</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Target Result Field & Sync Button -->
+        <div class="pt-2">
+          <label class="block text-xs font-bold text-slate-700 mb-1">
+            Active Document Control Number (Target Result)
+          </label>
+          <div class="flex items-center gap-2">
+            <input type="text" id="doc-number" value="${proj.documentInfo.docNumber}" class="flex-1 text-xs p-2.5 bg-white border-2 border-sky-300 focus:border-[#0284C7] rounded-xl font-mono font-bold text-[#0369A1] focus:outline-none shadow-xs" />
+            <button type="button" onclick="window.TRSA.syncDocNumberFromGenerator()" class="px-4 py-2.5 bg-[#0284C7] hover:bg-[#0369A1] text-white rounded-xl text-xs font-bold transition-all shadow-xs whitespace-nowrap">
+              Apply to Document
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Revision History Table -->
+      <div>
+        <div class="flex items-center justify-between mb-2">
+          <label class="text-xs font-bold text-[#0B2447] uppercase tracking-wider">I. Revision History</label>
+          <button type="button" onclick="window.TRSA.addRevisionRow()" class="text-xs font-bold text-[#0284C7] hover:text-[#0369A1]">+ Add Revision</button>
+        </div>
+        <div class="overflow-x-auto border border-[#E0ECF6] rounded-xl overflow-hidden">
+          <table class="w-full text-left text-xs">
+            <thead class="bg-[#0B2447] text-white font-bold">
+              <tr>
+                <th class="p-2.5">Revision</th>
+                <th class="p-2.5">Description</th>
+                <th class="p-2.5">Originated By</th>
+                <th class="p-2.5">Date</th>
+                <th class="p-2.5 text-right">Action</th>
+              </tr>
+            </thead>
+            <tbody id="revision-rows" class="divide-y divide-[#E0ECF6]">
+              ${proj.documentInfo.revisionHistory.map((rev, i) => `
+                <tr class="hover:bg-[#F0F9FF]">
+                  <td class="p-2"><input type="text" value="${rev.revision}" data-rev-idx="${i}" data-field="revision" class="w-20 p-1.5 border border-[#E0ECF6] rounded-lg text-xs font-mono font-bold text-[#0369A1]" /></td>
+                  <td class="p-2"><input type="text" value="${rev.description}" data-rev-idx="${i}" data-field="description" class="w-full p-1.5 border border-[#E0ECF6] rounded-lg text-xs" /></td>
+                  <td class="p-2"><input type="text" value="${rev.originatedBy}" data-rev-idx="${i}" data-field="originatedBy" class="w-full p-1.5 border border-[#E0ECF6] rounded-lg text-xs" /></td>
+                  <td class="p-2"><input type="date" value="${rev.date}" data-rev-idx="${i}" data-field="date" class="p-1.5 border border-[#E0ECF6] rounded-lg text-xs" /></td>
+                  <td class="p-2 text-right">
+                    <button type="button" onclick="window.TRSA.removeRevisionRow(${i})" class="text-red-500 font-bold px-2 py-1 hover:bg-red-50 rounded-lg">&times;</button>
+                  </td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Section II: Project Description & Key Dates -->
+      <div class="border-t border-[#E0ECF6] pt-5 space-y-4">
+        <div>
+          <label class="block text-xs font-bold text-[#0B2447] mb-1">II. Project Purpose & Scope Overview</label>
+          <textarea id="project-desc" rows="3" class="w-full text-xs p-2.5 bg-[#F4F8FC] border border-[#E0ECF6] rounded-xl focus:bg-white focus:border-[#0284C7] focus:outline-none">${proj.projectOverview.description}</textarea>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div>
+            <label class="block text-xs font-bold text-[#0B2447] mb-1">Target Line Start-up</label>
+            <input type="text" id="date-startup" value="${proj.projectOverview.keyDates.lineStartUp}" class="w-full text-xs p-2.5 bg-[#F4F8FC] border border-[#E0ECF6] rounded-xl focus:bg-white focus:border-[#0284C7] font-bold text-[#0284C7]" />
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-[#0B2447] mb-1">Final Quotation & Signed Agreement</label>
+            <input type="text" id="date-quotation" value="${proj.projectOverview.keyDates.finalQuotationDrawings}" class="w-full text-xs p-2.5 bg-[#F4F8FC] border border-[#E0ECF6] rounded-xl focus:bg-white focus:border-[#0284C7] font-medium" />
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-[#0B2447] mb-1">Order Placement Target</label>
+            <input type="text" id="date-po" value="${proj.projectOverview.keyDates.orderPlacement}" class="w-full text-xs p-2.5 bg-[#F4F8FC] border border-[#E0ECF6] rounded-xl focus:bg-white focus:border-[#0284C7] font-medium" />
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+// Sub-step 2: Key Contacts, Site Description & Invoicing
+function renderStep2(proj) {
+  return `
+    <div class="dropx-card p-6 bg-white border border-[#E0ECF6] space-y-6">
+      <div class="border-b border-[#E0ECF6] pb-4">
+        <h2 class="text-base font-bold text-[#0B2447]">Key Contacts & Plant Location</h2>
+        <p class="text-xs text-[#5A7184]">Personnel responsible for project correspondence and invoice addresses.</p>
+      </div>
+
+      <!-- Contacts Table -->
+      <div>
+        <div class="flex items-center justify-between mb-2">
+          <label class="text-xs font-bold text-[#0B2447] uppercase tracking-wider">III. Key Contacts Matrix (PT Indofood Fortuna Makmur)</label>
+          <button type="button" onclick="window.TRSA.addContactRow()" class="text-xs font-bold text-[#0284C7] hover:text-[#0369A1]">+ Add Contact</button>
+        </div>
+
+        <div class="space-y-3" id="contact-list-container">
+          ${proj.keyContacts.map((c, i) => `
+            <div class="p-3.5 border border-[#E0ECF6] rounded-2xl bg-[#F8FBFE] flex flex-col md:flex-row gap-3 items-start md:items-center justify-between">
+              <div class="flex-1 grid grid-cols-1 md:grid-cols-3 gap-2 w-full">
+                <div>
+                  <input type="text" placeholder="Name" value="${c.name}" data-contact-idx="${i}" data-field="name" class="w-full p-2 border border-[#E0ECF6] rounded-xl text-xs font-bold text-[#0B2447] bg-white" />
+                </div>
+                <div>
+                  <input type="text" placeholder="Responsibility / Role" value="${c.role}" data-contact-idx="${i}" data-field="role" class="w-full p-2 border border-[#E0ECF6] rounded-xl text-xs bg-white text-[#5A7184]" />
+                </div>
+                <div>
+                  <input type="email" placeholder="Email" value="${c.email}" data-contact-idx="${i}" data-field="email" class="w-full p-2 border border-[#E0ECF6] rounded-xl text-xs font-mono text-[#0284C7] bg-white" />
+                </div>
+              </div>
+              <div class="flex items-center gap-2">
+                <button type="button" onclick="window.TRSA.removeContactRow(${i})" class="text-red-500 font-bold px-2.5 py-1 text-xs hover:bg-red-50 rounded-lg">Remove</button>
+              </div>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+
+      <!-- Site Description & Invoicing -->
+      <div class="border-t border-[#E0ECF6] pt-5 space-y-4">
+        <h3 class="text-xs font-bold text-[#0B2447] uppercase tracking-wider">IV. Site Location & Invoicing Address</h3>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label class="block text-xs font-bold text-[#0B2447] mb-1">Company Invoicing Name</label>
+            <input type="text" id="site-recipient" value="${proj.siteDescription.invoiceRecipient}" class="w-full text-xs p-2.5 bg-[#F4F8FC] border border-[#E0ECF6] rounded-xl font-bold" />
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-[#0B2447] mb-1">Delivery Port (Incoterm)</label>
+            <input type="text" id="site-port" value="${proj.siteDescription.deliveryPort}" class="w-full text-xs p-2.5 bg-[#F4F8FC] border border-[#E0ECF6] rounded-xl font-bold text-[#0284C7]" />
+          </div>
+          <div class="md:col-span-2">
+            <label class="block text-xs font-bold text-[#0B2447] mb-1">Company Address / Plant Location</label>
+            <input type="text" id="site-address" value="${proj.siteDescription.address}" class="w-full text-xs p-2.5 bg-[#F4F8FC] border border-[#E0ECF6] rounded-xl" />
+          </div>
+          <div class="md:col-span-2">
+            <label class="block text-xs font-bold text-[#0B2447] mb-1">Custom Clearance & Shipping Clause</label>
+            <textarea id="site-customs" rows="2" class="w-full text-xs p-2.5 bg-[#F4F8FC] border border-[#E0ECF6] rounded-xl">${proj.siteDescription.customClearanceNote}</textarea>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+// Sub-step 3: Product Specifications Matrix & Process Parameters
+function renderStep3(proj) {
+  return `
+    <div class="dropx-card p-6 bg-white border border-[#E0ECF6] space-y-6">
+      <div class="border-b border-[#E0ECF6] pb-4 flex items-center justify-between">
+        <div>
+          <h2 class="text-base font-bold text-[#0B2447]">Product Specifications & Process Parameters</h2>
+          <p class="text-xs text-[#5A7184]">Dimensions, moisture content, bulk density, oil uptake, and frying temperatures.</p>
+        </div>
+        <button type="button" onclick="window.TRSA.addProductRow()" class="btn-capiclean-primary text-xs font-bold px-3 py-1.5 transition-all">
+          + Add Product Shape
+        </button>
+      </div>
+
+      <!-- Products Matrix -->
+      <div class="space-y-4">
+        ${proj.productSpecifications.map((p, i) => `
+          <div class="border border-[#E0ECF6] rounded-2xl p-4 bg-[#F8FBFE] hover:border-[#0284C7] transition-all">
+            <div class="flex items-center justify-between mb-3">
+              <div class="flex items-center gap-2">
+                <span class="w-6 h-6 rounded-full bg-[#0284C7] text-white flex items-center justify-center text-xs font-bold">${i + 1}</span>
+                <input type="text" value="${p.shape}" data-prod-idx="${i}" data-field="shape" class="font-bold text-[#0B2447] text-sm bg-transparent border-b border-dashed border-[#BAE6FD] focus:outline-none focus:border-[#0284C7] px-1 py-0.5" />
+              </div>
+              <button type="button" onclick="window.TRSA.removeProductRow(${i})" class="text-xs text-red-500 font-semibold hover:underline">Delete Shape</button>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs mb-3">
+              <div>
+                <label class="block text-[11px] font-bold text-[#5A7184] mb-0.5">Description & Geometry</label>
+                <input type="text" value="${p.description}" data-prod-idx="${i}" data-field="description" class="w-full p-2 border border-[#E0ECF6] rounded-xl bg-white" />
+              </div>
+              <div>
+                <label class="block text-[11px] font-bold text-[#5A7184] mb-0.5">Capacity (Output Pellet)</label>
+                <input type="text" value="${p.capacityOutput}" data-prod-idx="${i}" data-field="capacityOutput" class="w-full p-2 border border-[#E0ECF6] rounded-xl bg-white font-bold text-[#0284C7]" />
+              </div>
+            </div>
+
+            <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
+              <div class="bg-white p-2.5 rounded-xl border border-[#E0ECF6]">
+                <div class="text-[10px] text-[#5A7184] font-bold uppercase">Input Dimension</div>
+                <input type="text" value="${p.dimensionInput}" data-prod-idx="${i}" data-field="dimensionInput" class="w-full mt-1 font-mono font-medium focus:outline-none" />
+              </div>
+              <div class="bg-white p-2.5 rounded-xl border border-[#E0ECF6]">
+                <div class="text-[10px] text-[#5A7184] font-bold uppercase">Bulk Density (In &rarr; Out)</div>
+                <input type="text" value="${p.bulkDensityInput} &rarr; ${p.bulkDensityOutput}" data-prod-idx="${i}" data-field="bulkDensity" class="w-full mt-1 font-mono font-medium focus:outline-none" />
+              </div>
+              <div class="bg-white p-2.5 rounded-xl border border-[#E0ECF6]">
+                <div class="text-[10px] text-[#0284C7] font-bold uppercase">Moisture Content (Out)</div>
+                <input type="text" value="${p.moistureOutput}" data-prod-idx="${i}" data-field="moistureOutput" class="w-full mt-1 font-mono font-bold text-[#0284C7] focus:outline-none" />
+              </div>
+              <div class="bg-white p-2.5 rounded-xl border border-[#FF7A00] font-bold uppercase">Oil Content (Out)</div>
+                <input type="text" value="${p.oilContentOutput}" data-prod-idx="${i}" data-field="oilContentOutput" class="w-full mt-1 font-mono font-bold text-[#FF7A00] focus:outline-none" />
+              </div>
+            </div>
+          </div>
+        `).join('')}
+      </div>
+
+      <!-- Process Operating Parameters -->
+      <div class="border-t border-[#E0ECF6] pt-5 space-y-4">
+        <h3 class="text-xs font-bold text-[#0B2447] uppercase tracking-wider">Frying & Seasoning Operating Benchmarks</h3>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <!-- Frying Box (Capiclean Coral Accent) -->
+          <div class="p-4 rounded-2xl border border-orange-200 bg-[#FFF7ED] space-y-3">
+            <div class="text-xs font-black text-[#EA580C] uppercase tracking-wider flex items-center gap-1.5">
+              <span class="w-2 h-2 rounded-full bg-[#FF7A00]"></span>
+              Frying Process Parameters
+            </div>
+            <div class="grid grid-cols-2 gap-2 text-xs">
+              <div>
+                <label class="text-[10px] text-slate-500 font-semibold">Temperature Range</label>
+                <input type="text" id="proc-fry-temp" value="${proj.processParameters.frying.temperatureRange}" class="w-full p-2 border border-orange-200 rounded-xl bg-white font-mono font-bold text-[#EA580C]" />
+              </div>
+              <div>
+                <label class="text-[10px] text-slate-500 font-semibold">Dwell Time</label>
+                <input type="text" id="proc-fry-dwell" value="${proj.processParameters.frying.dwellTime}" class="w-full p-2 border border-orange-200 rounded-xl bg-white font-mono" />
+              </div>
+              <div>
+                <label class="text-[10px] text-slate-500 font-semibold">Oil Capacity</label>
+                <input type="text" id="proc-fry-oil" value="${proj.processParameters.frying.oilCapacityInFryer}" class="w-full p-2 border border-orange-200 rounded-xl bg-white font-mono" />
+              </div>
+              <div>
+                <label class="text-[10px] text-slate-500 font-semibold">Spinner Rotation</label>
+                <input type="text" id="proc-fry-spinner" value="${proj.processParameters.frying.spinnerRotationTime}" class="w-full p-2 border border-orange-200 rounded-xl bg-white font-mono" />
+              </div>
+            </div>
+          </div>
+
+          <!-- Seasoning Box (Capiclean Sky Accent) -->
+          <div class="p-4 rounded-2xl border border-sky-200 bg-[#F0F9FF] space-y-3">
+            <div class="text-xs font-black text-[#0369A1] uppercase tracking-wider flex items-center gap-1.5">
+              <span class="w-2 h-2 rounded-full bg-[#0284C7]"></span>
+              Seasoning Process Parameters
+            </div>
+            <div class="grid grid-cols-2 gap-2 text-xs">
+              <div>
+                <label class="text-[10px] text-slate-500 font-semibold">Required Seasoning</label>
+                <input type="text" id="proc-seas-type" value="${proj.processParameters.seasoning.requiredSeasoning}" class="w-full p-2 border border-sky-200 rounded-xl bg-white font-mono font-bold text-[#0369A1]" />
+              </div>
+              <div>
+                <label class="text-[10px] text-slate-500 font-semibold">Application Rate</label>
+                <input type="text" id="proc-seas-rate" value="${proj.processParameters.seasoning.seasoningApplicationRate}" class="w-full p-2 border border-sky-200 rounded-xl bg-white font-mono" />
+              </div>
+              <div>
+                <label class="text-[10px] text-slate-500 font-semibold">Salt Content (%SA)</label>
+                <input type="text" id="proc-seas-salt" value="${proj.processParameters.seasoning.saltContentBaseExcluded}" class="w-full p-2 border border-sky-200 rounded-xl bg-white font-mono" />
+              </div>
+              <div>
+                <label class="text-[10px] text-slate-500 font-semibold">Seasoning Capacity</label>
+                <input type="text" id="proc-seas-cap" value="${proj.processParameters.seasoning.seasoningCapacity}" class="w-full p-2 border border-sky-200 rounded-xl bg-white font-mono" />
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+// Sub-step 4: Technical Scope of Supply (Fryer & Seasoning)
+function renderStep4(proj) {
+  return `
+    <div class="dropx-card p-6 bg-white border border-[#E0ECF6] space-y-6">
+      <div class="border-b border-[#E0ECF6] pb-4">
+        <h2 class="text-base font-bold text-[#0B2447]">Technical Scope of Supply (Fryer & Seasoning)</h2>
+        <p class="text-xs text-[#5A7184]">Comprehensive equipment breakdown conforming to PT Indofood Fortuna Makmur standards.</p>
+      </div>
+
+      <div class="space-y-6">
+        <!-- A. Fryer System -->
+        <div>
+          <div class="flex items-center justify-between mb-3 bg-[#FF7A00] text-white px-4 py-2.5 rounded-2xl shadow-md shadow-orange-500/20">
+            <div class="font-black text-xs uppercase tracking-wide">A) Fryer System Scope (${proj.scopeOfSupply.fryer.length} Units)</div>
+            <button type="button" onclick="window.TRSA.addScopeItem('fryer')" class="text-xs bg-white text-[#EA580C] font-bold px-3 py-1 rounded-xl hover:bg-orange-50 transition-all">+ Add Module</button>
+          </div>
+
+          <div class="space-y-3" id="fryer-scope-container">
+            ${proj.scopeOfSupply.fryer.map((item, i) => `
+              <div class="p-3.5 border border-[#E0ECF6] rounded-2xl bg-[#F8FBFE]">
+                <div class="flex items-center justify-between mb-2">
+                  <div class="flex items-center gap-2">
+                    <span class="w-5 h-5 rounded-full bg-[#FF7A00] text-white flex items-center justify-center text-[10px] font-bold">${item.itemNumber || (i + 1)}</span>
+                    <input type="text" value="${item.title}" data-scope-type="fryer" data-scope-idx="${i}" data-field="title" class="font-bold text-xs text-[#0B2447] bg-transparent border-b border-[#BAE6FD] w-80 focus:outline-none" />
+                  </div>
+                  <div class="flex items-center gap-2">
+                    <input type="text" value="${item.qty}" data-scope-type="fryer" data-scope-idx="${i}" data-field="qty" class="text-xs border border-[#E0ECF6] rounded-xl px-2.5 py-1 w-24 text-center font-bold text-[#EA580C] bg-white" />
+                    <button type="button" onclick="window.TRSA.removeScopeItem('fryer', ${i})" class="text-red-500 text-xs font-bold px-1.5 py-0.5 hover:bg-red-50 rounded-lg">&times;</button>
+                  </div>
+                </div>
+                <div class="text-[11px] text-[#5A7184] pl-7">
+                  <textarea rows="2" data-scope-type="fryer" data-scope-idx="${i}" data-field="specs" class="w-full p-2 border border-[#E0ECF6] rounded-xl bg-white text-xs">${item.specs.join('\n')}</textarea>
+                </div>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+
+        <!-- B. Seasoning System -->
+        <div>
+          <div class="flex items-center justify-between mb-3 bg-[#0284C7] text-white px-4 py-2.5 rounded-2xl shadow-md shadow-sky-500/20">
+            <div class="font-black text-xs uppercase tracking-wide">B) Seasoning System Scope (${proj.scopeOfSupply.seasoning.length} Units)</div>
+            <button type="button" onclick="window.TRSA.addScopeItem('seasoning')" class="text-xs bg-white text-[#0369A1] font-bold px-3 py-1 rounded-xl hover:bg-sky-50 transition-all">+ Add Module</button>
+          </div>
+
+          <div class="space-y-3" id="seasoning-scope-container">
+            ${proj.scopeOfSupply.seasoning.map((item, i) => `
+              <div class="p-3.5 border border-[#E0ECF6] rounded-2xl bg-[#F8FBFE]">
+                <div class="flex items-center justify-between mb-2">
+                  <div class="flex items-center gap-2">
+                    <span class="w-5 h-5 rounded-full bg-[#0284C7] text-white flex items-center justify-center text-[10px] font-bold">${item.itemNumber || (i + 1)}</span>
+                    <input type="text" value="${item.title}" data-scope-type="seasoning" data-scope-idx="${i}" data-field="title" class="font-bold text-xs text-[#0B2447] bg-transparent border-b border-[#BAE6FD] w-80 focus:outline-none" />
+                  </div>
+                  <div class="flex items-center gap-2">
+                    <input type="text" value="${item.qty}" data-scope-type="seasoning" data-scope-idx="${i}" data-field="qty" class="text-xs border border-[#E0ECF6] rounded-xl px-2.5 py-1 w-24 text-center font-bold text-[#0284C7] bg-white" />
+                    <button type="button" onclick="window.TRSA.removeScopeItem('seasoning', ${i})" class="text-red-500 text-xs font-bold px-1.5 py-0.5 hover:bg-red-50 rounded-lg">&times;</button>
+                  </div>
+                </div>
+                <div class="text-[11px] text-[#5A7184] pl-7">
+                  <textarea rows="2" data-scope-type="seasoning" data-scope-idx="${i}" data-field="specs" class="w-full p-2 border border-[#E0ECF6] rounded-xl bg-white text-xs">${item.specs.join('\n')}</textarea>
+                </div>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+// Sub-step 5: Hygienic Standards & Target Performance Tests
+function renderStep5(proj) {
+  return `
+    <div class="dropx-card p-6 bg-white border border-[#E0ECF6] space-y-6">
+      <div class="border-b border-[#E0ECF6] pb-4">
+        <h2 class="text-base font-bold text-[#0B2447]">Hygienic Design & Performance Acceptance Protocol</h2>
+        <p class="text-xs text-[#5A7184]">SS304 food contact criteria, 7-hour continuous run, and sampling methodology.</p>
+      </div>
+
+      <!-- Hygiene Requirements -->
+      <div class="space-y-3">
+        <h3 class="text-xs font-bold text-[#0B2447] uppercase tracking-wider">Hygienic Construction Standards</h3>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label class="block text-[11px] font-bold text-[#5A7184] mb-1">Food Contact Surface Material</label>
+            <input type="text" id="hygiene-material" value="${proj.hygieneAndQuality.foodContactMaterial}" class="w-full text-xs p-2.5 border border-[#E0ECF6] rounded-xl bg-[#F4F8FC] font-medium" />
+          </div>
+          <div>
+            <label class="block text-[11px] font-bold text-[#5A7184] mb-1">Commissioning Trial Time per Product</label>
+            <input type="text" id="comm-duration" value="${proj.performanceAcceptance.commissioningDuration}" class="w-full text-xs p-2.5 border border-[#E0ECF6] rounded-xl bg-[#F4F8FC] font-bold text-[#0284C7]" />
+          </div>
+        </div>
+      </div>
+
+      <!-- Performance Test Matrix -->
+      <div class="border-t border-[#E0ECF6] pt-5">
+        <h3 class="text-xs font-bold text-[#0B2447] uppercase tracking-wider mb-2">Target Performance Test Protocols</h3>
+        <div class="space-y-3">
+          ${proj.performanceAcceptance.tests.map((test, i) => `
+            <div class="p-3.5 border border-[#E0ECF6] rounded-2xl bg-[#F8FBFE]">
+              <div class="font-bold text-xs text-[#0B2447] mb-2 flex items-center gap-1.5">
+                <span class="w-2 h-2 rounded-full bg-[#0284C7]"></span>
+                ${test.step}
+              </div>
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
+                <div>
+                  <span class="text-[10px] text-[#5A7184] font-bold uppercase">Observation & Process Action</span>
+                  <p class="text-[#0B2447] mt-0.5">${test.observation}</p>
+                </div>
+                <div>
+                  <span class="text-[10px] text-[#0284C7] font-bold uppercase">Acceptance Benchmark / Note</span>
+                  <p class="text-[#0369A1] font-bold mt-0.5">${test.target}</p>
+                </div>
+              </div>
+            </div>
+          `).join('')}
+        </div>
+
+        <div class="mt-4 p-4 rounded-2xl border border-red-200 bg-red-50/70 text-xs text-red-950">
+          <div class="font-bold mb-1 text-red-800">Consequences If Target is Not Reached (Clause XI)</div>
+          <p class="leading-relaxed">${proj.performanceAcceptance.failureConsequence}</p>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+// Sub-step 6: Commercial Terms, Tax Laws & Required Documents
+function renderStep6(proj) {
+  const currentOption = proj.commercialTerms.selectedPaymentOption;
+
+  return `
+    <div class="dropx-card p-6 bg-white border border-[#E0ECF6] space-y-6">
+      <div class="border-b border-[#E0ECF6] pb-4">
+        <h2 class="text-base font-bold text-[#0B2447]">Commercial Terms, Tax Provisions & Documentation</h2>
+        <p class="text-xs text-[#5A7184]">Payment structure, Indonesian withholding tax compliance, and 14 required seller documents.</p>
+      </div>
+
+      <!-- Payment Option Radio Selector -->
+      <div>
+        <label class="block text-xs font-bold text-[#0B2447] uppercase tracking-wider mb-3">XIII. Term of Payment (Seller to Select One)</label>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <!-- Option 1 -->
+          <div class="p-4 rounded-2xl border-2 transition-all cursor-pointer ${
+            currentOption === 'Option 1' ? 'border-[#0284C7] bg-[#E0F2FE]/40 shadow-sm' : 'border-[#E0ECF6] bg-white hover:border-[#BAE6FD]'
+          }" onclick="window.TRSA.setPaymentOption('Option 1')">
+            <div class="flex items-center justify-between mb-2">
+              <span class="font-bold text-xs text-[#0B2447]">Option 1: Standard L/C & T/T</span>
+              <input type="radio" name="pay-option" value="Option 1" ${currentOption === 'Option 1' ? 'checked' : ''} class="w-4 h-4 text-[#0284C7]" />
+            </div>
+            <ul class="text-xs space-y-1.5 text-[#5A7184]">
+              <li class="flex items-center justify-between"><span>L/C against Shipping Document</span><span class="font-bold font-mono text-[#0B2447]">85%</span></li>
+              <li class="flex items-center justify-between"><span>T/T after machine running (&le; 60 days)</span><span class="font-bold font-mono text-[#0B2447]">10%</span></li>
+              <li class="flex items-center justify-between"><span>T/T retention 3 months (&le; 120 days)</span><span class="font-bold font-mono text-[#0B2447]">5%</span></li>
+            </ul>
+          </div>
+
+          <!-- Option 2 -->
+          <div class="p-4 rounded-2xl border-2 transition-all cursor-pointer ${
+            currentOption === 'Option 2' ? 'border-[#0284C7] bg-[#E0F2FE]/40 shadow-sm' : 'border-[#E0ECF6] bg-white hover:border-[#BAE6FD]'
+          }" onclick="window.TRSA.setPaymentOption('Option 2')">
+            <div class="flex items-center justify-between mb-2">
+              <span class="font-bold text-xs text-[#0B2447]">Option 2: Down Payment with Bank Guarantee</span>
+              <input type="radio" name="pay-option" value="Option 2" ${currentOption === 'Option 2' ? 'checked' : ''} class="w-4 h-4 text-[#0284C7]" />
+            </div>
+            <ul class="text-xs space-y-1.5 text-[#5A7184]">
+              <li class="flex items-center justify-between"><span>Down Payment Counter Bank Guarantee</span><span class="font-bold font-mono text-[#0B2447]">30%</span></li>
+              <li class="flex items-center justify-between"><span>L/C payable prior to shipping</span><span class="font-bold font-mono text-[#0B2447]">55%</span></li>
+              <li class="flex items-center justify-between"><span>After Machine Running</span><span class="font-bold font-mono text-[#0B2447]">10%</span></li>
+              <li class="flex items-center justify-between"><span>T/T retention 3 months</span><span class="font-bold font-mono text-[#0B2447]">5%</span></li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <!-- 14 Required Documents Checklist -->
+      <div class="border-t border-[#E0ECF6] pt-5">
+        <div class="flex items-center justify-between mb-3">
+          <label class="text-xs font-bold text-[#0B2447] uppercase tracking-wider">XIV. Required Seller Documentation (14 Mandatory Deliverables)</label>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-2.5">
+          ${proj.requiredDocumentation.map((doc, i) => `
+            <div class="p-2.5 border border-[#E0ECF6] rounded-xl bg-[#F8FBFE] flex items-start gap-2.5 text-xs">
+              <input type="checkbox" id="doc-req-${i}" ${doc.required ? 'checked' : ''} class="mt-0.5 rounded text-[#0284C7] focus:ring-[#0284C7] cursor-pointer" />
+              <div>
+                <label for="doc-req-${i}" class="font-bold text-[#0B2447] cursor-pointer">${i + 1}. ${doc.title}</label>
+                <div class="text-[11px] text-[#5A7184]">${doc.desc}</div>
+              </div>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+
+      <!-- Official Signatures Block -->
+      <div class="border-t border-[#E0ECF6] pt-5">
+        <h3 class="text-xs font-bold text-[#0B2447] uppercase tracking-wider mb-3">Formal Sign-Off Parties</h3>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+          <div class="p-4 border border-[#E0ECF6] rounded-2xl bg-[#F8FBFE] space-y-2">
+            <div class="font-bold text-[#0B2447] uppercase">Seller / OEM Supplier</div>
+            <div>
+              <label class="text-[10px] text-[#5A7184] font-semibold">Company Name</label>
+              <input type="text" id="sign-seller-company" value="${proj.signOff.seller.companyName}" class="w-full p-2 border border-[#E0ECF6] rounded-xl bg-white font-medium" />
+            </div>
+            <div>
+              <label class="text-[10px] text-[#5A7184] font-semibold">Quotation Reference No.</label>
+              <input type="text" id="sign-seller-quote" value="${proj.signOff.seller.quotationNo}" class="w-full p-2 border border-[#E0ECF6] rounded-xl bg-white font-mono" />
+            </div>
+            <div>
+              <label class="text-[10px] text-[#5A7184] font-semibold">Authorized Signatory Name & Title</label>
+              <input type="text" id="sign-seller-name" value="${proj.signOff.seller.name} - ${proj.signOff.seller.position}" class="w-full p-2 border border-[#E0ECF6] rounded-xl bg-white font-medium" />
+            </div>
+          </div>
+
+          <div class="p-4 border border-sky-200 rounded-2xl bg-[#F0F9FF] space-y-2">
+            <div class="font-bold text-[#0369A1] uppercase">Purchaser (PT Indofood Fortuna Makmur)</div>
+            <div>
+              <label class="text-[10px] text-[#5A7184] font-semibold">Company Name</label>
+              <input type="text" disabled value="${proj.signOff.purchaser.companyName}" class="w-full p-2 border border-[#E0ECF6] rounded-xl bg-slate-100 font-medium text-slate-600" />
+            </div>
+            <div>
+              <label class="text-[10px] text-[#5A7184] font-semibold">Authorized Signatory Name</label>
+              <input type="text" id="sign-ifm-name" value="${proj.signOff.purchaser.name}" class="w-full p-2 border border-[#E0ECF6] rounded-xl bg-white font-bold" />
+            </div>
+            <div>
+              <label class="text-[10px] text-[#5A7184] font-semibold">Position</label>
+              <input type="text" id="sign-ifm-pos" value="${proj.signOff.purchaser.position}" class="w-full p-2 border border-[#E0ECF6] rounded-xl bg-white font-bold text-[#0284C7]" />
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+// 6. Clean Business Form Studio (Envato Print Design Inspired with Capiclean Refresh)
+function renderStudio(proj) {
+  const watermark = store.watermark;
+
+  return `
+    <div class="space-y-6 animate-fadeIn pb-16">
+      <!-- Studio Action Control Bar (No Print) -->
+      <div class="studio-toolbar dropx-card p-4 bg-white border border-[#E0ECF6] flex flex-col sm:flex-row sm:items-center justify-between gap-4 no-print sticky top-16 z-20 shadow-md">
+        <div class="flex items-center gap-3">
+          <button onclick="window.TRSA.setView('builder', 1)" class="text-xs font-bold px-3.5 py-2 rounded-xl border border-[#CBD5E1] text-[#0B2447] hover:bg-[#F0F9FF] flex items-center gap-1.5 transition-all">
+            &larr; Back to Builder
+          </button>
+          <div>
+            <div class="text-xs font-bold text-[#0B2447]">${proj.documentInfo.title}</div>
+            <div class="text-[10px] font-mono text-[#0284C7] font-semibold">${proj.documentInfo.docNumber}</div>
+          </div>
+        </div>
+
+        <div class="flex items-center gap-3">
+          <div class="flex items-center gap-1.5 text-xs">
+            <span class="text-[#5A7184] font-bold">Watermark:</span>
+            <select id="watermark-select" onchange="window.TRSA.setWatermark(this.value)" class="text-xs font-bold p-1.5 border border-[#E0ECF6] rounded-xl bg-[#F4F8FC] text-[#0369A1]">
+              <option value="OFFICIAL" ${watermark === 'OFFICIAL' ? 'selected' : ''}>OFFICIAL</option>
+              <option value="DRAFT" ${watermark === 'DRAFT' ? 'selected' : ''}>DRAFT</option>
+              <option value="CONFIDENTIAL" ${watermark === 'CONFIDENTIAL' ? 'selected' : ''}>CONFIDENTIAL</option>
+              <option value="NONE" ${watermark === 'NONE' ? 'selected' : ''}>NONE</option>
+            </select>
+          </div>
+
+          <button onclick="window.print()" class="btn-capiclean-accent font-bold text-xs px-4 py-2 transition-all flex items-center gap-2">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
+            Print / Save to PDF
+          </button>
+        </div>
+      </div>
+
+      <!-- Printable A4 Document Sheet (Clean Business Form Design with Capiclean Accents) -->
+      <div class="print-area">
+        <div class="a4-document-container relative">
+          <!-- Watermark text -->
+          ${watermark !== 'NONE' ? `<div class="document-watermark">${watermark}</div>` : ''}
+
+          <!-- Document Header -->
+          <div class="text-center pb-6 border-b-2 border-[#0B2447] mb-6">
+            <div class="text-xs font-extrabold tracking-widest text-[#0284C7] uppercase mb-1">PT Indofood Fortuna Makmur</div>
+            <h1 class="text-xl font-black text-[#0B2447] uppercase tracking-tight">${proj.documentInfo.title}</h1>
+            <div class="text-sm font-bold text-[#16365C] mt-1">${proj.documentInfo.subTitle}</div>
+            <div class="mt-2 inline-block px-3 py-1 bg-[#F0F9FF] border border-[#BAE6FD] font-mono text-xs font-bold text-[#0369A1] rounded">
+              (No : ${proj.documentInfo.docNumber})
+            </div>
+          </div>
+
+          <!-- Section I: Revision History -->
+          <div class="mb-6">
+            <h2 class="text-xs font-bold text-[#0B2447] uppercase tracking-wider mb-2">I. Revision History</h2>
+            <table class="clean-form-table">
+              <thead>
+                <tr>
+                  <th style="width: 15%;">Revision</th>
+                  <th style="width: 40%;">Description</th>
+                  <th style="width: 25%;">Originated by</th>
+                  <th style="width: 20%;">Date</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${proj.documentInfo.revisionHistory.map(r => `
+                  <tr>
+                    <td class="font-mono font-bold text-center text-[#0369A1]">${r.revision}</td>
+                    <td>${r.description}</td>
+                    <td>${r.originatedBy}</td>
+                    <td>${r.date}</td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          </div>
+
+          <!-- Section I (Bis): Project Description & Key Dates -->
+          <div class="mb-6">
+            <h2 class="text-xs font-bold text-[#0B2447] uppercase tracking-wider mb-2">I. Project Description</h2>
+            <p class="text-xs text-slate-700 leading-relaxed mb-4">
+              ${proj.projectOverview.description}
+            </p>
+
+            <h2 class="text-xs font-bold text-[#0B2447] uppercase tracking-wider mb-2">II. Key Dates</h2>
+            <ul class="text-xs space-y-1.5 text-slate-700 list-disc pl-5">
+              <li>Line start-up is targeted for the <strong class="text-[#0284C7]">${proj.projectOverview.keyDates.lineStartUp}</strong></li>
+              <li>The final quotation, drawings, and signed agreement are expected by <strong>${proj.projectOverview.keyDates.finalQuotationDrawings}</strong></li>
+              <li>Order placement is expected in <strong>${proj.projectOverview.keyDates.orderPlacement}</strong></li>
+            </ul>
+          </div>
+
+          <!-- Section III: Key Contacts -->
+          <div class="mb-6">
+            <h2 class="text-xs font-bold text-[#0B2447] uppercase tracking-wider mb-2">III. Key Contacts</h2>
+            <p class="text-[11px] text-[#5A7184] mb-2">All correspondence pertaining to this project with PT. Indofood Fortuna Makmur shall be directed through the following individuals:</p>
+            <table class="clean-form-table table-header-orange">
+              <thead>
+                <tr>
+                  <th style="width: 30%;">Name / Responsibility</th>
+                  <th style="width: 45%;">Company / Address</th>
+                  <th style="width: 25%;">Email</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${proj.keyContacts.map(c => `
+                  <tr>
+                    <td class="font-bold text-[#0B2447]">${c.name}<div class="text-[11px] font-normal text-[#5A7184]">${c.role}</div></td>
+                    <td class="text-[11px] text-slate-600">${c.companyAddress}</td>
+                    <td class="font-mono text-[11px] text-[#0284C7] font-semibold">${c.email}</td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          </div>
+
+          <!-- Section IV: Site Description -->
+          <div class="mb-6">
+            <h2 class="text-xs font-bold text-[#0B2447] uppercase tracking-wider mb-2">IV. Site Description</h2>
+            <div class="text-xs text-slate-700 space-y-1 bg-[#F4F8FC] p-3 border border-[#D6E6F2] rounded">
+              <div class="font-bold text-[#0B2447]">Company address / Site Location (All invoices should be issued to) :</div>
+              <div class="font-bold">${proj.siteDescription.invoiceRecipient}</div>
+              <div>${proj.siteDescription.address}</div>
+              <div class="pt-1 text-[11px]">
+                <strong class="text-[#0284C7]">Attention to Purchasing Department:</strong>
+                ${proj.siteDescription.purchasingAttn.map(a => `${a.name} (${a.email})`).join('; ')}
+              </div>
+            </div>
+          </div>
+
+          <!-- Section V & VI: Confidentiality & Language -->
+          <div class="mb-6 grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <h2 class="text-xs font-bold text-[#0B2447] uppercase tracking-wider mb-1">V. Confidentiality</h2>
+              <p class="text-[11px] text-slate-600 leading-relaxed text-justify">${proj.projectOverview.confidentialityClause}</p>
+            </div>
+            <div>
+              <h2 class="text-xs font-bold text-[#0B2447] uppercase tracking-wider mb-1">VI. Language</h2>
+              <p class="text-[11px] text-slate-600 leading-relaxed text-justify">${proj.projectOverview.languageRequirement}</p>
+            </div>
+          </div>
+
+          <!-- Page Break For Clean Business Form Print Standard -->
+          <div class="page-break my-6"></div>
+
+          <!-- Section VII: Product Specifications -->
+          <div class="mb-6">
+            <h2 class="text-xs font-bold text-[#0B2447] uppercase tracking-wider mb-2">VII. Product Specifications</h2>
+            
+            ${proj.productSpecifications.map(p => `
+              <div class="mb-4">
+                <table class="clean-form-table table-header-orange">
+                  <thead>
+                    <tr>
+                      <th colspan="3">${p.shape}</th>
+                    </tr>
+                    <tr style="background-color: #F0F9FF; color: #0B2447;">
+                      <th style="width: 30%; background: #E0F2FE; color: #0369A1; border-color: #BAE6FD;">Parameter</th>
+                      <th style="width: 35%; background: #E0F2FE; color: #0369A1; border-color: #BAE6FD;">Input</th>
+                      <th style="width: 35%; background: #E0F2FE; color: #0369A1; border-color: #BAE6FD;">Output</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td class="font-medium text-slate-600">Desc</td>
+                      <td colspan="2">${p.description}</td>
+                    </tr>
+                    <tr>
+                      <td class="font-medium text-slate-600">Dimension</td>
+                      <td class="font-mono">${p.dimensionInput}</td>
+                      <td class="font-mono">${p.dimensionOutput}</td>
+                    </tr>
+                    <tr>
+                      <td class="font-medium text-slate-600">Capacity</td>
+                      <td colspan="2" class="font-bold text-[#0B2447]">${p.capacityOutput}</td>
+                    </tr>
+                    <tr>
+                      <td class="font-medium text-slate-600">Bulk Density</td>
+                      <td class="font-mono">${p.bulkDensityInput}</td>
+                      <td class="font-mono">${p.bulkDensityOutput}</td>
+                    </tr>
+                    <tr>
+                      <td class="font-medium text-slate-600">Moisture Content</td>
+                      <td class="font-mono">${p.moistureInput}</td>
+                      <td class="font-mono font-bold text-[#0284C7]">${p.moistureOutput}</td>
+                    </tr>
+                    <tr>
+                      <td class="font-medium text-slate-600">Oil Content</td>
+                      <td class="font-mono">${p.oilContentInput}</td>
+                      <td class="font-mono font-bold text-[#FF7A00]">${p.oilContentOutput}</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            `).join('')}
+
+            <!-- Process Parameters Table -->
+            <table class="clean-form-table">
+              <thead>
+                <tr>
+                  <th style="width: 25%;">Process</th>
+                  <th style="width: 45%;">Description / Parameter 1</th>
+                  <th style="width: 30%;">Description / Parameter 2</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td class="font-bold text-[#0B2447]">Frying</td>
+                  <td colspan="2">Feeder rate : ${proj.processParameters.frying.feederRate}</td>
+                </tr>
+                <tr>
+                  <td class="font-bold text-[#0B2447]">Frying</td>
+                  <td>Frying Temperature: <span class="font-bold text-[#EA580C]">${proj.processParameters.frying.temperatureRange}</span></td>
+                  <td>Dwell Time : ${proj.processParameters.frying.dwellTime}</td>
+                </tr>
+                <tr>
+                  <td class="font-bold text-[#0B2447]">Frying</td>
+                  <td colspan="2">Oil capacity in fryer : ${proj.processParameters.frying.oilCapacityInFryer}</td>
+                </tr>
+                <tr>
+                  <td class="font-bold text-[#0B2447]">Frying</td>
+                  <td colspan="2">Spinner rotation time : ${proj.processParameters.frying.spinnerRotationTime}</td>
+                </tr>
+                <tr class="table-header-orange">
+                  <th colspan="3">Seasoning Specification</th>
+                </tr>
+                <tr>
+                  <td class="font-bold text-[#0B2447]">Required seasoning</td>
+                  <td colspan="2">${proj.processParameters.seasoning.requiredSeasoning} (${proj.processParameters.seasoning.seasoningType})</td>
+                </tr>
+                <tr>
+                  <td class="font-bold text-[#0B2447]">Salt content (base excluded)</td>
+                  <td colspan="2">${proj.processParameters.seasoning.saltContentBaseExcluded}</td>
+                </tr>
+                <tr>
+                  <td class="font-bold text-[#0B2447]">Seasoning application rate</td>
+                  <td colspan="2">${proj.processParameters.seasoning.seasoningApplicationRate}</td>
+                </tr>
+                <tr>
+                  <td class="font-bold text-[#0B2447]">Seasoning capacity</td>
+                  <td colspan="2"><span class="font-bold text-[#0284C7]">${proj.processParameters.seasoning.seasoningCapacity}</span></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <!-- Section VIII: Scope of Supply -->
+          <div class="page-break my-6"></div>
+
+          <div class="mb-6">
+            <h2 class="text-xs font-bold text-[#0B2447] uppercase tracking-wider mb-2">VIII. Scope of Supply</h2>
+            
+            <div class="font-bold text-xs text-[#FF7A00] mb-2 uppercase tracking-wide">A) Fryer System</div>
+            <div class="space-y-3 mb-6">
+              ${proj.scopeOfSupply.fryer.map(item => `
+                <div class="text-xs">
+                  <div class="font-bold text-[#0B2447]">${item.itemNumber}. ${item.qty} ${item.title}</div>
+                  <ul class="list-disc pl-6 text-[11px] text-slate-700 space-y-0.5 mt-1">
+                    ${item.specs.map(s => `<li>${s}</li>`).join('')}
+                  </ul>
+                </div>
+              `).join('')}
+            </div>
+
+            <div class="font-bold text-xs text-[#0284C7] mb-2 uppercase tracking-wide">B) Seasoning System</div>
+            <div class="space-y-3 mb-6">
+              ${proj.scopeOfSupply.seasoning.map(item => `
+                <div class="text-xs">
+                  <div class="font-bold text-[#0B2447]">${item.itemNumber}. ${item.qty} ${item.title}</div>
+                  <ul class="list-disc pl-6 text-[11px] text-slate-700 space-y-0.5 mt-1">
+                    ${item.specs.map(s => `<li>${s}</li>`).join('')}
+                  </ul>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+
+          <!-- Section IX: Target Performance Test -->
+          <div class="page-break my-6"></div>
+
+          <div class="mb-6">
+            <h2 class="text-xs font-bold text-[#0B2447] uppercase tracking-wider mb-2">IX. Target Performance Test & Commissioning</h2>
+            <table class="clean-form-table">
+              <thead>
+                <tr>
+                  <th style="width: 8%;">No</th>
+                  <th style="width: 25%;">Process</th>
+                  <th style="width: 42%;">Observation</th>
+                  <th style="width: 25%;">Note / Target</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${proj.performanceAcceptance.tests.map((t, idx) => `
+                  <tr>
+                    <td class="text-center font-bold text-[#0284C7]">${idx + 1}</td>
+                    <td class="font-bold text-[#0B2447]">${t.step}</td>
+                    <td class="text-[11px]">${t.observation}</td>
+                    <td class="text-[11px] font-bold text-[#0369A1]">${t.target}</td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+
+            <div class="p-3 bg-[#F0F9FF] border border-[#BAE6FD] text-xs rounded mb-4">
+              <strong class="text-[#0369A1]">Commissioning Mechanism:</strong> ${proj.performanceAcceptance.commissioningDuration}
+            </div>
+
+            <div class="p-3 bg-red-50 border border-red-200 text-xs text-red-950 rounded">
+              <strong class="text-red-800">XI. Consequences If Target is Not Reached:</strong>
+              ${proj.performanceAcceptance.failureConsequence}
+            </div>
+          </div>
+
+          <!-- Section XIII: Terms of Payment -->
+          <div class="mb-6">
+            <h2 class="text-xs font-bold text-[#0B2447] uppercase tracking-wider mb-2">XIII. Term of Payment (Selected: ${proj.commercialTerms.selectedPaymentOption})</h2>
+            <table class="clean-form-table table-header-orange">
+              <thead>
+                <tr>
+                  <th style="width: 50%;">Options 1</th>
+                  <th style="width: 50%;">Options 2</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td class="${proj.commercialTerms.selectedPaymentOption === 'Option 1' ? 'bg-[#FFF7ED] font-bold text-[#EA580C]' : ''}">
+                    <strong>Equipment</strong><br/>
+                    85% by L/C against Shipping Document<br/>
+                    10% by T/T after machine running (&le; 60 days from B/L date)<br/>
+                    5% by T/T 3 months after machine running (&le; 120 days from B/L date)
+                  </td>
+                  <td class="${proj.commercialTerms.selectedPaymentOption === 'Option 2' ? 'bg-[#FFF7ED] font-bold text-[#EA580C]' : ''}">
+                    <strong>Equipment</strong><br/>
+                    30% Down Payment Counter with Bank Guarantee<br/>
+                    55% by L/C payable prior to shipping<br/>
+                    10% After Machine Running<br/>
+                    5% by T/T Retention 3 Months after machine running
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+            <div class="text-[11px] text-slate-700 bg-[#F4F8FC] p-2.5 border border-[#D6E6F2] rounded">
+              <strong class="text-[#0284C7]">Engineering Services:</strong> ${proj.commercialTerms.engineeringServicesPayment}
+            </div>
+          </div>
+
+          <!-- Section XIV: Required Documentation Checklist -->
+          <div class="mb-6">
+            <h2 class="text-xs font-bold text-[#0B2447] uppercase tracking-wider mb-2">XIV. Required Documentation (14 Items)</h2>
+            <div class="grid grid-cols-2 gap-x-4 gap-y-1 text-[11px] text-slate-700">
+              ${proj.requiredDocumentation.map(d => `
+                <div class="flex items-center gap-1.5">
+                  <span class="text-[#10B981] font-bold">✓</span>
+                  <span><strong>${d.id}. ${d.title}:</strong> ${d.desc}</span>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+
+          <!-- Signature Blocks (Envato Clean Business Form Design with Capiclean Refresh) -->
+          <div class="mt-8 pt-6 border-t-2 border-[#0B2447]">
+            <div class="text-xs font-bold text-[#0B2447] uppercase tracking-wider mb-6">Acknowledged and Approved by</div>
+            
+            <div class="grid grid-cols-2 gap-8 text-xs">
+              <!-- Seller Endorsement -->
+              <div class="space-y-3">
+                <div class="border-b border-[#D6E6F2] pb-1 font-bold text-[#0B2447] uppercase">On behalf of Seller:</div>
+                <div class="flex justify-between"><span class="text-[#5A7184]">Company Name:</span> <span class="font-bold">${proj.signOff.seller.companyName}</span></div>
+                <div class="flex justify-between"><span class="text-[#5A7184]">Quotation No.:</span> <span class="font-mono text-[#0284C7] font-semibold">${proj.signOff.seller.quotationNo}</span></div>
+                <div class="flex justify-between"><span class="text-[#5A7184]">Date:</span> <span>${proj.signOff.seller.date}</span></div>
+                <div class="flex justify-between"><span class="text-[#5A7184]">Authorized Name:</span> <span class="font-bold">${proj.signOff.seller.name}</span></div>
+                <div class="flex justify-between"><span class="text-[#5A7184]">Title / Position:</span> <span>${proj.signOff.seller.position}</span></div>
+                <div class="pt-8 border-b border-dashed border-[#CBD5E1]"></div>
+                <div class="text-center text-[10px] text-[#5A7184] uppercase font-semibold">Authorized Signatory & Corporate Stamp</div>
+              </div>
+
+              <!-- Purchaser Endorsement (PT Indofood Fortuna Makmur) -->
+              <div class="space-y-3">
+                <div class="border-b border-[#D6E6F2] pb-1 font-bold text-[#0B2447] uppercase">On behalf of PT Indofood Fortuna Makmur:</div>
+                <div class="flex justify-between"><span class="text-[#5A7184]">Company:</span> <span class="font-bold">${proj.signOff.purchaser.companyName}</span></div>
+                <div class="flex justify-between"><span class="text-[#5A7184]">Name:</span> <span class="font-bold text-[#0B2447]">${proj.signOff.purchaser.name}</span></div>
+                <div class="flex justify-between"><span class="text-[#5A7184]">Title / Position:</span> <span class="font-bold text-[#0284C7]">${proj.signOff.purchaser.position}</span></div>
+                <div class="flex justify-between"><span class="text-[#5A7184]">Date:</span> <span>${proj.signOff.purchaser.date}</span></div>
+                <div class="pt-12 border-b border-dashed border-[#CBD5E1]"></div>
+                <div class="text-center text-[10px] text-[#5A7184] uppercase font-semibold">Project & Engineering Management Approval</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+// Event Handlers and Interactive Wiring
+function attachEventHandlers(activeProject) {
+  // Search input
+  const searchInput = document.getElementById('global-search');
+  if (searchInput) {
+    searchInput.addEventListener('input', (e) => {
+      store.searchQuery = e.target.value;
+      if (store.currentView !== 'projects' && store.currentView !== 'dashboard') {
+        store.currentView = 'projects';
+      }
+      render();
+    });
+  }
+
+  // Plant Selector
+  const plantSelect = document.getElementById('plant-selector');
+  if (plantSelect) {
+    plantSelect.addEventListener('change', (e) => {
+      store.plantFilter = e.target.value;
+      render();
+    });
+  }
+
+  // File Import listener
+  const importInput = document.getElementById('import-file-input');
+  if (importInput) {
+    importInput.addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        store.importJSON(event.target.result);
+      };
+      reader.readAsText(file);
+    });
+  }
+
+  // Live input changes in Step 1
+  const docTitle = document.getElementById('doc-title');
+  if (docTitle) docTitle.addEventListener('input', (e) => activeProject.documentInfo.title = e.target.value);
+  const docSubtitle = document.getElementById('doc-subtitle');
+  if (docSubtitle) docSubtitle.addEventListener('input', (e) => activeProject.documentInfo.subTitle = e.target.value);
+  const docNumber = document.getElementById('doc-number');
+  const docStatus = document.getElementById('doc-status');
+  if (docStatus) docStatus.addEventListener('change', (e) => activeProject.documentInfo.status = e.target.value);
+  const docPlantLoc = document.getElementById('doc-plant-location');
+  if (docPlantLoc) {
+    docPlantLoc.addEventListener('change', (e) => {
+      activeProject.documentInfo.plantLocation = e.target.value;
+      const genPlant = document.getElementById('gen-plant');
+      if (genPlant) {
+        genPlant.value = getPlantCode(e.target.value);
+        updateLiveGenerator();
+      }
+    });
+  }
+
+  // TRSA Document Number Generator Real-time Wiring
+  const genSeq = document.getElementById('gen-seq');
+  const genAuthor = document.getElementById('gen-author');
+  const genPlant = document.getElementById('gen-plant');
+  const genDept = document.getElementById('gen-dept');
+
+  function updateLiveGenerator() {
+    const seq = genSeq ? genSeq.value : '001';
+    const author = genAuthor ? genAuthor.value : 'Refin A Putra';
+    const plant = genPlant ? genPlant.value : '1402';
+    const dept = genDept ? genDept.value : 'MFG';
+    const creationDate = activeProject.documentInfo.revisionHistory?.[0]?.date || new Date();
+
+    const formatted = generateTRSANumber({
+      seq,
+      creatorName: author,
+      plantCode: plant,
+      dept,
+      date: creationDate
+    });
+
+    activeProject.documentInfo.docNumber = formatted;
+    if (docNumber) docNumber.value = formatted;
+
+    const bSeq = document.getElementById('badge-seq');
+    if (bSeq) bSeq.textContent = String(seq).padStart(3, '0');
+    const bInit = document.getElementById('badge-initials');
+    if (bInit) bInit.textContent = getInitials(author);
+    const bPlant = document.getElementById('badge-plant');
+    if (bPlant) bPlant.textContent = plant;
+    const bDept = document.getElementById('badge-dept');
+    if (bDept) bDept.textContent = dept + '-IFM';
+  }
+
+  if (genSeq) genSeq.addEventListener('input', updateLiveGenerator);
+  if (genAuthor) genAuthor.addEventListener('input', updateLiveGenerator);
+  if (genPlant) genPlant.addEventListener('change', updateLiveGenerator);
+  if (genDept) genDept.addEventListener('change', updateLiveGenerator);
+
+  if (docNumber) {
+    docNumber.addEventListener('input', (e) => {
+      activeProject.documentInfo.docNumber = e.target.value;
+      const parsed = parseTRSANumber(e.target.value);
+      if (parsed) {
+        if (genSeq) genSeq.value = parsed.seq;
+        if (genPlant) genPlant.value = parsed.plantCode;
+        if (genDept) genDept.value = parsed.dept;
+        const bSeq = document.getElementById('badge-seq');
+        if (bSeq) bSeq.textContent = parsed.seq;
+        const bInit = document.getElementById('badge-initials');
+        if (bInit) bInit.textContent = parsed.initials;
+        const bPlant = document.getElementById('badge-plant');
+        if (bPlant) bPlant.textContent = parsed.plantCode;
+        const bDept = document.getElementById('badge-dept');
+        if (bDept) bDept.textContent = parsed.dept + '-IFM';
+        const bMonth = document.getElementById('badge-month');
+        if (bMonth) bMonth.textContent = parsed.romanMonth;
+        const bYear = document.getElementById('badge-year');
+        if (bYear) bYear.textContent = parsed.year;
+      }
+    });
+  }
+
+  const projDesc = document.getElementById('project-desc');
+  if (projDesc) projDesc.addEventListener('input', (e) => activeProject.projectOverview.description = e.target.value);
+  const dateStartup = document.getElementById('date-startup');
+  if (dateStartup) dateStartup.addEventListener('input', (e) => activeProject.projectOverview.keyDates.lineStartUp = e.target.value);
+  const dateQuotation = document.getElementById('date-quotation');
+  if (dateQuotation) dateQuotation.addEventListener('input', (e) => activeProject.projectOverview.keyDates.finalQuotationDrawings = e.target.value);
+  const datePo = document.getElementById('date-po');
+  if (datePo) datePo.addEventListener('input', (e) => activeProject.projectOverview.keyDates.orderPlacement = e.target.value);
+
+  // Revision table inputs
+  document.querySelectorAll('[data-rev-idx]').forEach(input => {
+    input.addEventListener('input', (e) => {
+      const idx = parseInt(e.target.dataset.revIdx, 10);
+      const field = e.target.dataset.field;
+      if (activeProject.documentInfo.revisionHistory[idx]) {
+        activeProject.documentInfo.revisionHistory[idx][field] = e.target.value;
+      }
+    });
+  });
+
+  // Contacts inputs
+  document.querySelectorAll('[data-contact-idx]').forEach(input => {
+    input.addEventListener('input', (e) => {
+      const idx = parseInt(e.target.dataset.contactIdx, 10);
+      const field = e.target.dataset.field;
+      if (activeProject.keyContacts[idx]) {
+        activeProject.keyContacts[idx][field] = e.target.value;
+      }
+    });
+  });
+
+  // Products inputs
+  document.querySelectorAll('[data-prod-idx]').forEach(input => {
+    input.addEventListener('input', (e) => {
+      const idx = parseInt(e.target.dataset.prodIdx, 10);
+      const field = e.target.dataset.field;
+      if (activeProject.productSpecifications[idx]) {
+        activeProject.productSpecifications[idx][field] = e.target.value;
+      }
+    });
+  });
+
+  // Scope specs inputs
+  document.querySelectorAll('[data-scope-idx]').forEach(input => {
+    input.addEventListener('input', (e) => {
+      const idx = parseInt(e.target.dataset.scopeIdx, 10);
+      const type = e.target.dataset.scopeType;
+      const field = e.target.dataset.field;
+      if (activeProject.scopeOfSupply[type][idx]) {
+        if (field === 'specs') {
+          activeProject.scopeOfSupply[type][idx].specs = e.target.value.split('\n');
+        } else {
+          activeProject.scopeOfSupply[type][idx][field] = e.target.value;
+        }
+      }
+    });
+  });
+}
+
+// Global methods accessible from inline event handlers
+if (typeof window !== 'undefined') {
+  window.TRSA = {
+  setView,
+  setStep(s) {
+    store.builderStep = s;
+    render();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  },
+  setActiveProject,
+  createProject(title) {
+    store.createProject(title);
+    render();
+  },
+  duplicateProject(id) {
+    store.duplicateProject(id);
+    render();
+  },
+  autoGenerateDocNumber() {
+    const p = store.getActiveProject();
+    const nextSeq = getNextSequenceNumber(store.projects);
+    const author = p.documentInfo.revisionHistory?.[0]?.originatedBy || 'Refin A Putra';
+    const plantCode = getPlantCode(p.documentInfo.plantLocation);
+    const dept = 'MFG';
+    const date = p.documentInfo.revisionHistory?.[0]?.date || new Date();
+    
+    const newDocNum = generateTRSANumber({
+      seq: nextSeq,
+      creatorName: author,
+      plantCode: plantCode,
+      dept: dept,
+      date: date
+    });
+    p.documentInfo.docNumber = newDocNum;
+    store.showNotification(`Generated Official No. TRSA: ${newDocNum}`, 'success');
+    render();
+  },
+  setNextSequence() {
+    const nextSeq = getNextSequenceNumber(store.projects);
+    const seqInput = document.getElementById('gen-seq');
+    if (seqInput) {
+      seqInput.value = nextSeq;
+      window.TRSA.syncDocNumberFromGenerator();
+    }
+  },
+  syncDocNumberFromGenerator() {
+    const p = store.getActiveProject();
+    const seq = document.getElementById('gen-seq')?.value || '001';
+    const author = document.getElementById('gen-author')?.value || 'Refin A Putra';
+    const plant = document.getElementById('gen-plant')?.value || '1402';
+    const dept = document.getElementById('gen-dept')?.value || 'MFG';
+    const date = p.documentInfo.revisionHistory?.[0]?.date || new Date();
+
+    const formatted = generateTRSANumber({
+      seq,
+      creatorName: author,
+      plantCode: plant,
+      dept,
+      date
+    });
+    p.documentInfo.docNumber = formatted;
+    const docNumInput = document.getElementById('doc-number');
+    if (docNumInput) docNumInput.value = formatted;
+    
+    const bSeq = document.getElementById('badge-seq');
+    if (bSeq) bSeq.textContent = String(seq).padStart(3, '0');
+    const bInit = document.getElementById('badge-initials');
+    if (bInit) bInit.textContent = getInitials(author);
+    const bPlant = document.getElementById('badge-plant');
+    if (bPlant) bPlant.textContent = plant;
+    const bDept = document.getElementById('badge-dept');
+    if (bDept) bDept.textContent = dept + '-IFM';
+    
+    store.showNotification('Document Control Number updated: ' + formatted, 'info');
+  },
+  deleteProject(id) {
+    store.deleteProject(id);
+    render();
+  },
+  resetToDefault(id) {
+    store.resetToDefault(id);
+    render();
+  },
+  exportJSON(id) {
+    store.exportJSON(id);
+  },
+  setStatusFilter(status) {
+    store.statusFilter = status;
+    render();
+  },
+  setPaymentOption(opt) {
+    const p = store.getActiveProject();
+    p.commercialTerms.selectedPaymentOption = opt;
+    store.saveProjects();
+    render();
+  },
+  setWatermark(w) {
+    store.watermark = w;
+    render();
+  },
+  saveCurrentForm() {
+    store.saveProjects();
+  },
+  addRevisionRow() {
+    const p = store.getActiveProject();
+    p.documentInfo.revisionHistory.push({
+      revision: `0.${p.documentInfo.revisionHistory.length}`,
+      description: 'Engineering Revision Update',
+      originatedBy: 'Engineering Team',
+      date: new Date().toISOString().split('T')[0]
+    });
+    render();
+  },
+  removeRevisionRow(idx) {
+    const p = store.getActiveProject();
+    p.documentInfo.revisionHistory.splice(idx, 1);
+    render();
+  },
+  addContactRow() {
+    const p = store.getActiveProject();
+    p.keyContacts.push({
+      id: 'c-' + Date.now(),
+      name: 'New Officer',
+      role: 'Project Member',
+      companyAddress: 'PT. Indofood Fortuna Makmur',
+      email: 'officer@icbp.indofood.co.id',
+      isPrimary: false
+    });
+    render();
+  },
+  removeContactRow(idx) {
+    const p = store.getActiveProject();
+    p.keyContacts.splice(idx, 1);
+    render();
+  },
+  addProductRow() {
+    const p = store.getActiveProject();
+    p.productSpecifications.push({
+      id: 'prod-' + Date.now(),
+      shape: 'New Snack Shape (e.g. 3D Shell / Ring)',
+      description: 'Corn or potato snack pellet, expanded shape',
+      dimensionInput: '25 - 30 mm',
+      dimensionOutput: 'NA',
+      capacityOutput: '600 Kg/hour',
+      bulkDensityInput: '300 g/l',
+      bulkDensityOutput: '50 g/l',
+      moistureInput: '10.0 - 11.5%',
+      moistureOutput: '1.0 - 2.1%',
+      oilContentInput: 'N/A',
+      oilContentOutput: '28 - 40%'
+    });
+    render();
+  },
+  removeProductRow(idx) {
+    const p = store.getActiveProject();
+    p.productSpecifications.splice(idx, 1);
+    render();
+  },
+  addScopeItem(type) {
+    const p = store.getActiveProject();
+    const list = p.scopeOfSupply[type];
+    list.push({
+      itemNumber: list.length + 1,
+      title: 'New Equipment Module',
+      qty: '1 (one) unit',
+      specs: ['Stainless steel 304 construction', 'Compliant with hygienic food contact design']
+    });
+    render();
+  },
+  removeScopeItem(type, idx) {
+    const p = store.getActiveProject();
+    p.scopeOfSupply[type].splice(idx, 1);
+    render();
+  }
+};
+}
