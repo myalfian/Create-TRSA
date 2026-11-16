@@ -1,0 +1,369 @@
+/* ==========================================================================
+   TRSA Studio - Enterprise Clean, Modern, Simple & Corporate Design System
+   Conforming to DropX Admin, Envato Clean Business Form, and PT Indofood TRSA
+   ========================================================================== */
+
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
+
+:root {
+  --font-sans: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-mono: 'JetBrains Mono', Consolas, Monaco, monospace;
+  
+  /* Modern Corporate Color System */
+  --corp-navy-950: #07192C;
+  --corp-navy-900: #0F172A;      /* Primary Corporate Slate */
+  --corp-navy-header: #0F2942;   /* Formal Executive Header Navy */
+  --corp-slate-800: #1E293B;
+  --corp-slate-700: #334155;
+  --corp-slate-600: #475569;
+  --corp-slate-500: #64748B;
+  --corp-slate-400: #94A3B8;
+  --corp-slate-300: #CBD5E1;
+  --corp-slate-200: #E2E8F0;
+  --corp-slate-100: #F1F5F9;
+  --corp-slate-50:  #F8FAFC;
+  
+  /* Blue Sky Accent Hierarchy */
+  --corp-sky-900: #0C4A6E;
+  --corp-sky-800: #075985;
+  --corp-sky-700: #0369A1;
+  --corp-sky-600: #0284C7;       /* Blue Sky Primary */
+  --corp-sky-500: #0EA5E9;
+  --corp-sky-400: #38BDF8;
+  --corp-sky-200: #BAE6FD;
+  --corp-sky-100: #E0F2FE;
+  --corp-sky-50:  #F0F9FF;
+  
+  /* Corporate Accents & Status */
+  --corp-amber-600: #EA580C;     /* Warm Corporate CTA */
+  --corp-amber-500: #FF7A00;
+  --corp-amber-50:  #FFF7ED;
+  --corp-emerald-600: #059669;   /* Verified & Approved */
+  --corp-emerald-500: #10B981;
+  --corp-emerald-50:  #ECFDF5;
+  
+  /* Canvas & Containers */
+  --bg-canvas: #F8FAFC;
+  --card-bg: #FFFFFF;
+  --card-border: #E2E8F0;
+  --card-border-hover: #CBD5E1;
+}
+
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+body {
+  font-family: var(--font-sans);
+  background-color: var(--bg-canvas);
+  color: var(--corp-navy-900);
+  margin: 0;
+  padding: 0;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Smooth Motion & Micro-interactions */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(5px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-fadeIn {
+  animation: fadeIn 0.22s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* Clean Corporate Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: var(--corp-slate-100);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--corp-slate-300);
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--corp-slate-400);
+}
+
+/* ==========================================================================
+   DropX Corporate Card Architecture
+   ========================================================================== */
+.dropx-card {
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
+  border-radius: 14px;
+  box-shadow: 0 1px 3px 0 rgba(15, 23, 42, 0.03), 0 1px 2px -1px rgba(15, 23, 42, 0.02);
+  transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.dropx-card:hover {
+  border-color: var(--card-border-hover);
+  box-shadow: 0 4px 14px -2px rgba(15, 23, 42, 0.05), 0 2px 4px -2px rgba(15, 23, 42, 0.02);
+}
+
+/* ==========================================================================
+   Blue Sky Sidebar Styling
+   ========================================================================== */
+.dropx-sidebar {
+  background: linear-gradient(180deg, #0284C7 0%, #0369A1 50%, #075985 100%);
+  border-right: 1px solid rgba(255, 255, 255, 0.15);
+  box-shadow: 2px 0 16px 0 rgba(2, 132, 199, 0.12);
+}
+
+.dropx-nav-active {
+  background: rgba(255, 255, 255, 0.22) !important;
+  backdrop-filter: blur(10px);
+  border-left: 3.5px solid #FFFFFF;
+  color: #FFFFFF !important;
+  font-weight: 700 !important;
+  border-radius: 0 10px 10px 0;
+  box-shadow: 0 2px 8px 0 rgba(0, 0, 0, 0.08);
+}
+
+/* ==========================================================================
+   Clean Corporate Form Inputs & Controls
+   ========================================================================== */
+.corp-input,
+.corp-select,
+.corp-textarea {
+  width: 100%;
+  font-size: 0.75rem; /* text-xs */
+  line-height: 1.15rem;
+  padding: 0.625rem 0.75rem;
+  background-color: #F8FAFC;
+  border: 1px solid #E2E8F0;
+  border-radius: 0.625rem; /* 10px */
+  color: #0F172A;
+  transition: all 0.15s ease-in-out;
+}
+
+.corp-input:focus,
+.corp-select:focus,
+.corp-textarea:focus {
+  background-color: #FFFFFF;
+  border-color: #0284C7;
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(2, 132, 199, 0.14);
+}
+
+.corp-input::placeholder,
+.corp-textarea::placeholder {
+  color: #94A3B8;
+  font-weight: 400;
+}
+
+/* ==========================================================================
+   Corporate Status Badges
+   ========================================================================== */
+.badge-draft {
+  background-color: #F1F5F9;
+  color: #475569;
+  border: 1px solid #E2E8F0;
+}
+
+.badge-review {
+  background-color: #FFF7ED;
+  color: #C2410C;
+  border: 1px solid #FED7AA;
+}
+
+.badge-published {
+  background-color: #F0F9FF;
+  color: #0369A1;
+  border: 1px solid #BAE6FD;
+}
+
+.badge-approved {
+  background-color: #ECFDF5;
+  color: #047857;
+  border: 1px solid #A7F3D0;
+}
+
+/* ==========================================================================
+   Corporate Action Buttons
+   ========================================================================== */
+.btn-capiclean-primary {
+  background-color: #0284C7;
+  color: #FFFFFF;
+  border-radius: 10px;
+  font-weight: 600;
+  box-shadow: 0 2px 6px 0 rgba(2, 132, 199, 0.22);
+  transition: all 0.16s ease;
+}
+
+.btn-capiclean-primary:hover {
+  background-color: #0369A1;
+  box-shadow: 0 4px 12px 0 rgba(2, 132, 199, 0.32);
+}
+
+.btn-capiclean-accent {
+  background-color: #EA580C;
+  color: #FFFFFF;
+  border-radius: 10px;
+  font-weight: 600;
+  box-shadow: 0 2px 6px 0 rgba(234, 88, 12, 0.22);
+  transition: all 0.16s ease;
+}
+
+.btn-capiclean-accent:hover {
+  background-color: #C2410C;
+  box-shadow: 0 4px 12px 0 rgba(234, 88, 12, 0.32);
+}
+
+/* ==========================================================================
+   Clean Business Form (A4 Standard Container)
+   ========================================================================== */
+.a4-document-container {
+  width: 100%;
+  max-width: 900px;
+  margin: 0 auto;
+  background-color: #FFFFFF;
+  box-shadow: 0 8px 24px -4px rgba(15, 23, 42, 0.08), 0 4px 8px -4px rgba(15, 23, 42, 0.04);
+  border-radius: 6px;
+  padding: 48px 56px;
+  position: relative;
+  border: 1px solid #CBD5E1;
+}
+
+.document-watermark {
+  position: absolute;
+  top: 45%;
+  left: 50%;
+  transform: translate(-50%, -50%) rotate(-30deg);
+  font-size: 78px;
+  font-weight: 900;
+  color: rgba(15, 23, 42, 0.035);
+  letter-spacing: 0.18em;
+  pointer-events: none;
+  user-select: none;
+  z-index: 1;
+  text-transform: uppercase;
+}
+
+/* Formal Corporate Form Tables */
+.clean-form-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 11.5px;
+  margin-top: 8px;
+  margin-bottom: 18px;
+}
+
+.clean-form-table th {
+  background-color: #0F2942;
+  color: #FFFFFF;
+  font-weight: 700;
+  text-align: left;
+  padding: 7px 12px;
+  border: 1px solid #0F2942;
+  text-transform: uppercase;
+  font-size: 10px;
+  letter-spacing: 0.04em;
+}
+
+.clean-form-table td {
+  padding: 7px 12px;
+  border: 1px solid #CBD5E1;
+  color: #334155;
+  vertical-align: top;
+}
+
+.clean-form-table tr:nth-child(even) td {
+  background-color: #F8FAFC;
+}
+
+.table-header-orange th,
+.table-header-amber th {
+  background-color: #EA580C !important;
+  border-color: #EA580C !important;
+  color: #FFFFFF !important;
+}
+
+.table-header-sky th {
+  background-color: #0284C7 !important;
+  border-color: #0284C7 !important;
+  color: #FFFFFF !important;
+}
+
+/* ==========================================================================
+   Print Specific Rules (Pixel-perfect A4 Output)
+   ========================================================================== */
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 12mm 15mm 15mm 15mm;
+  }
+
+  body {
+    background: #FFFFFF !important;
+    color: #000000 !important;
+    font-size: 10pt !important;
+  }
+
+  .no-print,
+  .dropx-sidebar,
+  .dropx-header,
+  .studio-toolbar,
+  .floating-actions,
+  #notification-toast {
+    display: none !important;
+  }
+
+  .print-area {
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  .a4-document-container {
+    width: 100% !important;
+    max-width: 100% !important;
+    box-shadow: none !important;
+    border: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+
+  .page-break {
+    page-break-before: always;
+    break-before: page;
+  }
+
+  .clean-form-table {
+    page-break-inside: avoid;
+    font-size: 9.5pt !important;
+  }
+
+  .clean-form-table th {
+    background-color: #0F2942 !important;
+    color: #FFFFFF !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  .table-header-orange th,
+  .table-header-amber th {
+    background-color: #EA580C !important;
+    color: #FFFFFF !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  .table-header-sky th {
+    background-color: #0284C7 !important;
+    color: #FFFFFF !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  .document-watermark {
+    display: block !important;
+    color: rgba(0, 0, 0, 0.04) !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+}

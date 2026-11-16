@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TRSA Studio - Tender Requirements & Specification Agreement</title>
+  <meta name="description" content="Enterprise web application for creating, managing, and exporting PT Indofood Fortuna Makmur TRSA agreements with clean, modern, and professional corporate styling." />
+
+  <!-- Google Fonts: Plus Jakarta Sans & JetBrains Mono -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+  <!-- Tailwind CSS CDN with Corporate Sky Palette -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            sky: {
+              50: '#F0F9FF',
+              100: '#E0F2FE',
+              200: '#BAE6FD',
+              300: '#7DD3FC',
+              400: '#38BDF8',
+              500: '#0EA5E9',
+              600: '#0284C7', /* Professional Sky Blue */
+              700: '#0369A1',
+              800: '#075985',
+              900: '#0C4A6E',
+            },
+            amber: {
+              50: '#FFF7ED',
+              100: '#FFEDD5',
+              500: '#F59E0B',
+              600: '#D97706',
+              700: '#B45309',
+            },
+            coral: {
+              500: '#FF7A00',
+              600: '#EA580C',
+              700: '#C2410C',
+            },
+            navy: {
+              800: '#16365C',
+              900: '#0F2942', /* Corporate Executive Navy */
+              950: '#07192C',
+            }
+          },
+          fontFamily: {
+            sans: ['"Plus Jakarta Sans"', 'system-ui', 'sans-serif'],
+            mono: ['"JetBrains Mono"', 'monospace'],
+          }
+        }
+      }
+    }
+  </script>
+
+  <!-- Application Custom & Print CSS -->
+  <link rel="stylesheet" href="src/css/style.css" />
+</head>
+<body class="bg-[#F8FAFC] text-[#0F172A] antialiased selection:bg-[#0284C7] selection:text-white">
+  <!-- Main Application Root -->
+  <div id="app">
+    <!-- Loading placeholder during initialization -->
+    <div class="min-h-screen flex items-center justify-center bg-[#0F172A] text-white">
+      <div class="text-center space-y-4">
+        <div class="w-10 h-10 border-3 border-[#0284C7] border-t-transparent rounded-full animate-spin mx-auto shadow-md"></div>
+        <div class="text-base font-bold tracking-tight">Initializing TRSA Studio...</div>
+        <div class="text-xs text-sky-300">Indofood Engineering Specification Engine</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Application Entry Point -->
+  <script type="module">
+    import { initApp } from './src/js/app.js';
+    window.addEventListener('DOMContentLoaded', () => {
+      initApp();
+    });
+  </script>
+</body>
+</html>
