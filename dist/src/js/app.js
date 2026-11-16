@@ -1169,7 +1169,7 @@ function renderBuilder(proj) {
           { s: 1, title: '1. Document & Dates', icon: 'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z' },
           { s: 2, title: '2. Contacts & Site', icon: 'M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z' },
           { s: 3, title: '3. Product Specs', icon: 'M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10' },
-          { s: 4, title: '4. Scope of Supply', icon: 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4' },
+          { s: 4, title: '4. Project Scope', icon: 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4' },
           { s: 5, title: '5. Tests & Hygiene', icon: 'M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z' },
           { s: 6, title: '6. Terms, Tax & Docs', icon: 'M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z' }
         ].map(item => `
@@ -2180,12 +2180,12 @@ function renderStep3(proj) {
   `;
 }
 
-// Sub-step 4: Technical Scope of Supply (Fryer & Seasoning)
+// Sub-step 4: Project Scope of Supply (Fryer & Seasoning)
 function renderStep4(proj) {
   return `
     <div class="dropx-card p-6 bg-white border border-[#E0ECF6] space-y-6">
       <div class="border-b border-[#E0ECF6] pb-4">
-        <h2 class="text-base font-bold text-[#0B2447]">Technical Scope of Supply (Fryer & Seasoning)</h2>
+        <h2 class="text-base font-bold text-[#0B2447]">Project Scope of Supply (Fryer & Seasoning)</h2>
         <p class="text-xs text-[#5A7184]">Comprehensive equipment breakdown conforming to PT Indofood Fortuna Makmur standards.</p>
       </div>
 
@@ -2660,11 +2660,11 @@ function renderStudio(proj) {
             </table>
           </div>
 
-          <!-- Section VIII: Scope of Supply -->
+          <!-- Section VIII: Project Scope of Supply -->
           <div class="page-break my-6"></div>
 
           <div class="mb-6">
-            <h2 class="text-xs font-bold text-[#0B2447] uppercase tracking-wider mb-2">VIII. Scope of Supply</h2>
+            <h2 class="text-xs font-bold text-[#0B2447] uppercase tracking-wider mb-2">VIII. Project Scope of Supply</h2>
             
             <div class="font-bold text-xs text-[#FF7A00] mb-2 uppercase tracking-wide">A) Fryer System</div>
             <div class="space-y-3 mb-6">

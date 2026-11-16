@@ -65,7 +65,7 @@ describe('TRSA Indofood Document Specification Matrix Tests', () => {
     assert.strictEqual(seas.seasoningCapacity, '635 – 700 kg/hour');
   });
 
-  test('Verify Technical Scope of Supply Breakdown', () => {
+  test('Verify Project Scope of Supply Breakdown', () => {
     const fryerScope = defaultTRSAProject.scopeOfSupply.fryer;
     const seasoningScope = defaultTRSAProject.scopeOfSupply.seasoning;
 

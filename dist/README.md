@@ -41,32 +41,32 @@ Then visit `http://localhost:5173` in your browser.
 
 ### 2. Multi-Step Guided TRSA Builder
 - **Step 1: Document Identification & Revision Control**:
-  - Title, Sub-title, Control Number, Revision History Table (Revision, Description, Originated by, Date).
-  - Target milestones: Line start-up date, Final quotation/drawings date, Order placement date.
+   - Title, Sub-title, Control Number, Revision History Table (Revision, Description, Originated by, Date).
+   - Target milestones: Line start-up date, Final quotation/drawings date, Order placement date.
 - **Step 2: Key Contacts & Site Invoicing**:
-  - IFM Contacts Matrix (Project & Engineering Manager, Purchasing Supervisor, Site Engineers).
-  - Invoicing entity, Semarang plant address, and CIF shipping port details.
+   - IFM Contacts Matrix (Project & Engineering Manager, Purchasing Supervisor, Site Engineers).
+   - Invoicing entity, Semarang plant address, and CIF shipping port details.
 - **Step 3: Product Specifications & Process Parameters**:
-  - 4 Preloaded snack shapes: *3D Chicken Legs, 3D Golgappa Pellets, 3D Star Pellets, 2D Pierced Chips*.
-  - Input/Output dimensions, bulk density, moisture content (1.0–2.1% with Left-Center-Right gap ≤ 0.3%), oil uptake (28–40%).
-  - Frying parameters: Feeder rate (1.5–2.5 kg/batch), Frying temp (180–190°C), Dwell time (20–30s), Oil capacity (175–180 kg), Spinner (20s).
-  - Seasoning parameters: Dry seasoning, 1% salt content, 7.4% application rate, 635–700 kg/h capacity.
-- **Step 4: Technical Scope of Supply**:
-  - **Fryer System (14 Modules)**: Ground level pellet feed with weighing feeder, Unitized pan fryer module with automatic fresh/used oil top-up system and magnetic flow meter, Drum pre-fryer, Horizontal dual-fuel heat exchanger (gas/oil), Main oil pump, Circulation flow meter, 30 USGPM transfer pump, Interconnecting pipework, De-oiling inspection shaker with oil accumulator, 400V 50Hz SUS304 control panel with PLC and Ewon remote access router, Fryer platform, and Ancillaries.
-  - **Seasoning System (7 Modules)**: Infeed weigh conveyor, 635–700 kg/h tumble drum, PLC software with air-conditioned SUS304 panel, Loss-in-Weight metering screw feeder with 960mm scarf feeder, Spiro-flow bulk fill elevator, AB ControlLogix / CompactLogix L43 panel view, and Ancillaries.
-  - Utilities consumption rating & battery limits (power, compressed air, gas).
+   - 4 Preloaded snack shapes: *3D Chicken Legs, 3D Golgappa Pellets, 3D Star Pellets, 2D Pierced Chips*.
+   - Input/Output dimensions, bulk density, moisture content (1.0–2.1% with Left-Center-Right gap ≤ 0.3%), oil uptake (28–40%).
+   - Frying parameters: Feeder rate (1.5–2.5 kg/batch), Frying temp (180–190°C), Dwell time (20–30s), Oil capacity (175–180 kg), Spinner (20s).
+   - Seasoning parameters: Dry seasoning, 1% salt content, 7.4% application rate, 635–700 kg/h capacity.
+- **Step 4: Project Scope of Supply**:
+   - **Fryer System (14 Modules)**: Ground level pellet feed with weighing feeder, Unitized pan fryer module with automatic fresh/used oil top-up system and magnetic flow meter, Drum pre-fryer, Horizontal dual-fuel heat exchanger (gas/oil), Main oil pump, Circulation flow meter, 30 USGPM transfer pump, Interconnecting pipework, De-oiling inspection shaker with oil accumulator, 400V 50Hz SUS304 control panel with PLC and Ewon remote access router, Fryer platform, and Ancillaries.
+   - **Seasoning System (7 Modules)**: Infeed weigh conveyor, 635–700 kg/h tumble drum, PLC software with air-conditioned SUS304 panel, Loss-in-Weight metering screw feeder with 960mm scarf feeder, Spiro-flow bulk fill elevator, AB ControlLogix / CompactLogix L43 panel view, and Ancillaries.
+   - Utilities consumption rating & battery limits (power, compressed air, gas).
 - **Step 5: Hygienic Design & Target Performance Tests**:
-  - Food-grade SUS304 contact requirement, Clean-In-Place (CIP) hood, calibration certificates, MSDS.
-  - Target Performance Protocols: Starting up, 7-hour continuous capability trial, 4-minute sampling interval (15 samples/hr), defect & sensory evaluation (Appearance, Aroma, Taste, Texture).
-  - 3-Month modification & failure consequence penalty clause.
+   - Food-grade SUS304 contact requirement, Clean-In-Place (CIP) hood, calibration certificates, MSDS.
+   - Target Performance Protocols: Starting up, 7-hour continuous capability trial, 4-minute sampling interval (15 samples/hr), defect & sensory evaluation (Appearance, Aroma, Taste, Texture).
+   - 3-Month modification & failure consequence penalty clause.
 - **Step 6: Commercial Terms, Tax Laws & Required Documents**:
-  - **Payment Options**: Option 1 (85% L/C, 10% T/T after running, 5% T/T retention) vs Option 2 (30% DP counter Bank Guarantee, 55% L/C, 10%, 5% retention).
-  - Indonesian Withholding Tax (PPh 26 20% / DGT Form Double Tax Treaty relief).
-  - Permanent Establishment (BUT) under PMK 35/2019 time-test rule (>6 months in 1 year).
-  - Indonesian VAT (PPN PP 44/2022) and official Materai Kwitansi requirements.
-  - Engineer working visas & expense division.
-  - 14 Mandatory seller documentation checklist (As-built, Cabling, FDS, Software specs, Annotated PLC, HMI licenses, Manuals, Halal certificate, DWG layouts).
-  - Dual signature authorization blocks (Seller & IFM Project & Engineering Manager).
+   - **Payment Options**: Option 1 (85% L/C, 10% T/T after running, 5% T/T retention) vs Option 2 (30% DP counter Bank Guarantee, 55% L/C, 10%, 5% retention).
+   - Indonesian Withholding Tax (PPh 26 20% / DGT Form Double Tax Treaty relief).
+   - Permanent Establishment (BUT) under PMK 35/2019 time-test rule (>6 months in 1 year).
+   - Indonesian VAT (PPN PP 44/2022) and official Materai Kwitansi requirements.
+   - Engineer working visas & expense division.
+   - 14 Mandatory seller documentation checklist (As-built, Cabling, FDS, Software specs, Annotated PLC, HMI licenses, Manuals, Halal certificate, DWG layouts).
+   - Dual signature authorization blocks (Seller & IFM Project & Engineering Manager).
 
 ### 3. Clean Business Form Studio (A4 Print / Save PDF)
 - Designed following the Envato Clean Business Form aesthetic.
@@ -83,7 +83,7 @@ Then visit `http://localhost:5173` in your browser.
 
 ## 📁 File Structure
 ```
-e:\Create TRSA\
+e:\Create TRSA/
 ├── index.html            # Main SPA entry point (DropX layout + Clean Form Studio)
 ├── server.py             # Python 3 local development server
 ├── start.bat             # 1-click Windows launcher
