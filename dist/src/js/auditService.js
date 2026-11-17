@@ -215,6 +215,14 @@ export function detectDetailedProjectChanges(prev = {}, next = {}) {
       to: nextGen.designCapacity
     });
   }
+  if (Array.isArray(nextGen.equipmentModels) && JSON.stringify(prevGen.equipmentModels) !== JSON.stringify(nextGen.equipmentModels)) {
+    diffs.push({
+      category: 'Equipment Models',
+      description: `Equipment models & capacities updated (${nextGen.equipmentModels.length} units)`,
+      from: `${(prevGen.equipmentModels || []).length} units`,
+      to: `${nextGen.equipmentModels.length} units`
+    });
+  }
 
   // 4. Project Workflow Status
   if (prev.status !== next.status && next.status) {

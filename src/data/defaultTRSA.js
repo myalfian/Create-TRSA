@@ -27,6 +27,13 @@ export const defaultTRSAProject = {
     vendorName: "Heat and Control / Kiremko B.V.",
     modelNumber: "SPF-600 Continuous",
     designCapacity: "600 kg/hour (Pellet Output)",
+    equipmentModels: [
+      {
+        id: "eq-1",
+        modelNumber: "SPF-600 Continuous",
+        designCapacity: "600 kg/hour (Pellet Output)"
+      }
+    ],
     targetCommissioning: "End of April 2025"
   },
   projectOverview: {

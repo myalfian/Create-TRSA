@@ -302,6 +302,142 @@ export const EQUIPMENT_TYPE_OPTIONS = [
   'Other Equipment'
 ];
 
+export const VENDOR_DATABASE = [
+  {
+    id: 'v-01',
+    name: 'Heat and Control / Kiremko B.V.',
+    country: 'Netherlands',
+    origin: 'Foreign',
+    equipmentType: 'Frying & Seasoning System',
+    description: 'Consortium: Pellet Fryer, Drum Coating & Distribution Systems'
+  },
+  {
+    id: 'v-02',
+    name: 'Heat and Control, Inc.',
+    country: 'United States',
+    origin: 'Foreign',
+    equipmentType: 'Frying System',
+    description: 'Unitized Pan Fryers, Heat Exchangers, Filter Units & Multi-Zone Roasters'
+  },
+  {
+    id: 'v-03',
+    name: 'Kiremko B.V.',
+    country: 'Netherlands',
+    origin: 'Foreign',
+    equipmentType: 'Process Line',
+    description: 'Specialized Industrial Snack Pellet, Potato & Extrusion Frying Lines'
+  },
+  {
+    id: 'v-04',
+    name: 'Florigo Industry B.V. (tna)',
+    country: 'Netherlands',
+    origin: 'Foreign',
+    equipmentType: 'Frying System',
+    description: 'Continuous Snack Pellet & Chip Frying with Active Oil Filtration'
+  },
+  {
+    id: 'v-05',
+    name: 'Ishida Co., Ltd.',
+    country: 'Japan',
+    origin: 'Foreign',
+    equipmentType: 'Packaging System',
+    description: 'Multi-Head Weighers, Atlas Bagmakers & Snack Inspection Systems'
+  },
+  {
+    id: 'v-06',
+    name: 'Baker Perkins Ltd.',
+    country: 'United Kingdom',
+    origin: 'Foreign',
+    equipmentType: 'Extruder & Forming Line',
+    description: 'Twin Screw Food Extrusion, Cooking & Sheeted Pellet Forming Lines'
+  },
+  {
+    id: 'v-07',
+    name: 'Reading Bakery Systems (RBS)',
+    country: 'United States',
+    origin: 'Foreign',
+    equipmentType: 'Process Line',
+    description: 'Continuous Sheeting, Gauging Rolls, Cutting & Continuous Oven Systems'
+  },
+  {
+    id: 'v-08',
+    name: 'Clextral SAS',
+    country: 'France',
+    origin: 'Foreign',
+    equipmentType: 'Process Line',
+    description: 'Twin Screw Extrusion Lines for 2D/3D Expanded Snack Pellets'
+  },
+  {
+    id: 'v-09',
+    name: 'PPM Technologies LLC',
+    country: 'United States',
+    origin: 'Foreign',
+    equipmentType: 'Seasoning System',
+    description: 'Loss-in-Weight Seasoning Systems, Coating Drums & Electromagnetic Feeders'
+  },
+  {
+    id: 'v-10',
+    name: 'TNA Solutions Pty Ltd',
+    country: 'Australia',
+    origin: 'Foreign',
+    equipmentType: 'Packaging System',
+    description: 'High-Speed Robag Packaging, On-Machine Seasoning & Distribution'
+  },
+  {
+    id: 'v-11',
+    name: 'Yamato Scale Co., Ltd.',
+    country: 'Japan',
+    origin: 'Foreign',
+    equipmentType: 'Packaging System',
+    description: 'Multihead Weighers, Checkweighing & High-Speed Packaging Automation'
+  },
+  {
+    id: 'v-12',
+    name: 'Bühler Group',
+    country: 'Switzerland',
+    origin: 'Foreign',
+    equipmentType: 'Process Line',
+    description: 'Thermal Processing, Extrusion Processing & Raw Pellet Preparation'
+  },
+  {
+    id: 'v-13',
+    name: 'Fuji Packaging Machinery',
+    country: 'Japan',
+    origin: 'Foreign',
+    equipmentType: 'Packaging System',
+    description: 'Alpha VII Horizontal Flow Wrappers, Feeders & Automated Case Packers'
+  },
+  {
+    id: 'v-14',
+    name: 'PT Fabrikasi Rekatama Mandiri',
+    country: 'Indonesia',
+    origin: 'Local',
+    equipmentType: 'Distribution System',
+    description: 'Domestic Food-Grade Stainless Conveyors, Mezzanines & Support Fabrication'
+  },
+  {
+    id: 'v-15',
+    name: 'PT Cipta Aneka Selera Tehnik',
+    country: 'Indonesia',
+    origin: 'Local',
+    equipmentType: 'CIP (Clean-in-Place) System',
+    description: 'Domestic Stainless Piping, Sanitary Tanks & Automated CIP Skids'
+  },
+  {
+    id: 'v-16',
+    name: 'PT Mitra Sarana Presisi',
+    country: 'Indonesia',
+    origin: 'Local',
+    equipmentType: 'Flight Belt Elevator (FBE)',
+    description: 'Domestic Flight Belt Elevators, Exhaust Ducting & Heavy Work Platforms'
+  }
+];
+
+export function getVendorDetails(vendorName) {
+  if (!vendorName) return null;
+  return VENDOR_DATABASE.find(v => v.name.toLowerCase() === vendorName.trim().toLowerCase()) || null;
+}
+
 export function ensureGeneralInfo(project) {
   if (!project) return null;
   if (!project.generalInfo) {
@@ -313,11 +449,34 @@ export function ensureGeneralInfo(project) {
       vendorName: 'Heat and Control / Kiremko B.V.',
       modelNumber: 'SPF-600 Continuous',
       designCapacity: '600 kg/hour (Pellet Output)',
+      equipmentModels: [
+        {
+          id: 'eq-1',
+          modelNumber: 'SPF-600 Continuous',
+          designCapacity: '600 kg/hour (Pellet Output)'
+        }
+      ],
       targetCommissioning: project.projectOverview?.keyDates?.lineStartUp || 'End of April 2025'
     };
   } else {
     if (!project.generalInfo.equipmentType) {
       project.generalInfo.equipmentType = project.generalInfo.machineType || 'Frying System';
+    }
+    if (!Array.isArray(project.generalInfo.equipmentModels) || project.generalInfo.equipmentModels.length === 0) {
+      project.generalInfo.equipmentModels = [
+        {
+          id: 'eq-1',
+          modelNumber: project.generalInfo.modelNumber || 'SPF-600 Continuous',
+          designCapacity: project.generalInfo.designCapacity || '600 kg/hour (Pellet Output)'
+        }
+      ];
+    }
+    // Synchronize legacy modelNumber & designCapacity if needed
+    if (!project.generalInfo.modelNumber && project.generalInfo.equipmentModels.length > 0) {
+      project.generalInfo.modelNumber = project.generalInfo.equipmentModels.map(m => m.modelNumber).filter(Boolean).join(', ');
+    }
+    if (!project.generalInfo.designCapacity && project.generalInfo.equipmentModels.length > 0) {
+      project.generalInfo.designCapacity = project.generalInfo.equipmentModels.map(m => m.designCapacity).filter(Boolean).join(', ');
     }
   }
   return project.generalInfo;
@@ -506,12 +665,81 @@ export class TRSAStore {
     ensureGeneralInfo(proj);
     Object.assign(proj.generalInfo, fields);
 
+    if (fields.equipmentModels && Array.isArray(fields.equipmentModels)) {
+      proj.generalInfo.equipmentModels = fields.equipmentModels;
+      proj.generalInfo.modelNumber = fields.equipmentModels.map(m => m.modelNumber).filter(Boolean).join(', ');
+      proj.generalInfo.designCapacity = fields.equipmentModels.map(m => m.designCapacity).filter(Boolean).join(', ');
+    } else {
+      if (fields.modelNumber && proj.generalInfo.equipmentModels?.[0]) {
+        proj.generalInfo.equipmentModels[0].modelNumber = fields.modelNumber;
+      }
+      if (fields.designCapacity && proj.generalInfo.equipmentModels?.[0]) {
+        proj.generalInfo.equipmentModels[0].designCapacity = fields.designCapacity;
+      }
+    }
+
     if (fields.plantLocation && fields.plantLocation !== proj.documentInfo.plantLocation) {
       this.updatePlantLocation(fields.plantLocation, proj.id);
     } else {
       this.saveProjects('UPDATE');
     }
     return proj.generalInfo;
+  }
+
+  addEquipmentModel(projectId = null) {
+    const proj = projectId ? this.projects.find(p => p.id === projectId) : this.getActiveProject();
+    if (!proj) return null;
+    ensureGeneralInfo(proj);
+    const newIdx = proj.generalInfo.equipmentModels.length + 1;
+    const newModel = {
+      id: 'eq-' + Date.now(),
+      modelNumber: '',
+      designCapacity: ''
+    };
+    proj.generalInfo.equipmentModels.push(newModel);
+    proj.generalInfo.modelNumber = proj.generalInfo.equipmentModels.map(m => m.modelNumber).filter(Boolean).join(', ');
+    proj.generalInfo.designCapacity = proj.generalInfo.equipmentModels.map(m => m.designCapacity).filter(Boolean).join(', ');
+    this.saveProjects('UPDATE', [{
+      category: 'Equipment Models',
+      description: `Added equipment model line #${newIdx}`,
+      from: `${newIdx - 1} models`,
+      to: `${newIdx} models`
+    }]);
+    render();
+    this.showNotification(`Added equipment model #${newIdx}`, 'info');
+    return newModel;
+  }
+
+  removeEquipmentModel(idx, projectId = null) {
+    const proj = projectId ? this.projects.find(p => p.id === projectId) : this.getActiveProject();
+    if (!proj) return false;
+    ensureGeneralInfo(proj);
+    if (proj.generalInfo.equipmentModels.length <= 1) {
+      this.showNotification('At least one equipment model specification is required.', 'warning');
+      return false;
+    }
+    const removed = proj.generalInfo.equipmentModels.splice(idx, 1)[0];
+    proj.generalInfo.modelNumber = proj.generalInfo.equipmentModels.map(m => m.modelNumber).filter(Boolean).join(', ');
+    proj.generalInfo.designCapacity = proj.generalInfo.equipmentModels.map(m => m.designCapacity).filter(Boolean).join(', ');
+    this.saveProjects('UPDATE', [{
+      category: 'Equipment Models',
+      description: `Removed equipment model "${removed.modelNumber || `#${idx + 1}`}"`,
+      from: `${proj.generalInfo.equipmentModels.length + 1} models`,
+      to: `${proj.generalInfo.equipmentModels.length} models`
+    }]);
+    render();
+    this.showNotification('Equipment model removed.', 'info');
+    return true;
+  }
+
+  updateEquipmentModel(idx, field, value, projectId = null) {
+    const proj = projectId ? this.projects.find(p => p.id === projectId) : this.getActiveProject();
+    if (!proj) return;
+    ensureGeneralInfo(proj);
+    if (!proj.generalInfo.equipmentModels[idx]) return;
+    proj.generalInfo.equipmentModels[idx][field] = value;
+    proj.generalInfo.modelNumber = proj.generalInfo.equipmentModels.map(m => m.modelNumber).filter(Boolean).join(', ');
+    proj.generalInfo.designCapacity = proj.generalInfo.equipmentModels.map(m => m.designCapacity).filter(Boolean).join(', ');
   }
 
   updateVendorOrigin(vendorOrigin, projectId = null) {
@@ -2001,6 +2229,17 @@ function renderStep1(proj) {
   const currentMonth = parsed?.romanMonth || toRomanMonth(new Date(creationDate).getMonth() + 1);
   const currentYear = parsed?.year || new Date(creationDate).getFullYear().toString();
 
+  const currentVendor = proj.generalInfo?.vendorName || '';
+  const selectedVendorDetails = getVendorDetails(currentVendor);
+  const isCustomVendorActive = store.customVendorActive || (currentVendor && !selectedVendorDetails);
+  const equipmentModels = proj.generalInfo?.equipmentModels || [
+    {
+      id: 'eq-1',
+      modelNumber: proj.generalInfo?.modelNumber || 'SPF-600 Continuous',
+      designCapacity: proj.generalInfo?.designCapacity || '600 kg/hour (Pellet Output)'
+    }
+  ];
+
   return `
     <div class="dropx-card p-6 bg-white border border-slate-200 space-y-6">
       <div class="border-b border-slate-200 pb-4">
@@ -2077,7 +2316,7 @@ function renderStep1(proj) {
               </h3>
             </div>
             <p class="text-[11px] text-slate-500 mt-0.5">
-              Core tender specifications: plant location, machinery country of origin, equipment type, vendor/OEM name, model, and design capacity.
+              Core tender specifications: plant location, machinery country of origin, equipment type, vendor/OEM details, models, and rated design capacities.
             </p>
           </div>
           <span class="inline-flex items-center gap-1.5 px-2.5 py-1 text-[10px] font-bold text-[#0369A1] bg-[#E0F2FE] border border-[#BAE6FD] rounded-lg">
@@ -2124,28 +2363,151 @@ function renderStep1(proj) {
             </select>
           </div>
 
-          <!-- Vendor Name -->
-          <div>
-            <label class="block text-xs font-semibold text-slate-700 mb-1">
-              Vendor Name (OEM / Manufacturer) <span class="text-red-500">*</span>
-            </label>
-            <input type="text" id="gen-vendor-name" value="${proj.generalInfo?.vendorName || ''}" placeholder="e.g. Heat and Control / Kiremko B.V." class="corp-input font-bold text-slate-900" />
+          <!-- Vendor Name (OEM / Manufacturer) Dropdown with detail card -->
+          <div class="md:col-span-2 lg:col-span-3 p-4 bg-white/95 border border-sky-200/80 rounded-2xl shadow-xs space-y-2.5">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5">
+              <label class="block text-xs font-bold text-[#0F172A] uppercase tracking-wider">
+                Vendor Name (OEM / Manufacturer) <span class="text-red-500">*</span>
+              </label>
+              ${selectedVendorDetails ? `
+                <div class="flex items-center gap-2">
+                  <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase ${
+                    selectedVendorDetails.origin === 'Local' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' :
+                    'bg-sky-50 text-[#0284C7] border border-sky-200'
+                  }">
+                    ${selectedVendorDetails.origin} OEM
+                  </span>
+                  <span class="text-[11px] font-semibold text-slate-500">
+                    Base: <strong class="text-slate-800">${selectedVendorDetails.country}</strong>
+                  </span>
+                </div>
+              ` : ''}
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div>
+                <select id="gen-vendor-select" onchange="window.TRSA.onVendorSelectChanged(this.value)" class="corp-select font-bold text-slate-800 text-xs w-full">
+                  <option value="" disabled ${!currentVendor ? 'selected' : ''}>-- Select Pre-vetted OEM / Equipment Vendor --</option>
+                  ${VENDOR_DATABASE.map(v => `
+                    <option value="${v.name}" ${currentVendor === v.name ? 'selected' : ''}>
+                      ${v.name} (${v.country} - ${v.equipmentType})
+                    </option>
+                  `).join('')}
+                  ${(currentVendor && !selectedVendorDetails) ? `
+                    <option value="${currentVendor}" selected>${currentVendor} (Custom Vendor)</option>
+                  ` : ''}
+                  <option value="__custom__" ${store.customVendorActive ? 'selected' : ''}>+ Enter Custom Vendor Name...</option>
+                </select>
+              </div>
+
+              <div>
+                ${isCustomVendorActive ? `
+                  <input 
+                    type="text" 
+                    id="gen-vendor-custom" 
+                    value="${currentVendor}" 
+                    placeholder="Enter custom OEM / Manufacturer name..." 
+                    class="corp-input font-bold text-slate-900 text-xs w-full" 
+                  />
+                ` : `
+                  <div class="p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[11px] text-slate-600 flex items-center justify-between">
+                    <span class="truncate">
+                      <strong>Specialization:</strong> ${selectedVendorDetails?.equipmentType || 'Food Processing Machinery'}
+                    </span>
+                    <span class="text-[10px] text-emerald-600 font-semibold px-2 py-0.5 rounded-full bg-emerald-50 border border-emerald-200">
+                      Pre-vetted OEM
+                    </span>
+                  </div>
+                `}
+              </div>
+            </div>
+
+            ${selectedVendorDetails?.description ? `
+              <p class="text-[11px] text-slate-500 mt-0.5 italic">
+                ${selectedVendorDetails.description}
+              </p>
+            ` : ''}
           </div>
 
-          <!-- Model / Line Tag -->
-          <div>
-            <label class="block text-xs font-semibold text-slate-700 mb-1">
-              Model / Line Tag
-            </label>
-            <input type="text" id="gen-model-number" value="${proj.generalInfo?.modelNumber || ''}" placeholder="e.g. SPF-600 Continuous" class="corp-input font-mono text-xs" />
-          </div>
+          <!-- Equipment Models & Design Capacities Matrix -->
+          <div class="md:col-span-2 lg:col-span-3 pt-3 border-t border-sky-100 space-y-3">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+              <div>
+                <div class="flex items-center gap-2">
+                  <span class="w-2 h-2 rounded-full bg-[#0284C7]"></span>
+                  <label class="text-xs font-bold text-[#0F172A] uppercase tracking-wider">
+                    Equipment Models & Design Capacities (Offered by Vendor)
+                  </label>
+                  <span class="text-[10px] bg-sky-50 text-[#0284C7] border border-sky-200 px-2 py-0.5 rounded-full font-bold">
+                    ${equipmentModels.length} Equipment Unit${equipmentModels.length > 1 ? 's' : ''}
+                  </span>
+                </div>
+                <p class="text-[11px] text-slate-500 mt-0.5">
+                  Add equipment models / line tags and their corresponding rated design capacities offered by the vendor.
+                </p>
+              </div>
+              <button 
+                type="button" 
+                onclick="window.TRSA.addEquipmentModel()" 
+                class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold bg-[#E0F2FE] hover:bg-[#BAE6FD] text-[#0284C7] border border-sky-300 rounded-xl transition-all shadow-xs cursor-pointer"
+              >
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"/></svg>
+                + Add Model & Capacity
+              </button>
+            </div>
 
-          <!-- Design Capacity -->
-          <div>
-            <label class="block text-xs font-semibold text-slate-700 mb-1">
-              Design Capacity
-            </label>
-            <input type="text" id="gen-design-capacity" value="${proj.generalInfo?.designCapacity || ''}" placeholder="e.g. 600 kg/hour (Pellet Output)" class="corp-input font-medium text-emerald-800" />
+            <!-- Dynamic List of Equipment Models & Design Capacities -->
+            <div class="space-y-2.5" id="equipment-models-container">
+              ${equipmentModels.map((item, idx) => `
+                <div class="p-3.5 rounded-xl border border-sky-100 bg-white shadow-xs hover:border-sky-300 transition-all flex flex-col md:flex-row md:items-center gap-3">
+                  <div class="flex items-center gap-2">
+                    <span class="w-7 h-7 rounded-lg bg-sky-50 border border-sky-200 text-[#0284C7] flex items-center justify-center text-xs font-bold font-mono">
+                      #${idx + 1}
+                    </span>
+                  </div>
+                  <div class="flex-1 grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div>
+                      <label class="block text-[11px] font-semibold text-slate-600 mb-1">
+                        Model / Line Tag <span class="text-red-500">*</span>
+                      </label>
+                      <input 
+                        type="text" 
+                        value="${item.modelNumber || ''}" 
+                        data-model-idx="${idx}" 
+                        data-model-field="modelNumber" 
+                        placeholder="e.g. SPF-600 Continuous Fryer, TMB-700 Drum, etc." 
+                        class="corp-input font-mono text-xs font-medium w-full"
+                      />
+                    </div>
+                    <div>
+                      <label class="block text-[11px] font-semibold text-slate-600 mb-1">
+                        Design Capacity <span class="text-red-500">*</span>
+                      </label>
+                      <input 
+                        type="text" 
+                        value="${item.designCapacity || ''}" 
+                        data-model-idx="${idx}" 
+                        data-model-field="designCapacity" 
+                        placeholder="e.g. 600 kg/hour (Pellet Output), 2.5 kg/batch, etc." 
+                        class="corp-input font-medium text-emerald-800 text-xs w-full"
+                      />
+                    </div>
+                  </div>
+                  ${equipmentModels.length > 1 ? `
+                    <div class="flex items-center justify-end md:self-center">
+                      <button 
+                        type="button" 
+                        onclick="window.TRSA.removeEquipmentModel(${idx})" 
+                        title="Remove this equipment model" 
+                        class="p-2 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-lg text-xs font-bold transition-all cursor-pointer"
+                      >
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                      </button>
+                    </div>
+                  ` : ''}
+                </div>
+              `).join('')}
+            </div>
           </div>
         </div>
       </div>
@@ -3274,12 +3636,24 @@ function renderStudio(proj) {
                   <th>Vendor / OEM</th>
                   <td style="font-weight: 700; color: #0B2447;">${proj.generalInfo?.vendorName || 'Heat and Control / Kiremko B.V.'}</td>
                 </tr>
-                <tr>
-                  <th>Model / Line Tag</th>
-                  <td class="font-mono text-slate-700">${proj.generalInfo?.modelNumber || 'SPF-600 Continuous'}</td>
-                  <th>Design Capacity</th>
-                  <td style="font-weight: 700; color: #059669;">${proj.generalInfo?.designCapacity || '600 kg/hour (Pellet Output)'}</td>
-                </tr>
+                ${(proj.generalInfo?.equipmentModels && proj.generalInfo.equipmentModels.length > 1) 
+                  ? proj.generalInfo.equipmentModels.map((em, idx) => `
+                    <tr>
+                      <th>Model / Line Tag (#${idx + 1})</th>
+                      <td class="font-mono text-slate-700">${em.modelNumber || 'N/A'}</td>
+                      <th>Design Capacity (#${idx + 1})</th>
+                      <td style="font-weight: 700; color: #059669;">${em.designCapacity || 'N/A'}</td>
+                    </tr>
+                  `).join('')
+                  : `
+                    <tr>
+                      <th>Model / Line Tag</th>
+                      <td class="font-mono text-slate-700">${proj.generalInfo?.modelNumber || 'SPF-600 Continuous'}</td>
+                      <th>Design Capacity</th>
+                      <td style="font-weight: 700; color: #059669;">${proj.generalInfo?.designCapacity || '600 kg/hour (Pellet Output)'}</td>
+                    </tr>
+                  `
+                }
                 <tr>
                   <th>Vendor Sourcing Origin</th>
                   <td>
@@ -3808,6 +4182,22 @@ function attachEventHandlers(activeProject) {
     });
   }
 
+  const genVendorCustom = document.getElementById('gen-vendor-custom');
+  if (genVendorCustom) {
+    genVendorCustom.addEventListener('input', (e) => {
+      ensureGeneralInfo(activeProject).vendorName = e.target.value;
+    });
+  }
+
+  // Dynamic Equipment Models & Capacities
+  document.querySelectorAll('[data-model-idx]').forEach(input => {
+    input.addEventListener('input', (e) => {
+      const idx = parseInt(e.target.dataset.modelIdx, 10);
+      const field = e.target.dataset.modelField;
+      store.updateEquipmentModel(idx, field, e.target.value);
+    });
+  });
+
   const genVendor = document.getElementById('gen-vendor-name');
   if (genVendor) {
     genVendor.addEventListener('input', (e) => {
@@ -3998,6 +4388,39 @@ if (typeof window !== 'undefined') {
     store.updateGeneralInfo(fields);
     render();
   },
+  addEquipmentModel() {
+    store.addEquipmentModel();
+  },
+  removeEquipmentModel(idx) {
+    store.removeEquipmentModel(idx);
+  },
+  updateEquipmentModel(idx, field, value) {
+    store.updateEquipmentModel(idx, field, value);
+  },
+  onVendorSelectChanged(value) {
+    const p = store.getActiveProject();
+    if (!p) return;
+    ensureGeneralInfo(p);
+    if (value === '__custom__') {
+      store.customVendorActive = true;
+    } else {
+      store.customVendorActive = false;
+      p.generalInfo.vendorName = value;
+      const vDetails = getVendorDetails(value);
+      if (vDetails && vDetails.country) {
+        p.generalInfo.countryOfOrigin = vDetails.country;
+      }
+      store.saveProjects('UPDATE', [{
+        category: 'Vendor Selection',
+        description: `Selected vendor: ${value}`,
+        from: '',
+        to: value
+      }]);
+    }
+    render();
+  },
+  VENDOR_DATABASE,
+  getVendorDetails,
   COUNTRY_ORIGIN_OPTIONS,
   EQUIPMENT_TYPE_OPTIONS,
   deleteProject(id) {

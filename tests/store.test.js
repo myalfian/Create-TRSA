@@ -19,7 +19,7 @@ globalThis.document = {
 import { test, describe } from 'node:test';
 import assert from 'node:assert';
 import { defaultTRSAProject } from '../src/data/defaultTRSA.js';
-import { TRSAStore, PLANT_DATABASE, getPlantDatabase, VENDOR_ORIGIN_CONFIG, getVendorOriginConfig, COUNTRY_ORIGIN_OPTIONS, EQUIPMENT_TYPE_OPTIONS, ensureGeneralInfo } from '../src/js/app.js';
+import { TRSAStore, PLANT_DATABASE, getPlantDatabase, VENDOR_ORIGIN_CONFIG, getVendorOriginConfig, COUNTRY_ORIGIN_OPTIONS, EQUIPMENT_TYPE_OPTIONS, VENDOR_DATABASE, getVendorDetails, ensureGeneralInfo } from '../src/js/app.js';
 import { getAuditLogs } from '../src/js/auditService.js';
 
 describe('TRSA Store and Business Logic Tests', () => {
@@ -350,5 +350,86 @@ describe('TRSA Store and Business Logic Tests', () => {
     const logs = getAuditLogs(proj.id);
     assert.ok(logs.length >= 1, 'Audit log must record updates');
     assert.ok(logs.some(l => l.userName === 'Moh Yusuf Alfian'));
+  });
+
+  test('Vendor Details Database: Verify vendor list, country, OEM origin, and helper lookup', () => {
+    assert.ok(Array.isArray(VENDOR_DATABASE), 'VENDOR_DATABASE must be an array');
+    assert.ok(VENDOR_DATABASE.length >= 15, 'Must contain comprehensive pre-vetted OEM vendors');
+
+    // 1. Verify specific international and local vendors exist
+    const heatControl = getVendorDetails('Heat and Control, Inc.');
+    assert.ok(heatControl, 'Heat and Control, Inc. must exist');
+    assert.strictEqual(heatControl.country, 'United States');
+    assert.strictEqual(heatControl.origin, 'Foreign');
+    assert.strictEqual(heatControl.equipmentType, 'Frying System');
+
+    const ishida = getVendorDetails('Ishida Co., Ltd.');
+    assert.ok(ishida, 'Ishida must exist');
+    assert.strictEqual(ishida.country, 'Japan');
+    assert.strictEqual(ishida.origin, 'Foreign');
+    assert.strictEqual(ishida.equipmentType, 'Packaging System');
+
+    const rekatama = getVendorDetails('PT Fabrikasi Rekatama Mandiri');
+    assert.ok(rekatama, 'PT Fabrikasi Rekatama Mandiri must exist');
+    assert.strictEqual(rekatama.country, 'Indonesia');
+    assert.strictEqual(rekatama.origin, 'Local');
+
+    // 2. Case-insensitive lookup
+    const kiremko = getVendorDetails('kiremko b.v.');
+    assert.ok(kiremko, 'Case-insensitive lookup must succeed');
+    assert.strictEqual(kiremko.country, 'Netherlands');
+
+    // 3. Unknown vendor returns null
+    assert.strictEqual(getVendorDetails('NonExistent OEM'), null);
+  });
+
+  test('Equipment Models & Design Capacities: Can add, update, and remove multiple models with respective design capacities', () => {
+    globalThis.localStorage.clear();
+    const store = new TRSAStore();
+    const proj = store.getActiveProject();
+
+    // 1. Initial project has 1 default model
+    assert.ok(Array.isArray(proj.generalInfo.equipmentModels));
+    assert.strictEqual(proj.generalInfo.equipmentModels.length, 1);
+    assert.strictEqual(proj.generalInfo.equipmentModels[0].modelNumber, 'SPF-600 Continuous');
+    assert.strictEqual(proj.generalInfo.equipmentModels[0].designCapacity, '600 kg/hour (Pellet Output)');
+
+    // 2. Add second equipment model (e.g. Coating Drum)
+    const model2 = store.addEquipmentModel();
+    assert.ok(model2, 'Must return newly added equipment model');
+    assert.strictEqual(proj.generalInfo.equipmentModels.length, 2);
+
+    // 3. Update model #2 Line Tag and Design Capacity
+    store.updateEquipmentModel(1, 'modelNumber', 'TMB-700 Continuous Coating Drum');
+    store.updateEquipmentModel(1, 'designCapacity', '635 - 700 kg/hour (Seasoning Output)');
+    assert.strictEqual(proj.generalInfo.equipmentModels[1].modelNumber, 'TMB-700 Continuous Coating Drum');
+    assert.strictEqual(proj.generalInfo.equipmentModels[1].designCapacity, '635 - 700 kg/hour (Seasoning Output)');
+
+    // 4. Add third equipment model (e.g. Weigh Feeder)
+    const model3 = store.addEquipmentModel();
+    assert.strictEqual(proj.generalInfo.equipmentModels.length, 3);
+    store.updateEquipmentModel(2, 'modelNumber', 'WGH-25 Automated Loss-in-Weight Feeder');
+    store.updateEquipmentModel(2, 'designCapacity', '1.5 - 2.5 kg/batch infeed rate');
+    assert.strictEqual(proj.generalInfo.equipmentModels[2].modelNumber, 'WGH-25 Automated Loss-in-Weight Feeder');
+
+    // 5. Verify legacy modelNumber and designCapacity sync contains all models
+    assert.ok(proj.generalInfo.modelNumber.includes('SPF-600'));
+    assert.ok(proj.generalInfo.modelNumber.includes('TMB-700'));
+    assert.ok(proj.generalInfo.designCapacity.includes('600 kg/hour'));
+    assert.ok(proj.generalInfo.designCapacity.includes('635 - 700 kg/hour'));
+
+    // 6. Remove model #2 (index 1)
+    const removed = store.removeEquipmentModel(1);
+    assert.strictEqual(removed, true);
+    assert.strictEqual(proj.generalInfo.equipmentModels.length, 2);
+    assert.strictEqual(proj.generalInfo.equipmentModels[0].modelNumber, 'SPF-600 Continuous');
+    assert.strictEqual(proj.generalInfo.equipmentModels[1].modelNumber, 'WGH-25 Automated Loss-in-Weight Feeder');
+
+    // 7. Cannot remove when only 1 model left
+    store.removeEquipmentModel(1);
+    assert.strictEqual(proj.generalInfo.equipmentModels.length, 1);
+    const blockedRemoval = store.removeEquipmentModel(0);
+    assert.strictEqual(blockedRemoval, false, 'Cannot remove the last remaining equipment model');
+    assert.strictEqual(proj.generalInfo.equipmentModels.length, 1);
   });
 });
