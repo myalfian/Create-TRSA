@@ -1,7 +1,14 @@
-import { resolve, sep } from "node:path";
+import http from "node:http";
+import { readFile, stat } from "node:fs/promises";
+import { dirname, extname, resolve, sep } from "node:path";
+import { fileURLToPath } from "node:url";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 const PORT = Number(process.env.PORT) || 3000;
-const ROOT = import.meta.dir;
+const HOST = "0.0.0.0";
+const ROOT = resolve(__dirname);
 
 const MIME_TYPES = {
   ".html": "text/html; charset=utf-8",
@@ -18,55 +25,79 @@ const MIME_TYPES = {
   ".txt": "text/plain; charset=utf-8",
 };
 
-function jsonResponse(data) {
-  return Response.json(data, {
-    status: 200,
-    headers: {
-      "Access-Control-Allow-Origin": "*",
-      "Cache-Control": "no-cache, no-store, must-revalidate",
-    },
-  });
-}
+const BASE_HEADERS = {
+  "Access-Control-Allow-Origin": "*",
+  "Cache-Control": "no-cache, no-store, must-revalidate",
+};
 
-Bun.serve({
-  port: PORT,
-  async fetch(request) {
-    const { pathname } = new URL(request.url);
+const server = http.createServer(async (req, res) => {
+  try {
+    const requestUrl = new URL(req.url || "/", `http://${req.headers.host || "localhost"}`);
+    const { pathname } = requestUrl;
 
-    if (pathname === "/" || pathname === "/health") {
-      return jsonResponse({ status: "ok" });
+    if (pathname === "/health") {
+      res.writeHead(200, {
+        ...BASE_HEADERS,
+        "Content-Type": "application/json; charset=utf-8",
+      });
+      res.end(JSON.stringify({ status: "ok" }));
+      return;
     }
 
     let decodedPath;
     try {
       decodedPath = decodeURIComponent(pathname);
     } catch {
-      return new Response("Bad Request", { status: 400 });
+      res.writeHead(400, { ...BASE_HEADERS, "Content-Type": "text/plain; charset=utf-8" });
+      res.end("Bad Request");
+      return;
     }
 
     const requestedPath = decodedPath === "/" ? "/index.html" : decodedPath;
+
+    // Prevent access to dotfiles (e.g., .env, .git)
+    if (requestedPath.split("/").some((segment) => segment.startsWith("."))) {
+      res.writeHead(403, { ...BASE_HEADERS, "Content-Type": "text/plain; charset=utf-8" });
+      res.end("Forbidden");
+      return;
+    }
+
     const filePath = resolve(ROOT, `.${requestedPath}`);
     if (filePath !== ROOT && !filePath.startsWith(`${ROOT}${sep}`)) {
-      return new Response("Forbidden", { status: 403 });
+      res.writeHead(403, { ...BASE_HEADERS, "Content-Type": "text/plain; charset=utf-8" });
+      res.end("Forbidden");
+      return;
     }
 
-    const file = Bun.file(filePath);
-    if (!(await file.exists())) {
-      return new Response("Not Found", {
-        status: 404,
-        headers: { "Access-Control-Allow-Origin": "*" },
-      });
+    let fileStats;
+    try {
+      fileStats = await stat(filePath);
+    } catch {
+      res.writeHead(404, { ...BASE_HEADERS, "Content-Type": "text/plain; charset=utf-8" });
+      res.end("Not Found");
+      return;
     }
 
-    const extension = filePath.slice(filePath.lastIndexOf("."));
-    return new Response(file, {
-      headers: {
-        "Access-Control-Allow-Origin": "*",
-        "Cache-Control": "no-cache, no-store, must-revalidate",
-        "Content-Type": MIME_TYPES[extension] ?? "application/octet-stream",
-      },
+    if (!fileStats.isFile()) {
+      res.writeHead(404, { ...BASE_HEADERS, "Content-Type": "text/plain; charset=utf-8" });
+      res.end("Not Found");
+      return;
+    }
+
+    const content = await readFile(filePath);
+    const extension = extname(filePath).toLowerCase();
+    res.writeHead(200, {
+      ...BASE_HEADERS,
+      "Content-Type": MIME_TYPES[extension] ?? "application/octet-stream",
     });
-  },
+    res.end(content);
+  } catch (err) {
+    console.error("Server error:", err);
+    res.writeHead(500, { ...BASE_HEADERS, "Content-Type": "text/plain; charset=utf-8" });
+    res.end("Internal Server Error");
+  }
 });
 
-console.log(`TRSA Studio server listening on http://localhost:${PORT}`);
+server.listen(PORT, HOST, () => {
+  console.log(`TRSA Studio server listening on http://${HOST}:${PORT}`);
+});
