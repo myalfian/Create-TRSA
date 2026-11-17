@@ -1,14 +1,7 @@
-import http from "node:http";
-import { readFile, stat } from "node:fs/promises";
-import { dirname, extname, resolve, sep } from "node:path";
-import { fileURLToPath } from "node:url";
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
+import { resolve, sep } from "node:path";
 
 const PORT = Number(process.env.PORT) || 3000;
-const HOST = "0.0.0.0";
-const ROOT = resolve(__dirname);
+const ROOT = import.meta.dir;
 
 const MIME_TYPES = {
   ".html": "text/html; charset=utf-8",
@@ -22,82 +15,78 @@ const MIME_TYPES = {
   ".jpeg": "image/jpeg",
   ".gif": "image/gif",
   ".ico": "image/x-icon",
+  ".pdf": "application/pdf",
   ".txt": "text/plain; charset=utf-8",
 };
 
-const BASE_HEADERS = {
-  "Access-Control-Allow-Origin": "*",
-  "Cache-Control": "no-cache, no-store, must-revalidate",
-};
+function jsonResponse(data) {
+  return Response.json(data, {
+    status: 200,
+    headers: {
+      "Access-Control-Allow-Origin": "*",
+      "Cache-Control": "no-cache, no-store, must-revalidate",
+    },
+  });
+}
 
-const server = http.createServer(async (req, res) => {
-  try {
-    const requestUrl = new URL(req.url || "/", `http://${req.headers.host || "localhost"}`);
-    const { pathname } = requestUrl;
+Bun.serve({
+  port: PORT,
+  hostname: "0.0.0.0",
+  async fetch(request) {
+    const { pathname } = new URL(request.url);
+    const acceptHeader = request.headers.get("accept") || "";
 
-    if (pathname === "/health") {
-      res.writeHead(200, {
-        ...BASE_HEADERS,
-        "Content-Type": "application/json; charset=utf-8",
-      });
-      res.end(JSON.stringify({ status: "ok" }));
-      return;
+    if (pathname === "/health" || (pathname === "/" && !acceptHeader.includes("text/html"))) {
+      return jsonResponse({ status: "ok" });
     }
 
     let decodedPath;
     try {
       decodedPath = decodeURIComponent(pathname);
     } catch {
-      res.writeHead(400, { ...BASE_HEADERS, "Content-Type": "text/plain; charset=utf-8" });
-      res.end("Bad Request");
-      return;
+      return new Response("Bad Request", { status: 400 });
     }
 
     const requestedPath = decodedPath === "/" ? "/index.html" : decodedPath;
 
-    // Prevent access to dotfiles (e.g., .env, .git)
     if (requestedPath.split("/").some((segment) => segment.startsWith("."))) {
-      res.writeHead(403, { ...BASE_HEADERS, "Content-Type": "text/plain; charset=utf-8" });
-      res.end("Forbidden");
-      return;
+      return new Response("Forbidden", { status: 403 });
     }
 
-    const filePath = resolve(ROOT, `.${requestedPath}`);
+    let filePath = resolve(ROOT, `.${requestedPath}`);
     if (filePath !== ROOT && !filePath.startsWith(`${ROOT}${sep}`)) {
-      res.writeHead(403, { ...BASE_HEADERS, "Content-Type": "text/plain; charset=utf-8" });
-      res.end("Forbidden");
-      return;
+      return new Response("Forbidden", { status: 403 });
     }
 
-    let fileStats;
-    try {
-      fileStats = await stat(filePath);
-    } catch {
-      res.writeHead(404, { ...BASE_HEADERS, "Content-Type": "text/plain; charset=utf-8" });
-      res.end("Not Found");
-      return;
+    let file = Bun.file(filePath);
+    if (!(await file.exists())) {
+      const publicPath = resolve(ROOT, "public", `.${requestedPath}`);
+      if (publicPath.startsWith(`${resolve(ROOT, "public")}${sep}`)) {
+        const publicFile = Bun.file(publicPath);
+        if (await publicFile.exists()) {
+          filePath = publicPath;
+          file = publicFile;
+        }
+      }
     }
 
-    if (!fileStats.isFile()) {
-      res.writeHead(404, { ...BASE_HEADERS, "Content-Type": "text/plain; charset=utf-8" });
-      res.end("Not Found");
-      return;
+    if (!(await file.exists())) {
+      return new Response("Not Found", {
+        status: 404,
+        headers: { "Access-Control-Allow-Origin": "*" },
+      });
     }
 
-    const content = await readFile(filePath);
-    const extension = extname(filePath).toLowerCase();
-    res.writeHead(200, {
-      ...BASE_HEADERS,
-      "Content-Type": MIME_TYPES[extension] ?? "application/octet-stream",
+    const dotIndex = filePath.lastIndexOf(".");
+    const extension = dotIndex !== -1 ? filePath.slice(dotIndex).toLowerCase() : "";
+    return new Response(file, {
+      headers: {
+        "Access-Control-Allow-Origin": "*",
+        "Cache-Control": "no-cache, no-store, must-revalidate",
+        "Content-Type": MIME_TYPES[extension] ?? "application/octet-stream",
+      },
     });
-    res.end(content);
-  } catch (err) {
-    console.error("Server error:", err);
-    res.writeHead(500, { ...BASE_HEADERS, "Content-Type": "text/plain; charset=utf-8" });
-    res.end("Internal Server Error");
-  }
+  },
 });
 
-server.listen(PORT, HOST, () => {
-  console.log(`TRSA Studio server listening on http://${HOST}:${PORT}`);
-});
+console.log(`TRSA Studio server listening on http://0.0.0.0:${PORT}`);

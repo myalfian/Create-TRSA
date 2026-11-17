@@ -10,6 +10,12 @@ console.log('Running TRSA Code Linter & Quality Check...');
 
 const filesToLint = [
   'src/data/defaultTRSA.js',
+  'src/js/draftHistoryService.js',
+  'src/js/validationService.js',
+  'src/js/dashboardStatsService.js',
+  'src/js/trsaMatrixService.js',
+  'src/js/userMatrixSettingsService.js',
+  'src/js/masterDataService.js',
   'src/js/app.js'
 ];
 

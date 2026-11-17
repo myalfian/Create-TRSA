@@ -11,7 +11,15 @@ console.log('Running TRSA Enterprise Test Suite...');
 const testFiles = [
   path.join(__dirname, 'defaultTRSA.test.js'),
   path.join(__dirname, 'store.test.js'),
-  path.join(__dirname, 'docNumber.test.js')
+  path.join(__dirname, 'docNumber.test.js'),
+  path.join(__dirname, 'draftHistory.test.js'),
+  path.join(__dirname, 'validation.test.js'),
+  path.join(__dirname, 'dashboardStats.test.js'),
+  path.join(__dirname, 'matrixAudit.test.js'),
+  path.join(__dirname, 'userMatrixSettings.test.js'),
+  path.join(__dirname, 'masterDataAndAuth.test.js'),
+  path.join(__dirname, 'auditService.test.js'),
+  path.join(__dirname, 'activityLogging.test.js')
 ];
 
 run({ files: testFiles })

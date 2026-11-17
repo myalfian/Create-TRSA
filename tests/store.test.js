@@ -143,10 +143,11 @@ describe('TRSA Store and Business Logic Tests', () => {
 
     const cikokol = getPlantDatabase('Cikokol Plant');
     assert.strictEqual(cikokol.code, '1402');
-    assert.ok(cikokol.address.includes('Daan Mogot'));
+    assert.ok(cikokol.address.includes('Wisma Damatex'));
 
     const agro = getPlantDatabase('Agro Plant');
     assert.strictEqual(agro.code, '1411');
+    assert.ok(agro.address.includes('Wisma Damatex'));
 
     // 2. Test auto-population when plant location changes to Cikupa
     store.updatePlantLocation('Cikupa Plant');
@@ -261,23 +262,32 @@ describe('TRSA Store and Business Logic Tests', () => {
     assert.strictEqual(foreignCfg.origin, 'Foreign');
     assert.ok(foreignCfg.label.includes('Foreign'));
 
-    // 2. Switch to Local
+    // 2. Switch to Local (Plant 1403)
     store.setCurrentUser('Moh Yusuf Alfian');
     const localCfg = store.updateVendorOrigin('Local');
+    assert.ok(localCfg);
     assert.strictEqual(proj.documentInfo.vendorOrigin, 'Local');
     assert.strictEqual(proj.commercialTerms.vendorOrigin, 'Local');
-    assert.ok(proj.commercialTerms.shipmentTerms.includes('Franco Pabrik'), 'Local vendor shipment must use domestic Franco terms');
-    assert.ok(proj.legalAndTaxProvisions.some(p => p.title.includes('PPN 11%')), 'Local vendor provisions must include PPN 11%');
-    assert.ok(proj.legalAndTaxProvisions.some(p => p.title.includes('PPh Pasal 23')), 'Local vendor provisions must include PPh 23');
+    assert.ok(proj.commercialTerms.shipmentTerms.includes('Franco Site'), 'Local vendor shipment must use domestic Franco Site terms');
+    assert.ok(proj.legalAndTaxProvisions.some(p => p.title.includes('Local Vendor Taxation') && p.description.includes('PPN') && p.description.includes('PP No. 44 Tahun 2022')), 'Local vendor provisions on 1403 must enforce PPN, PPh, KLU, PP 44/2022 & Materai');
+    assert.ok(!proj.legalAndTaxProvisions.some(p => p.matrixId === 'XVI.pph26'), 'Plant 1403 Local must not include Plant 1411 Foreign PPh 26');
 
-    // 3. Switch to Mixed
+    // 3. Switch to Mixed (Plant 1403)
     const mixedCfg = store.updateVendorOrigin('Mixed');
+    assert.ok(mixedCfg);
     assert.strictEqual(proj.documentInfo.vendorOrigin, 'Mixed');
     assert.strictEqual(proj.commercialTerms.vendorOrigin, 'Mixed');
     assert.ok(proj.commercialTerms.shipmentTerms.includes('Dual Terms'), 'Mixed vendor shipment must use Dual Terms');
-    assert.ok(proj.legalAndTaxProvisions.some(p => p.title.includes('Separation of Offshore Supply & Onshore Scope')), 'Mixed vendor provisions must separate offshore and onshore scope');
+    assert.ok(proj.legalAndTaxProvisions.some(p => p.matrixId === 'XVI.local'), 'Mixed vendor on 1403 includes Local Taxation');
+    assert.ok(proj.legalAndTaxProvisions.some(p => p.matrixId === 'XVI.visa'), 'Includes Visa & Engineer Mobilization');
 
-    // 4. Fallback on invalid origin
+    // 4. Plant 1411 + Foreign triggers Import Duty Exemption & PPh 26 / PMK 35/2019
+    store.updatePlantLocation('Agro Plant');
+    store.updateVendorOrigin('Foreign');
+    assert.ok(proj.legalAndTaxProvisions.some(p => p.matrixId === 'XVI.duty'), 'Plant 1411 Foreign must require CoO duty exemption & 14 days free demurrage');
+    assert.ok(proj.legalAndTaxProvisions.some(p => p.matrixId === 'XVI.pph26'), 'Plant 1411 Foreign must enforce PPh 26 & PMK 35/2019');
+
+    // 5. Fallback on invalid origin
     store.updateVendorOrigin('InvalidOrigin');
     assert.strictEqual(proj.documentInfo.vendorOrigin, 'Foreign', 'Invalid origin should fall back to Foreign');
   });

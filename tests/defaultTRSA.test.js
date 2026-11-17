@@ -18,19 +18,33 @@ describe('TRSA Indofood Document Specification Matrix Tests', () => {
     assert.strictEqual(dates.orderPlacement, 'Early November 2024');
   });
 
-  test('Verify Stakeholders and Key Contacts', () => {
+  test('Verify Stakeholders and Key Contacts (Semarang Plant 1403 Matrix)', () => {
     const contacts = defaultTRSAProject.keyContacts;
-    assert.ok(contacts.length >= 5, 'Must contain all 5 key contacts from IFM');
-    
+    assert.strictEqual(contacts.length, 9, 'Plant 1403 Matrix must contain 9 authorized PICs (4 Engineering, 2 Project, 3 Purchasing)');
+
+    const expectedEmails = [
+      'my.alfian@icbp.indofood.co.id',
+      'ayodya.gunoro@icbp.indofood.co.id',
+      'dewi.natalia@icbp.indofood.co.id',
+      'natalia.happy@icbp.indofood.co.id',
+      'yanuar.wibowo@icbp.indofood.co.id',
+      'mohammad.faiz@icbp.indofood.co.id',
+      'dany.ansori@icbp.indofood.co.id',
+      'adiprana@icbp.indofood.co.id',
+      'septian.jumantoro@icbp.indofood.co.id'
+    ];
+    const actualEmails = contacts.map(c => c.email.toLowerCase());
+    expectedEmails.forEach(email => {
+      assert.ok(actualEmails.includes(email), `Missing authorized Matrix PIC email: ${email}`);
+    });
+
     const yusuf = contacts.find(c => c.name.includes('Yusuf Alfian'));
     assert.ok(yusuf, 'Moh Yusuf Alfian must exist');
-    assert.strictEqual(yusuf.email, 'my.alfian@icbp.indofood.co.id');
-    assert.strictEqual(yusuf.role, 'Project & Engineering Manager');
+    assert.ok(yusuf.role.includes('Project Team PIC'));
 
     const natalia = contacts.find(c => c.name.includes('Natalia Happy'));
     assert.ok(natalia, 'Natalia Happy must exist');
-    assert.strictEqual(natalia.email, 'natalia.happy@icbp.indofood.co.id');
-    assert.strictEqual(natalia.role, 'Purchasing Supervisor');
+    assert.ok(natalia.role.includes('Purchasing Team PIC'));
   });
 
   test('Verify Product Specifications Matrix (4 Shapes)', () => {
@@ -65,12 +79,16 @@ describe('TRSA Indofood Document Specification Matrix Tests', () => {
     assert.strictEqual(seas.seasoningCapacity, '635 – 700 kg/hour');
   });
 
-  test('Verify Project Scope of Supply Breakdown', () => {
+  test('Verify Project Scope of Supply Breakdown (Equipment, Services, Ancillaries, 12 Hygienic Rules & Control Access)', () => {
     const fryerScope = defaultTRSAProject.scopeOfSupply.fryer;
     const seasoningScope = defaultTRSAProject.scopeOfSupply.seasoning;
 
     assert.strictEqual(fryerScope.length, 14, 'Fryer Scope must contain 14 units');
     assert.strictEqual(seasoningScope.length, 7, 'Seasoning Scope must contain 7 units');
+    assert.strictEqual(defaultTRSAProject.scopeOfSupply.servicesScope.length, 3, 'Services Scope must contain 3 items (Operator Training, Maintenance Training, System ID)');
+    assert.strictEqual(defaultTRSAProject.scopeOfSupply.ancillariesAndLogistics.length, 4, 'Ancillaries & Logistics must contain 4 items');
+    assert.strictEqual(defaultTRSAProject.scopeOfSupply.controlSystemAccess.length, 2, 'Control System Access Rights must include unlocked PLC/HMI code & Master Password handover');
+    assert.strictEqual(defaultTRSAProject.hygieneAndQuality.generalTechnicalHygienic12.length, 12, 'Must enforce all 12 General Technical & Hygienic Requirements');
 
     // Check specific critical modules
     const pelletFeed = fryerScope.find(i => i.title.includes('Pellet Feed System'));
@@ -89,14 +107,17 @@ describe('TRSA Indofood Document Specification Matrix Tests', () => {
     assert.ok(controlPanel.specs.some(s => s.includes('Ewon')), 'Ewon remote router required');
   });
 
-  test('Verify Performance Acceptance Protocols and Consequences', () => {
+  test('Verify Performance Acceptance Protocols, Final Acceptance (Snag List) & Remedies', () => {
     const acceptance = defaultTRSAProject.performanceAcceptance;
     assert.ok(acceptance.tests.length >= 5, 'Must have at least 5 commissioning trial steps');
-    assert.ok(acceptance.failureConsequence.includes('3 months'), 'Failure consequence must mention 3 months modification period');
-    assert.ok(acceptance.finalAcceptance && acceptance.finalAcceptance.includes('Final Acceptance Certificate'), 'Final acceptance criteria must be defined');
+    assert.ok(acceptance.failureConsequence.includes('three (3) months') || acceptance.failureConsequence.includes('3 months'), 'Failure consequence must mention 3 months rectification period');
+    assert.ok(acceptance.failureConsequence.includes('100%'), 'Failure consequence must include 100% full refund & dismantle clause');
+    assert.ok(acceptance.finalAcceptance && acceptance.finalAcceptance.includes('Snag List'), 'Final acceptance criteria must include Snag List & signed training attendance sheets');
+    assert.strictEqual(acceptance.finalAcceptanceChecklist.length, 4);
+    assert.strictEqual(acceptance.remediesAndConsequences.length, 2);
   });
 
-  test('Verify Document Section Ordering & Completeness Standard', () => {
+  test('Verify Document Section Ordering & Completeness Standard (All 19 Clauses I–XIX)', () => {
     const requiredSections = [
       'I. Revision History',
       'II. Project Description',
@@ -109,38 +130,49 @@ describe('TRSA Indofood Document Specification Matrix Tests', () => {
       'IX. Scope of Supply',
       'X. Target Performance Test',
       'XI. Final Acceptance',
-      'XII. Consequences If Target is Not Reached',
+      'XII. Remedies & Consequences if Target is Not Reached',
       'XIII. Term of Payment',
       'XIV. Shipment and Delivery',
       'XV. Warranty',
-      'XVI. Administrative Provisions',
+      'XVI. Administrative, Tax & Regulatory Provisions',
       'XVII. Required Documentation',
-      'Acknowledged and Approved by,'
+      'XVIII. Acknowledged and Approved by',
+      'XIX. Attachments / Appendices'
     ];
 
-    assert.strictEqual(requiredSections.length, 18, 'Must verify all 17 ordered sections plus approval sign-off block');
+    assert.strictEqual(requiredSections.length, 19, 'Must verify all 19 ordered Roman clauses (I–XIX)');
   });
 
-  test('Verify Commercial Terms (Option 1 vs Option 2)', () => {
+  test('Verify Commercial Terms (Matrix 30/55/10/5, Undertaking Letter, SWIFT BG, 5 Shipment Items & 12M Warranty)', () => {
     const comm = defaultTRSAProject.commercialTerms;
+    assert.strictEqual(comm.selectedPaymentOption, 'Matrix Standard');
+    assert.strictEqual(comm.matrixEquipmentSchedule.length, 4);
     assert.ok(comm.options.option1, 'Option 1 must exist');
     assert.ok(comm.options.option2, 'Option 2 must exist');
-    assert.strictEqual(comm.warranty, 'Minimum 12 months continuous operation after final site acceptance, with phone support during office hours.');
+    assert.ok(comm.engineeringServicesPayment.includes('Undertaking Letter'), 'Engineering services payment must include 150-day Undertaking Letter condition');
+    assert.strictEqual(comm.invoicingAndBankGuarantee.length, 2);
+    assert.strictEqual(comm.shipmentItems.length, 5);
+    assert.ok(comm.warranty.includes('twelve (12) months'), 'Warranty must specify 12 months post-FAC');
     assert.ok(comm.shipmentTerms.includes('Semarang Port'));
     assert.ok(comm.shipmentTerms.includes('110%'));
     assert.ok(comm.shipmentTerms.includes('25 years'));
   });
 
-  test('Verify 14 Required Documents Deliverables', () => {
+  test('Verify 13 Required Documentation Deliverables & 6 Appendices', () => {
     const docs = defaultTRSAProject.requiredDocumentation;
-    assert.strictEqual(docs.length, 14, 'Must have exactly 14 required documentation deliverables');
+    assert.strictEqual(docs.length, 13, 'Must have exactly 13 required documentation deliverables per Matrix PDF');
     const titles = docs.map(d => d.title);
-    assert.ok(titles.includes('As-built Drawings'));
+    assert.ok(titles.includes('As-Built Drawings'));
     assert.ok(titles.includes('Cabling Schedule'));
     assert.ok(titles.includes('Functional Design Specification (FDS)'));
-    assert.ok(titles.includes('PLC Listings'));
+    assert.ok(titles.includes('PLC & HMI (OIT) Source Code & Master Password'));
     assert.ok(titles.includes('Halal Compliance Documentation'));
-    assert.ok(titles.includes('Equipment Layout (DWG)'));
+    assert.ok(titles.includes('Equipment Layout Drawings'));
+
+    const apps = defaultTRSAProject.appendices;
+    assert.strictEqual(apps.length, 6, 'Must have 6 binding appendices (Appendix 1-6)');
+    assert.ok(apps.some(a => a.title.includes('PMK No. 35/PMK.03/2019')));
+    assert.ok(apps.some(a => a.title.includes('PP No. 44 Tahun 2022')));
   });
 
   test('Verify Vendor Origin Sourcing Options (Foreign, Local, Mixed)', () => {

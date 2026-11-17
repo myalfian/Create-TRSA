@@ -17,12 +17,18 @@ const stats = {};
 // 1. Check required files
 const requiredFiles = [
   'index.html',
-  'server.py',
+  'server.js',
   'start.bat',
   'src/data/defaultTRSA.js',
   'src/js/app.js',
   'src/js/security.js',
   'src/js/auditService.js',
+  'src/js/draftHistoryService.js',
+  'src/js/validationService.js',
+  'src/js/dashboardStatsService.js',
+  'src/js/trsaMatrixService.js',
+  'src/js/userMatrixSettingsService.js',
+  'src/js/masterDataService.js',
   'src/js/supabaseClient.js',
   'src/sql/schema.sql',
   'src/css/style.css'
@@ -46,6 +52,12 @@ const jsFiles = [
   'src/data/defaultTRSA.js',
   'src/js/security.js',
   'src/js/auditService.js',
+  'src/js/draftHistoryService.js',
+  'src/js/validationService.js',
+  'src/js/dashboardStatsService.js',
+  'src/js/trsaMatrixService.js',
+  'src/js/userMatrixSettingsService.js',
+  'src/js/masterDataService.js',
   'src/js/supabaseClient.js',
   'src/js/app.js'
 ];
@@ -118,6 +130,9 @@ function copyRecursive(src, dest) {
 copyRecursive(path.join(rootDir, 'index.html'), path.join(distDir, 'index.html'));
 copyRecursive(path.join(rootDir, 'src'), path.join(distDir, 'src'));
 copyRecursive(path.join(rootDir, 'README.md'), path.join(distDir, 'README.md'));
+if (fs.existsSync(path.join(rootDir, 'public'))) {
+  copyRecursive(path.join(rootDir, 'public'), path.join(distDir, 'public'));
+}
 
 console.log('  ✓ Production assets packaged in dist/');
 

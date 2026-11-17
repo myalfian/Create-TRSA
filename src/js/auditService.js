@@ -1,9 +1,130 @@
 /**
- * TRSA Studio - Audit Trail & Forensic Traceability Service
- * Tracks who changed what, when, and before/after values with immutable logging
+ * TRSA Studio - Enterprise Activity Logging, Audit Trail & Forensic Traceability Service
+ * Tracks User Actions, Project Changes, and Compliance Matrix Updates with immutable logging,
+ * domain classification, multi-criteria filtering, analytics, and CSV/JSON export.
  */
 
+export const ACTIVITY_DOMAINS = Object.freeze({
+  ALL: 'all',
+  USER_ACTION: 'user_action',
+  PROJECT_CHANGE: 'project_change',
+  COMPLIANCE_MATRIX: 'compliance_matrix'
+});
+
+export const ACTIVITY_DOMAIN_LABELS = Object.freeze({
+  [ACTIVITY_DOMAINS.ALL]: 'All Activity',
+  [ACTIVITY_DOMAINS.USER_ACTION]: 'User Actions',
+  [ACTIVITY_DOMAINS.PROJECT_CHANGE]: 'Project Changes',
+  [ACTIVITY_DOMAINS.COMPLIANCE_MATRIX]: 'Compliance Matrix'
+});
+
+const COMPLIANCE_MATRIX_ACTIONS = new Set([
+  'MATRIX_ALIGNMENT',
+  'USER_MATRIX_SETTING',
+  'USER_MATRIX_PRESET',
+  'MATRIX_PLANT_ACCESS',
+  'MATRIX_ORIGIN_ACCESS',
+  'MATRIX_CLAUSE_ACCESS',
+  'USER_MATRIX_RESET',
+  'USER_MATRIX_RESET_ALL',
+  'MATRIX_POLICY_BLOCK',
+  'VENDOR_ORIGIN_CHANGE'
+]);
+
+const USER_ACTION_ACTIONS = new Set([
+  'USER_LOGIN',
+  'USER_LOGIN_FAILED',
+  'USER_LOGOUT',
+  'USER_SWITCH',
+  'MASTER_USER_UPDATE',
+  'MASTER_USER_DELETE',
+  'MASTER_VENDOR_UPDATE',
+  'MASTER_VENDOR_DELETE',
+  'MASTER_PLANT_UPDATE',
+  'MASTER_DEPT_UPDATE',
+  'MASTER_DEPT_DELETE',
+  'MASTER_JOB_UPDATE',
+  'MASTER_JOB_DELETE',
+  'DRAFT_SAVE',
+  'DRAFT_DELETE',
+  'DRAFT_CLEAR',
+  'EXPORT_JSON',
+  'EXPORT_BUNDLE',
+  'AUDIT_EXPORT',
+  'ACCESS_DENIED'
+]);
+
+const SECURITY_ACTIONS = new Set([
+  'USER_LOGIN_FAILED',
+  'ACCESS_DENIED',
+  'MATRIX_POLICY_BLOCK'
+]);
+
+const WARNING_ACTIONS = new Set([
+  'DELETE',
+  'BULK_DELETE',
+  'MASTER_USER_DELETE',
+  'MASTER_VENDOR_DELETE',
+  'MASTER_DEPT_DELETE',
+  'MASTER_JOB_DELETE',
+  'DRAFT_DELETE',
+  'DRAFT_CLEAR',
+  'RESET_TEMPLATE',
+  'USER_MATRIX_RESET',
+  'USER_MATRIX_RESET_ALL'
+]);
+
+const SUCCESS_ACTIONS = new Set([
+  'CREATE',
+  'USER_LOGIN',
+  'MATRIX_ALIGNMENT',
+  'STATUS_CHANGE',
+  'BULK_STATUS_CHANGE',
+  'REVISION_STAMP'
+]);
+
 let inMemoryAuditLogs = [];
+
+export function resolveActivityDomain(action = '') {
+  const act = String(action || '').toUpperCase();
+  if (COMPLIANCE_MATRIX_ACTIONS.has(act) || act.includes('MATRIX')) {
+    return ACTIVITY_DOMAINS.COMPLIANCE_MATRIX;
+  }
+  if (
+    USER_ACTION_ACTIONS.has(act) ||
+    act.startsWith('USER_') ||
+    act.startsWith('MASTER_') ||
+    act.startsWith('DRAFT_') ||
+    act.startsWith('EXPORT_')
+  ) {
+    return ACTIVITY_DOMAINS.USER_ACTION;
+  }
+  return ACTIVITY_DOMAINS.PROJECT_CHANGE;
+}
+
+export function resolveActivitySeverity(action = '') {
+  const act = String(action || '').toUpperCase();
+  if (SECURITY_ACTIONS.has(act)) return 'security';
+  if (WARNING_ACTIONS.has(act)) return 'warning';
+  if (SUCCESS_ACTIONS.has(act)) return 'success';
+  return 'info';
+}
+
+export function normalizeAuditEntry(entry) {
+  if (!entry || typeof entry !== 'object') return entry;
+  const action = entry.action || 'UPDATE';
+  return {
+    ...entry,
+    action,
+    domain: entry.domain || resolveActivityDomain(action),
+    severity: entry.severity || resolveActivitySeverity(action),
+    targetEntity: entry.targetEntity || entry.projectDocNumber || entry.projectId || '',
+    changedFields: Array.isArray(entry.changedFields) && entry.changedFields.length > 0
+      ? entry.changedFields
+      : ['General Update'],
+    diffDetails: Array.isArray(entry.diffDetails) ? entry.diffDetails : []
+  };
+}
 
 /**
  * Reset logs (primarily for test environments)
@@ -60,14 +181,16 @@ export function getRelativeTime(isoString) {
 }
 
 /**
- * Generate a structured immutable audit entry capturing:
- * - Kapan (createdAt timestamp)
- * - Siapa (userName, userRole, userDept, userEmail)
- * - Apa yang diubah (action, changedFields, diffDetails with from/to)
+ * Generate a structured immutable activity / audit entry capturing:
+ * - Domain ('user_action' | 'project_change' | 'compliance_matrix')
+ * - Severity ('info' | 'success' | 'warning' | 'security')
+ * - When (createdAt timestamp)
+ * - Who (userName, userRole, userDept, userEmail)
+ * - What changed (action, targetEntity, changedFields, diffDetails with from/to)
  */
-export function createAuditEntry(projectId, action = 'UPDATE', diffs = [], user = {}, projectDocNumber = '') {
-  const id = typeof crypto !== 'undefined' && crypto.randomUUID 
-    ? crypto.randomUUID() 
+export function createAuditEntry(projectId, action = 'UPDATE', diffs = [], user = {}, projectDocNumber = '', meta = {}) {
+  const id = typeof crypto !== 'undefined' && crypto.randomUUID
+    ? crypto.randomUUID()
     : `log-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
 
   const structuredDiffs = Array.isArray(diffs) ? diffs.map(d => {
@@ -78,19 +201,25 @@ export function createAuditEntry(projectId, action = 'UPDATE', diffs = [], user 
   }) : [];
 
   const changeCategories = [...new Set(structuredDiffs.map(d => d.category || 'General Update'))];
+  const domain = meta?.domain || resolveActivityDomain(action);
+  const severity = meta?.severity || resolveActivitySeverity(action);
 
   return {
     id,
-    projectId,
+    projectId: projectId || 'workspace',
     projectDocNumber: projectDocNumber || '',
+    targetEntity: meta?.targetEntity || projectDocNumber || projectId || 'System',
+    domain,
+    severity,
     userName: user.name || 'Anonymous User',
     userRole: user.role || 'Project Engineer',
     userDept: user.dept || 'MFG',
     userEmail: user.email || '',
     userInitials: user.initials || (user.name ? user.name.split(' ').map(w => w[0]).join('').slice(0, 4).toUpperCase() : 'ENG'),
-    action, // 'CREATE', 'UPDATE', 'REVISION_STAMP', 'PLANT_CHANGE', 'STATUS_CHANGE', 'SYNC'
+    action,
     changedFields: changeCategories.length > 0 ? changeCategories : ['General Update'],
     diffDetails: structuredDiffs,
+    metadata: meta?.metadata || null,
     createdAt: new Date().toISOString()
   };
 }
@@ -224,13 +353,15 @@ export function detectDetailedProjectChanges(prev = {}, next = {}) {
     });
   }
 
-  // 4. Project Workflow Status
-  if (prev.status !== next.status && next.status) {
+  // 4. Project Workflow Status (top-level or documentInfo.status)
+  const prevStatus = prev.documentInfo?.status || prev.status;
+  const nextStatus = next.documentInfo?.status || next.status;
+  if (prevStatus !== nextStatus && nextStatus) {
     diffs.push({
       category: 'Project Status',
       description: 'Workflow state changed',
-      from: prev.status || 'Draft',
-      to: next.status
+      from: prevStatus || 'Draft',
+      to: nextStatus
     });
   }
 
@@ -247,17 +378,47 @@ export function detectDetailedProjectChanges(prev = {}, next = {}) {
   } else if (nextRevs.length > 0) {
     const lastP = prevRevs[prevRevs.length - 1];
     const lastN = nextRevs[nextRevs.length - 1];
-    if (lastP && lastN && (lastP.description !== lastN.description || lastP.revision !== lastN.revision)) {
+    if (lastP && lastN && (lastP.description !== lastN.description || lastP.revision !== lastN.revision || lastP.date !== lastN.date)) {
       diffs.push({
         category: 'Revision History',
-        description: `Revision ${lastN.revision} description updated`,
-        from: `${lastP.revision}: ${lastP.description || ''}`,
-        to: `${lastN.revision}: ${lastN.description || ''}`
+        description: `Revision ${lastN.revision} updated (${lastN.originatedBy || 'Author'})`,
+        from: `${lastP.revision}: ${lastP.description || ''} (${lastP.date || ''})`,
+        to: `${lastN.revision}: ${lastN.description || ''} (${lastN.date || ''})`
       });
     }
   }
 
-  // 6. Custom Clearance & Shipping Clause (RBAC)
+  // 6. Site Location, Stakeholders & Customs Clause
+  const prevContacts = prev.keyContacts || [];
+  const nextContacts = next.keyContacts || [];
+  if (JSON.stringify(prevContacts) !== JSON.stringify(nextContacts)) {
+    diffs.push({
+      category: 'Key Contacts',
+      description: `Stakeholder PIC list modified (${nextContacts.length} contacts)`,
+      from: `${prevContacts.length} contacts`,
+      to: `${nextContacts.length} contacts`
+    });
+  }
+
+  const prevSite = prev.siteDescription || {};
+  const nextSite = next.siteDescription || {};
+  if (prevSite.address !== nextSite.address && nextSite.address !== undefined) {
+    diffs.push({
+      category: 'Site Address',
+      description: 'Plant delivery & site address modified',
+      from: prevSite.address || 'None',
+      to: nextSite.address
+    });
+  }
+  if (prevSite.deliveryPort !== nextSite.deliveryPort && nextSite.deliveryPort !== undefined) {
+    diffs.push({
+      category: 'Delivery Port',
+      description: 'Port of discharge / delivery destination updated',
+      from: prevSite.deliveryPort || 'None',
+      to: nextSite.deliveryPort
+    });
+  }
+
   const prevCustoms = prev.siteDescription?.customClearanceNote || prev.commercialTerms?.customClearanceClause;
   const nextCustoms = next.siteDescription?.customClearanceNote || next.commercialTerms?.customClearanceClause;
   if (prevCustoms !== nextCustoms && nextCustoms !== undefined) {
@@ -390,7 +551,7 @@ export function detectDetailedProjectChanges(prev = {}, next = {}) {
     });
   }
 
-  // 11. Commercial Payment Option
+  // 11. Hygiene, Acceptance & Commercial Terms
   const prevOption = prev.commercialTerms?.selectedPaymentOption;
   const nextOption = next.commercialTerms?.selectedPaymentOption;
   if (prevOption !== nextOption && nextOption) {
@@ -399,6 +560,43 @@ export function detectDetailedProjectChanges(prev = {}, next = {}) {
       description: 'Commercial payment schedule option changed',
       from: prevOption || 'None',
       to: nextOption
+    });
+  }
+
+  if (prev.commercialTerms?.shipmentTerms !== next.commercialTerms?.shipmentTerms && next.commercialTerms?.shipmentTerms) {
+    diffs.push({
+      category: 'Shipment Terms',
+      description: 'Incoterms / shipping delivery obligation updated',
+      from: prev.commercialTerms?.shipmentTerms || 'None',
+      to: next.commercialTerms.shipmentTerms
+    });
+  }
+
+  if (prev.commercialTerms?.warranty !== next.commercialTerms?.warranty && next.commercialTerms?.warranty) {
+    diffs.push({
+      category: 'Warranty Terms',
+      description: 'Warranty coverage clause updated',
+      from: (prev.commercialTerms?.warranty || '').slice(0, 40),
+      to: next.commercialTerms.warranty.slice(0, 40)
+    });
+  }
+
+  // 12. Sign-Off Details
+  if (JSON.stringify(prev.signOff?.seller) !== JSON.stringify(next.signOff?.seller)) {
+    diffs.push({
+      category: 'Sign-Off (Seller)',
+      description: 'Seller signatory or quotation reference modified',
+      from: `${prev.signOff?.seller?.companyName || ''} (${prev.signOff?.seller?.quotationNo || 'N/A'})`,
+      to: `${next.signOff?.seller?.companyName || ''} (${next.signOff?.seller?.quotationNo || 'N/A'})`
+    });
+  }
+
+  if (JSON.stringify(prev.signOff?.purchaser) !== JSON.stringify(next.signOff?.purchaser)) {
+    diffs.push({
+      category: 'Sign-Off (Buyer)',
+      description: 'Purchaser signatory details updated',
+      from: `${prev.signOff?.purchaser?.name || ''} - ${prev.signOff?.purchaser?.position || ''}`,
+      to: `${next.signOff?.purchaser?.name || ''} - ${next.signOff?.purchaser?.position || ''}`
     });
   }
 
@@ -419,23 +617,26 @@ export function detectDetailedProjectChanges(prev = {}, next = {}) {
  * Append audit log entry to storage and sync queue
  */
 export function appendAuditLog(entry) {
-  if (!entry) return;
-  inMemoryAuditLogs.unshift(entry);
+  if (!entry) return null;
+  const normalized = normalizeAuditEntry(entry);
+  inMemoryAuditLogs.unshift(normalized);
+  if (inMemoryAuditLogs.length > 500) {
+    inMemoryAuditLogs = inMemoryAuditLogs.slice(0, 500);
+  }
 
   if (typeof window !== 'undefined' && window.localStorage) {
     try {
       const stored = window.localStorage.getItem('trsa_audit_logs');
       const list = stored ? JSON.parse(stored) : [];
-      list.unshift(entry);
-      // Keep up to 300 logs locally
-      const trimmed = list.slice(0, 300);
+      list.unshift(normalized);
+      const trimmed = list.slice(0, 500);
       window.localStorage.setItem('trsa_audit_logs', JSON.stringify(trimmed));
     } catch (e) {
       console.warn('Could not persist audit log to localStorage:', e);
     }
   }
 
-  return entry;
+  return normalized;
 }
 
 /**
@@ -455,38 +656,195 @@ export function getAuditLogs(projectId = null) {
     }
   }
 
+  const normalized = Array.isArray(logs) ? logs.map(normalizeAuditEntry) : [];
   if (projectId) {
-    return logs.filter(l => l.projectId === projectId);
+    return normalized.filter(l => l.projectId === projectId);
   }
-  return logs;
+  return normalized;
+}
+
+/**
+ * Filter activity logs across domain, action, severity, project, actor, date range, and free text
+ */
+export function filterAuditLogs(logs = [], filters = {}) {
+  const {
+    projectId = null,
+    domain = ACTIVITY_DOMAINS.ALL,
+    action = 'all',
+    severity = 'all',
+    actor = '',
+    searchQuery = '',
+    dateFrom = '',
+    dateTo = ''
+  } = filters || {};
+
+  const query = String(searchQuery || '').trim().toLowerCase();
+  const actorQuery = String(actor || '').trim().toLowerCase();
+  const fromTs = dateFrom ? new Date(`${dateFrom}T00:00:00`).getTime() : null;
+  const toTs = dateTo ? new Date(`${dateTo}T23:59:59.999`).getTime() : null;
+
+  return (Array.isArray(logs) ? logs : [])
+    .map(normalizeAuditEntry)
+    .filter(log => {
+      if (projectId && projectId !== 'all' && log.projectId !== projectId) return false;
+      if (domain && domain !== ACTIVITY_DOMAINS.ALL && log.domain !== domain) return false;
+      if (action && action !== 'all' && log.action !== action) return false;
+      if (severity && severity !== 'all' && log.severity !== severity) return false;
+      if (actorQuery && !String(log.userName || '').toLowerCase().includes(actorQuery) &&
+          !String(log.userEmail || '').toLowerCase().includes(actorQuery)) {
+        return false;
+      }
+
+      if (fromTs !== null || toTs !== null) {
+        const logTs = new Date(log.createdAt || 0).getTime();
+        if (Number.isFinite(logTs)) {
+          if (fromTs !== null && logTs < fromTs) return false;
+          if (toTs !== null && logTs > toTs) return false;
+        }
+      }
+
+      if (query) {
+        const haystacks = [
+          log.userName,
+          log.userRole,
+          log.userDept,
+          log.userEmail,
+          log.action,
+          log.domain,
+          log.projectDocNumber,
+          log.targetEntity,
+          ...(log.changedFields || []),
+          ...((log.diffDetails || []).flatMap(d => [d.category, d.description, d.from, d.to]))
+        ];
+        const matched = haystacks.some(val => String(val || '').toLowerCase().includes(query));
+        if (!matched) return false;
+      }
+
+      return true;
+    });
+}
+
+/**
+ * Compute aggregate activity metrics across all domains and actors
+ */
+export function computeActivityStats(logs = []) {
+  const normalized = (Array.isArray(logs) ? logs : []).map(normalizeAuditEntry);
+  const byDomain = {
+    [ACTIVITY_DOMAINS.USER_ACTION]: 0,
+    [ACTIVITY_DOMAINS.PROJECT_CHANGE]: 0,
+    [ACTIVITY_DOMAINS.COMPLIANCE_MATRIX]: 0
+  };
+  const bySeverity = { info: 0, success: 0, warning: 0, security: 0 };
+  const actorMap = new Map();
+  const actionCounts = {};
+  const now = Date.now();
+  const oneDayMs = 24 * 60 * 60 * 1000;
+  let last24hCount = 0;
+
+  normalized.forEach(log => {
+    if (byDomain[log.domain] !== undefined) {
+      byDomain[log.domain]++;
+    } else {
+      byDomain[ACTIVITY_DOMAINS.PROJECT_CHANGE]++;
+    }
+
+    if (bySeverity[log.severity] !== undefined) {
+      bySeverity[log.severity]++;
+    } else {
+      bySeverity.info++;
+    }
+
+    actionCounts[log.action] = (actionCounts[log.action] || 0) + 1;
+
+    const actorKey = log.userName || 'Unknown';
+    if (!actorMap.has(actorKey)) {
+      actorMap.set(actorKey, {
+        name: actorKey,
+        role: log.userRole || '',
+        dept: log.userDept || '',
+        initials: log.userInitials || 'USR',
+        count: 0,
+        lastActiveAt: log.createdAt || ''
+      });
+    }
+    const actorEntry = actorMap.get(actorKey);
+    actorEntry.count++;
+    if (log.createdAt && (!actorEntry.lastActiveAt || log.createdAt > actorEntry.lastActiveAt)) {
+      actorEntry.lastActiveAt = log.createdAt;
+    }
+
+    const ts = new Date(log.createdAt || 0).getTime();
+    if (Number.isFinite(ts) && now - ts <= oneDayMs) {
+      last24hCount++;
+    }
+  });
+
+  const topActors = Array.from(actorMap.values()).sort((a, b) => b.count - a.count);
+
+  return {
+    total: normalized.length,
+    byDomain,
+    bySeverity,
+    uniqueActors: actorMap.size,
+    topActors,
+    actionCounts,
+    last24hCount,
+    recentTimestamp: normalized[0]?.createdAt || null
+  };
+}
+
+export function getDistinctAuditActions(logs = []) {
+  const set = new Set();
+  (Array.isArray(logs) ? logs : []).forEach(l => {
+    if (l && l.action) set.add(l.action);
+  });
+  return Array.from(set).sort();
 }
 
 /**
  * Export audit log to JSON string
  */
-export function exportAuditLogsToJSON(projectId = null) {
-  const logs = getAuditLogs(projectId);
+export function exportAuditLogsToJSON(projectId = null, filters = null) {
+  const logs = filters
+    ? filterAuditLogs(getAuditLogs(projectId), filters)
+    : getAuditLogs(projectId);
   return JSON.stringify(logs, null, 2);
 }
 
 /**
  * Export audit log to CSV format for corporate reporting
  */
-export function exportAuditLogsToCSV(projectId = null) {
-  const logs = getAuditLogs(projectId);
-  const headers = ['Timestamp', 'Action', 'Project ID', 'Doc Number', 'User Name', 'Role', 'Department', 'Categories', 'Diff Summary'];
-  
+export function exportAuditLogsToCSV(projectId = null, filters = null) {
+  const logs = filters
+    ? filterAuditLogs(getAuditLogs(projectId), filters)
+    : getAuditLogs(projectId);
+  const headers = [
+    'Timestamp',
+    'Domain',
+    'Severity',
+    'Action',
+    'Project ID',
+    'Doc Number / Target',
+    'User Name',
+    'Role',
+    'Department',
+    'Categories',
+    'Diff Summary'
+  ];
+
   const rows = logs.map(l => {
     const categories = (l.changedFields || []).join('; ');
     const diffSummary = (l.diffDetails || []).map(d => `${d.description}: "${d.from}" -> "${d.to}"`).join(' | ');
     return [
       `"${l.createdAt || ''}"`,
+      `"${ACTIVITY_DOMAIN_LABELS[l.domain] || l.domain || ''}"`,
+      `"${l.severity || 'info'}"`,
       `"${l.action || ''}"`,
       `"${l.projectId || ''}"`,
-      `"${l.projectDocNumber || ''}"`,
-      `"${l.userName || ''}"`,
-      `"${l.userRole || ''}"`,
-      `"${l.userDept || ''}"`,
+      `"${(l.projectDocNumber || l.targetEntity || '').replace(/"/g, '""')}"`,
+      `"${(l.userName || '').replace(/"/g, '""')}"`,
+      `"${(l.userRole || '').replace(/"/g, '""')}"`,
+      `"${(l.userDept || '').replace(/"/g, '""')}"`,
       `"${categories.replace(/"/g, '""')}"`,
       `"${diffSummary.replace(/"/g, '""')}"`
     ].join(',');

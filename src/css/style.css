@@ -156,6 +156,35 @@ body {
   font-weight: 400;
 }
 
+/* Real-Time Form Validation States */
+.corp-input-error {
+  border-color: #DC2626 !important;
+  background-color: #FEF2F2 !important;
+  color: #991B1B !important;
+  box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.14) !important;
+}
+
+.corp-input-error:focus {
+  border-color: #B91C1C !important;
+  background-color: #FFFFFF !important;
+  box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.22) !important;
+}
+
+.field-error-msg {
+  font-size: 11px;
+  line-height: 1.35;
+  font-weight: 600;
+  color: #DC2626;
+  margin-top: 4px;
+  display: flex;
+  align-items: flex-start;
+  gap: 4px;
+}
+
+.field-error-msg.hidden {
+  display: none;
+}
+
 /* ==========================================================================
    Corporate Status Badges
    ========================================================================== */
@@ -367,3 +396,220 @@ body {
     print-color-adjust: exact !important;
   }
 }
+
+/* ==========================================================================
+   Animated Login Form (Adopted from m-mourouh/Animated-Login-Form-Using-Only-HTML-CSS-Sign-In-Form-Design)
+   ========================================================================== */
+
+.trsa-login-screen {
+  min-height: 100vh;
+  width: 100%;
+  background: radial-gradient(circle at 30% 25%, #0b2d58 0%, #061833 52%, #030b18 100%);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  overflow: hidden;
+  padding: 24px 16px;
+  font-family: "Quicksand", var(--font-sans);
+  position: relative;
+  isolation: isolate;
+}
+
+.trsa-login-bg-layer {
+  position: fixed;
+  inset: 0;
+  z-index: -2;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.trsa-login-bg-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center center;
+  display: block;
+  filter: saturate(1.08) contrast(1.04);
+}
+
+.trsa-login-bg-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 50% 48%, rgba(4, 15, 34, 0.72) 0%, rgba(5, 20, 44, 0.52) 48%, rgba(2, 10, 24, 0.80) 100%),
+    linear-gradient(180deg, rgba(3, 12, 28, 0.42) 0%, rgba(2, 10, 22, 0.28) 50%, rgba(2, 9, 20, 0.65) 100%);
+}
+
+.trsa-login-screen .ring {
+  position: relative;
+  width: min(500px, 92vw);
+  height: min(500px, 92vw);
+  min-height: 460px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 2;
+}
+
+.trsa-login-screen .ring i {
+  position: absolute;
+  inset: 0;
+  border: 2px solid rgba(255, 255, 255, 0.88);
+  transition: 0.5s;
+  pointer-events: none;
+}
+
+.trsa-login-screen .ring i:nth-child(1) {
+  border-radius: 38% 62% 63% 37% / 41% 44% 56% 59%;
+  animation: animate 6s linear infinite;
+}
+
+.trsa-login-screen .ring i:nth-child(2) {
+  border-radius: 41% 44% 56% 59% / 38% 62% 63% 37%;
+  animation: animate 4s linear infinite;
+}
+
+.trsa-login-screen .ring i:nth-child(3) {
+  border-radius: 41% 44% 56% 59% / 38% 62% 63% 37%;
+  animation: animate2 10s linear infinite;
+}
+
+.trsa-login-screen .ring:hover i,
+.trsa-login-screen .ring:focus-within i {
+  border: 6px solid var(--clr);
+  filter: drop-shadow(0 0 20px var(--clr));
+}
+
+.trsa-login-screen .login {
+  position: relative;
+  width: min(320px, 84%);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex-direction: column;
+  gap: 16px;
+  z-index: 10;
+}
+
+.trsa-login-screen .login h2 {
+  font-size: 2em;
+  color: #ffffff;
+  font-weight: 700;
+  margin: 0;
+  letter-spacing: 0.01em;
+  text-shadow: 0 2px 12px rgba(2, 10, 24, 0.75);
+}
+
+.trsa-login-screen .login .login-subtitle {
+  font-size: 0.78em;
+  color: rgba(224, 242, 254, 0.88);
+  text-align: center;
+  margin-top: -8px;
+  text-shadow: 0 1px 8px rgba(2, 10, 24, 0.8);
+}
+
+.trsa-login-screen .login .inputBx {
+  position: relative;
+  width: 100%;
+}
+
+.trsa-login-screen .login .inputBx input {
+  position: relative;
+  width: 100%;
+  padding: 12px 20px;
+  background: rgba(6, 19, 40, 0.56);
+  backdrop-filter: blur(8px);
+  border: 2px solid rgba(255, 255, 255, 0.9);
+  border-radius: 40px;
+  font-size: 0.95em;
+  color: #ffffff;
+  box-shadow: none;
+  outline: none;
+  transition: border-color 0.25s ease, box-shadow 0.25s ease, background-color 0.25s ease;
+}
+
+.trsa-login-screen .login .inputBx input:focus {
+  background: rgba(6, 22, 46, 0.78);
+  border-color: #38bdf8;
+  box-shadow: 0 0 14px rgba(56, 189, 248, 0.42);
+}
+
+.trsa-login-screen .login .inputBx input[type="submit"],
+.trsa-login-screen .login .inputBx button[type="submit"] {
+  width: 100%;
+  padding: 12px 20px;
+  border-radius: 40px;
+  background: #0078ff;
+  background: linear-gradient(45deg, #ff357a, #fff172);
+  border: none;
+  cursor: pointer;
+  font-size: 1.05em;
+  font-weight: 700;
+  color: #111111;
+  transition: transform 0.18s ease, filter 0.18s ease;
+}
+
+.trsa-login-screen .login .inputBx input[type="submit"]:hover,
+.trsa-login-screen .login .inputBx button[type="submit"]:hover {
+  filter: brightness(1.06);
+  transform: translateY(-1px);
+}
+
+.trsa-login-screen .login .inputBx input::placeholder {
+  color: rgba(255, 255, 255, 0.75);
+}
+
+.trsa-login-screen .login .links {
+  position: relative;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 14px;
+}
+
+.trsa-login-screen .login .links a,
+.trsa-login-screen .login .links button {
+  color: #ffffff;
+  text-decoration: none;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-size: 0.85em;
+  font-family: inherit;
+  padding: 2px 0;
+  transition: color 0.2s ease;
+}
+
+.trsa-login-screen .login .links a:hover,
+.trsa-login-screen .login .links button:hover {
+  color: #fff172;
+}
+
+@keyframes animate {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes animate2 {
+  0% {
+    transform: rotate(360deg);
+  }
+  100% {
+    transform: rotate(0deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .trsa-login-screen .ring i {
+    animation: none !important;
+  }
+}
+

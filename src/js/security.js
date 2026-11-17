@@ -9,12 +9,73 @@ export const ROLES = Object.freeze({
   PURCHASER: 'purchaser'
 });
 
+export const ORG_ROLES = Object.freeze({
+  SUPER_ADMIN: 'Super Admin (Project & Engineering Manager)',
+  PROJECT_ENGINEERING_TEAM: 'Project & Engineering Team',
+  PURCHASING_PLANT: 'Purchasing Plant',
+  PIC_PROJECT: 'PIC Project'
+});
+
+export const ORG_ROLE_LIST = Object.freeze([
+  ORG_ROLES.SUPER_ADMIN,
+  ORG_ROLES.PROJECT_ENGINEERING_TEAM,
+  ORG_ROLES.PURCHASING_PLANT,
+  ORG_ROLES.PIC_PROJECT
+]);
+
+export const ROLE_CAPABILITIES = Object.freeze({
+  [ORG_ROLES.SUPER_ADMIN]: {
+    code: 'SUPER_ADMIN',
+    label: ORG_ROLES.SUPER_ADMIN,
+    shortLabel: 'Super Admin',
+    legacyRole: ROLES.ADMIN,
+    description: 'Full governance over TRSA agreements, Compliance Matrix per-user policies, User/Vendor/Plant/Dept/Jabatan master data, status approvals, and project deletions.',
+    permissions: ['View & Edit All TRSA', 'Manage Compliance Matrix Users', 'Manage Users, Vendors & Plants', 'Approve / Publish / Delete TRSA', 'Edit Customs Clearance']
+  },
+  [ORG_ROLES.PROJECT_ENGINEERING_TEAM]: {
+    code: 'PROJECT_ENGINEERING_TEAM',
+    label: ORG_ROLES.PROJECT_ENGINEERING_TEAM,
+    shortLabel: 'Proj & Eng Team',
+    legacyRole: ROLES.ENGINEER,
+    description: 'Authors technical specifications, product matrices, equipment scope of supply, hygienic standards, and commissioning performance protocols.',
+    permissions: ['Create & Edit TRSA Technical Specs', 'Manage Product & Equipment Scope', 'View & Sync Plant Compliance Matrix', 'Save & Resume Drafts']
+  },
+  [ORG_ROLES.PURCHASING_PLANT]: {
+    code: 'PURCHASING_PLANT',
+    label: ORG_ROLES.PURCHASING_PLANT,
+    shortLabel: 'Purchasing Plant',
+    legacyRole: ROLES.PURCHASER,
+    description: 'Manages vendor directory, commercial payment milestones, SWIFT BG/Undertaking terms, tax/PPN/PPh provisions, and invoice submission compliance.',
+    permissions: ['Manage Commercial & Tax Terms', 'Manage Plant Vendor Profiles', 'Inspect Compliance Matrix & Audit', 'Verify Invoicing & Delivery Terms']
+  },
+  [ORG_ROLES.PIC_PROJECT]: {
+    code: 'PIC_PROJECT',
+    label: ORG_ROLES.PIC_PROJECT,
+    shortLabel: 'PIC Project',
+    legacyRole: ROLES.ENGINEER,
+    description: 'Plant-level Project & Engineering PIC responsible for site readiness, stakeholder coordination, FAT/SAT acceptance, and local matrix alignment.',
+    permissions: ['Coordinate Plant PIC Stakeholders', 'Edit Assigned Plant TRSA', 'Review FAT/SAT & Snag List', 'Inspect Assigned Matrix Clauses']
+  }
+});
+
+export function isSuperAdminRole(roleOrName = '') {
+  const s = String(roleOrName || '').toLowerCase();
+  return s.includes('super admin') || s.includes('manager') || s === ROLES.ADMIN || s.includes('yusuf alfian');
+}
+
+export function mapToLegacyRole(orgRole = '') {
+  const s = String(orgRole || '').toLowerCase();
+  if (isSuperAdminRole(s)) return ROLES.ADMIN;
+  if (s.includes('purchas')) return ROLES.PURCHASER;
+  return ROLES.ENGINEER;
+}
+
 let sessionRole = ROLES.ADMIN;
 let sessionUser = {
-  name: 'Refin A Putra',
-  role: ROLES.ADMIN,
+  name: 'Moh Yusuf Alfian',
+  role: ORG_ROLES.SUPER_ADMIN,
   department: 'MFG',
-  email: 'refin.putra@icbp.indofood.co.id'
+  email: 'my.alfian@icbp.indofood.co.id'
 };
 
 /**
