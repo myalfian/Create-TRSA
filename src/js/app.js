@@ -2595,6 +2595,12 @@ export const store = new TRSAStore();
 
 // Application UI Engine
 export function initApp() {
+  if (typeof window !== 'undefined' && window.location && window.location.search) {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('view') === 'login' || params.has('logout')) {
+      store.isAuthenticated = false;
+    }
+  }
   store.restoreFormProgress();
   render();
 
@@ -2636,12 +2642,73 @@ export function setActiveProject(id, targetView = null) {
   render();
 }
 
-export function render() {
+export 
+function applyIFMBrandHighlighting(container) {
+  if (!container || typeof document === 'undefined' || typeof document.createTreeWalker !== 'function') return;
+  try {
+    const walker = document.createTreeWalker(container, NodeFilter.SHOW_TEXT, {
+      acceptNode(node) {
+        if (!node.nodeValue || !/PT\.?\s+Indofood\s+Fortuna\s+Makmur/i.test(node.nodeValue)) {
+          return NodeFilter.FILTER_SKIP;
+        }
+        const parent = node.parentElement;
+        if (!parent) return NodeFilter.FILTER_REJECT;
+        const tag = parent.tagName.toUpperCase();
+        if (['INPUT', 'TEXTAREA', 'SCRIPT', 'STYLE', 'SELECT', 'OPTION', 'IFRAME', 'CODE'].includes(tag)) {
+          return NodeFilter.FILTER_REJECT;
+        }
+        if (parent.classList && (parent.classList.contains('ifm-company-brand') || parent.classList.contains('login-company'))) {
+          return NodeFilter.FILTER_REJECT;
+        }
+        return NodeFilter.FILTER_ACCEPT;
+      }
+    });
+
+    const textNodes = [];
+    while (walker.nextNode()) {
+      textNodes.push(walker.currentNode);
+    }
+
+    for (const node of textNodes) {
+      const parent = node.parentNode;
+      if (!parent) continue;
+      const text = node.nodeValue;
+      const regex = /(PT\.?\s+Indofood\s+Fortuna\s+Makmur)/gi;
+      if (!regex.test(text)) continue;
+
+      const frag = document.createDocumentFragment();
+      let lastIdx = 0;
+      regex.lastIndex = 0;
+      let match;
+      while ((match = regex.exec(text)) !== null) {
+        if (match.index > lastIdx) {
+          frag.appendChild(document.createTextNode(text.substring(lastIdx, match.index)));
+        }
+        const span = document.createElement('span');
+        span.className = 'ifm-company-brand';
+        span.style.color = 'rgb(0, 168, 232)';
+        span.style.fontWeight = '700';
+        span.textContent = match[0];
+        frag.appendChild(span);
+        lastIdx = regex.lastIndex;
+      }
+      if (lastIdx < text.length) {
+        frag.appendChild(document.createTextNode(text.substring(lastIdx)));
+      }
+      parent.replaceChild(frag, node);
+    }
+  } catch (err) {
+    // Graceful fallback
+  }
+}
+
+function render() {
   const root = document.getElementById('app');
   if (!root) return;
 
   if (!store.isAuthenticated) {
     root.innerHTML = renderLoginView();
+    applyIFMBrandHighlighting(root);
     attachLoginHandlers();
     return;
   }
@@ -2687,6 +2754,7 @@ export function render() {
     </div>
   `;
 
+  applyIFMBrandHighlighting(root);
   attachEventHandlers(activeProject);
 }
 
@@ -2711,13 +2779,135 @@ function renderLoginView() {
         />
       </div>
       <div class="trsa-login-bg-scrim" aria-hidden="true"></div>
-      <div class="ring">
-        <i style="--clr:#00ff0a;"></i>
-        <i style="--clr:#ff0057;"></i>
-        <i style="--clr:#fffd44;"></i>
+
+      <!-- Blazing Sky Rocket Adventure Animation Layer -->
+      <div class="trsa-rocket-scene" aria-hidden="true">
+        <!-- Cosmic Shooting Star Streaks -->
+        <div class="rocket-star-streak streak-1"></div>
+        <div class="rocket-star-streak streak-2"></div>
+        <div class="rocket-star-streak streak-3"></div>
+        <div class="rocket-star-streak streak-4"></div>
+
+        <!-- Soaring Rocket Flight Assembly -->
+        <div class="rocket-flight-path">
+          <div class="rocket-assembly" id="trsa-launch-rocket" title="TRSA Enterprise Rocket Launch">
+            <!-- Trailing White Smoke Trail Clouds (Asap Putih) -->
+            <div class="rocket-smoke-trail">
+              <div class="smoke-puff puff-1"></div>
+              <div class="smoke-puff puff-2"></div>
+              <div class="smoke-puff puff-3"></div>
+              <div class="smoke-puff puff-4"></div>
+              <div class="smoke-puff puff-5"></div>
+              <div class="smoke-puff puff-6"></div>
+            </div>
+
+            <!-- Blazing Exhaust Fire Plume (Api Biru & Api Orange) -->
+            <div class="rocket-fire-plume">
+              <!-- Outer Fiery Orange Flame Layer (Api Orange) -->
+              <div class="flame-orange-outer"></div>
+              <div class="flame-orange-mid"></div>
+
+              <!-- High-Energy Plasma Blue Flame Core (Api Biru) -->
+              <div class="flame-blue-outer"></div>
+              <div class="flame-blue-core"></div>
+              <div class="flame-blue-mach-disk"></div>
+
+              <!-- Sparks & Embers (Orange & Blue) -->
+              <div class="flame-spark spark-orange-1"></div>
+              <div class="flame-spark spark-orange-2"></div>
+              <div class="flame-spark spark-blue-1"></div>
+              <div class="flame-spark spark-blue-2"></div>
+            </div>
+
+            <!-- Vector Rocket Spacecraft -->
+            <svg class="rocket-svg" viewBox="0 0 120 180" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <defs>
+                <linearGradient id="rocketBodyGrad" x1="0" y1="0" x2="1" y2="0">
+                  <stop offset="0%" stop-color="#FFFFFF"/>
+                  <stop offset="60%" stop-color="#E2E8F0"/>
+                  <stop offset="100%" stop-color="#CBD5E1"/>
+                </linearGradient>
+                <linearGradient id="rocketNoseGrad" x1="0" y1="0" x2="1" y2="0">
+                  <stop offset="0%" stop-color="#FF4B4B"/>
+                  <stop offset="70%" stop-color="#DC2626"/>
+                  <stop offset="100%" stop-color="#991B1B"/>
+                </linearGradient>
+                <linearGradient id="rocketFinGrad" x1="0" y1="0" x2="1" y2="1">
+                  <stop offset="0%" stop-color="#EF4444"/>
+                  <stop offset="100%" stop-color="#B91C1C"/>
+                </linearGradient>
+                <linearGradient id="rocketWindowGlass" x1="0" y1="0" x2="1" y2="1">
+                  <stop offset="0%" stop-color="#38BDF8"/>
+                  <stop offset="50%" stop-color="#0284C7"/>
+                  <stop offset="100%" stop-color="#0369A1"/>
+                </linearGradient>
+                <linearGradient id="rocketNozzleGrad" x1="0" y1="0" x2="1" y2="0">
+                  <stop offset="0%" stop-color="#64748B"/>
+                  <stop offset="50%" stop-color="#334155"/>
+                  <stop offset="100%" stop-color="#1E293B"/>
+                </linearGradient>
+              </defs>
+
+              <!-- Left Aerodynamic Wing Fin -->
+              <path d="M 34 105 Q 14 126 10 148 Q 28 142 36 126 Z" fill="url(#rocketFinGrad)"/>
+              <!-- Right Aerodynamic Wing Fin -->
+              <path d="M 86 105 Q 106 126 110 148 Q 92 142 84 126 Z" fill="url(#rocketFinGrad)"/>
+              
+              <!-- Center Fin / Keel Trim -->
+              <path d="M 58 112 L 62 112 L 63 138 L 57 138 Z" fill="#991B1B"/>
+
+              <!-- Engine Thruster Nozzle -->
+              <path d="M 46 135 L 74 135 L 70 148 L 50 148 Z" fill="url(#rocketNozzleGrad)"/>
+              <ellipse cx="60" cy="148" rx="10" ry="3" fill="#0F172A"/>
+
+              <!-- Main Aerodynamic Fuselage -->
+              <path d="M 60 18 Q 85 55 84 135 L 36 135 Q 35 55 60 18 Z" fill="url(#rocketBodyGrad)"/>
+
+              <!-- Blazing Red Nose Cone -->
+              <path d="M 60 18 Q 78 48 80 62 L 40 62 Q 42 48 60 18 Z" fill="url(#rocketNoseGrad)"/>
+
+              <!-- Porthole Window Bezel & Reflective Glass -->
+              <circle cx="60" cy="82" r="14" fill="#94A3B8"/>
+              <circle cx="60" cy="82" r="11" fill="url(#rocketWindowGlass)"/>
+              <path d="M 53 76 Q 60 72 67 76 Q 64 79 53 79 Z" fill="rgba(255, 255, 255, 0.8)"/>
+
+              <!-- Corporate Technical Stripes -->
+              <line x1="42" y1="120" x2="78" y2="120" stroke="#0284C7" stroke-width="2.5" stroke-linecap="round"/>
+              <line x1="44" y1="125" x2="76" y2="125" stroke="#38BDF8" stroke-width="1.5" stroke-linecap="round"/>
+            </svg>
+          </div>
+        </div>
+      </div>
+
+      <div class="trsa-login-ring ring-0 ring-offset-0 border-0 border-none outline-none shadow-none">
+        <i class="trsa-ring-curve trsa-ring-curve-1" style="--clr:#00f0ff; --clr-glow:rgba(0,240,255,0.65);" title="Cyan Gyro Ring"></i>
+        <i class="trsa-ring-curve trsa-ring-curve-2" style="--clr:#ff2d75; --clr-glow:rgba(255,45,117,0.65);" title="Magenta Gyro Ring"></i>
+        <i class="trsa-ring-curve trsa-ring-curve-3" style="--clr:#ffd000; --clr-glow:rgba(255,208,0,0.65);" title="Gold Gyro Ring"></i>
+        <i class="trsa-ring-curve trsa-ring-curve-4" style="--clr:#00ff9d; --clr-glow:rgba(0,255,157,0.65);" title="Mint Emerald Gyro Ring"></i>
+        <i class="trsa-ring-curve trsa-ring-curve-5" style="--clr:#a855f7; --clr-glow:rgba(168,85,247,0.65);" title="Purple Plasma Gyro Ring"></i>
+
+        <!-- Interactive Glass Crack Animation Overlay -->
+        <div id="trsa-glass-crack-layer" class="trsa-glass-crack-layer" aria-hidden="true"></div>
+
         <form id="trsa-login-form" class="login" novalidate>
+          <!-- Robot Mascot Animation Above Login Text -->
+          <div class="trsa-login-robot-mascot-header" aria-label="TRSA Robotics Mascot Animation">
+            <video
+              autoplay
+              loop
+              muted
+              playsinline
+              class="trsa-robot-video-header"
+              title="TRSA Robotics Assistant"
+            >
+              <source src="/src/assets/videos/Robot_TFU.webm" type="video/webm" />
+              <source src="/public/assets/videos/Robot_TFU.webm" type="video/webm" />
+              <source src="src/assets/videos/Robot_TFU.webm" type="video/webm" />
+            </video>
+          </div>
+
           <h2>Login</h2>
-          <p class="login-subtitle">TRSA Studio &middot; PT Indofood Fortuna Makmur</p>
+          <p class="login-subtitle"><span class="login-brand">TRSA Studio</span><span class="login-company" style="font-size: 2em; line-height: 1.25; display: block; margin-top: 4px; color: rgb(0, 168, 232); font-weight: 800;">PT Indofood Fortuna Makmur</span></p>
 
           ${store.loginError ? `
             <div class="w-full px-4 py-2 rounded-2xl bg-red-500/20 border border-red-400/60 text-red-200 text-xs text-center font-medium">
@@ -2788,6 +2978,206 @@ function renderLoginView() {
   `;
 }
 
+export function playGlassCrackSound() {
+  try {
+    if (typeof window === 'undefined') return;
+    const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+    if (!AudioContextClass) return;
+    const ctx = new AudioContextClass();
+    if (ctx.state === 'suspended') {
+      ctx.resume().catch(() => {});
+    }
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    const filter = ctx.createBiquadFilter();
+
+    osc.type = 'triangle';
+    const baseFreq = 2800 + Math.random() * 1200;
+    osc.frequency.setValueAtTime(baseFreq, ctx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(700, ctx.currentTime + 0.1);
+
+    filter.type = 'bandpass';
+    filter.frequency.setValueAtTime(3600, ctx.currentTime);
+    filter.Q.setValueAtTime(3.5, ctx.currentTime);
+
+    gain.gain.setValueAtTime(0.18, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.12);
+
+    osc.connect(filter);
+    filter.connect(gain);
+    gain.connect(ctx.destination);
+
+    osc.start();
+    osc.stop(ctx.currentTime + 0.13);
+  } catch (_) {
+    // Ignore restricted audio context
+  }
+}
+
+export function generateGlassCrackSVG(crackId) {
+  const numRadials = 10 + Math.floor(Math.random() * 4); // 10 to 13 branches
+  const radialPoints = [];
+
+  for (let i = 0; i < numRadials; i++) {
+    const baseAngle = (i * (360 / numRadials)) + (Math.random() * 18 - 9);
+    const rad = (baseAngle * Math.PI) / 180;
+    const totalLength = 55 + Math.random() * 60; // 55px to 115px
+
+    const p1Dist = 16 + Math.random() * 10;
+    const p2Dist = 38 + Math.random() * 20;
+    const p3Dist = totalLength;
+
+    const j1 = (Math.random() - 0.5) * 0.28;
+    const j2 = (Math.random() - 0.5) * 0.36;
+
+    const p0 = { x: 0, y: 0 };
+    const p1 = { x: Math.round(Math.cos(rad + j1) * p1Dist * 10) / 10, y: Math.round(Math.sin(rad + j1) * p1Dist * 10) / 10 };
+    const p2 = { x: Math.round(Math.cos(rad + j2) * p2Dist * 10) / 10, y: Math.round(Math.sin(rad + j2) * p2Dist * 10) / 10 };
+    const p3 = { x: Math.round(Math.cos(rad) * p3Dist * 10) / 10, y: Math.round(Math.sin(rad) * p3Dist * 10) / 10 };
+
+    radialPoints.push([p0, p1, p2, p3]);
+  }
+
+  // Radial fracture lines
+  const darkPaths = radialPoints.map(pts =>
+    `M ${pts[0].x} ${pts[0].y} L ${pts[1].x} ${pts[1].y} L ${pts[2].x} ${pts[2].y} L ${pts[3].x} ${pts[3].y}`
+  ).join(' ');
+
+  // Spiderweb stress rings connecting radials
+  const webArcs = [];
+  for (let i = 0; i < radialPoints.length; i++) {
+    const nextIdx = (i + 1) % radialPoints.length;
+    // Inner web arc
+    if (Math.random() > 0.15) {
+      const a = radialPoints[i][1];
+      const b = radialPoints[nextIdx][1];
+      const midX = (a.x + b.x) / 2 + (Math.random() * 6 - 3);
+      const midY = (a.y + b.y) / 2 + (Math.random() * 6 - 3);
+      webArcs.push(`M ${a.x} ${a.y} Q ${midX} ${midY} ${b.x} ${b.y}`);
+    }
+    // Mid web arc
+    if (Math.random() > 0.25) {
+      const a = radialPoints[i][2];
+      const b = radialPoints[nextIdx][2];
+      const midX = (a.x + b.x) / 2 + (Math.random() * 10 - 5);
+      const midY = (a.y + b.y) / 2 + (Math.random() * 10 - 5);
+      webArcs.push(`M ${a.x} ${a.y} Q ${midX} ${midY} ${b.x} ${b.y}`);
+    }
+  }
+  const webArcsStr = webArcs.join(' ');
+
+  // Glass Shard Reflections
+  const shards = [];
+  for (let s = 0; s < 4; s++) {
+    const idx = Math.floor(Math.random() * (radialPoints.length - 1));
+    const pA1 = radialPoints[idx][1];
+    const pA2 = radialPoints[idx][2];
+    const pB2 = radialPoints[idx + 1][2];
+    const pB1 = radialPoints[idx + 1][1];
+    shards.push(`<polygon points="${pA1.x},${pA1.y} ${pA2.x},${pA2.y} ${pB2.x},${pB2.y} ${pB1.x},${pB1.y}" fill="url(#glassShardGrad-${crackId})" opacity="0.32" />`);
+  }
+
+  // Center impact crater
+  const craterPts = [];
+  for (let c = 0; c < 8; c++) {
+    const a = (c * 45) * Math.PI / 180;
+    const r = 4.5 + Math.random() * 5.5;
+    craterPts.push(`${Math.round(Math.cos(a) * r)},${Math.round(Math.sin(a) * r)}`);
+  }
+
+  return `
+    <svg class="glass-crack-svg" width="260" height="260" viewBox="-130 -130 260 260" style="position: absolute; left: -130px; top: -130px; pointer-events: none; overflow: visible;">
+      <defs>
+        <radialGradient id="glassCraterGrad-${crackId}" cx="0" cy="0" r="14" gradientUnits="userSpaceOnUse">
+          <stop offset="0%" stop-color="#ffffff" stop-opacity="0.95"/>
+          <stop offset="35%" stop-color="#7dd3fc" stop-opacity="0.85"/>
+          <stop offset="70%" stop-color="#0284c7" stop-opacity="0.35"/>
+          <stop offset="100%" stop-color="#ffffff" stop-opacity="0"/>
+        </radialGradient>
+        <linearGradient id="glassShardGrad-${crackId}" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stop-color="#ffffff" stop-opacity="0.55"/>
+          <stop offset="50%" stop-color="#38bdf8" stop-opacity="0.2"/>
+          <stop offset="100%" stop-color="#0369a1" stop-opacity="0.35"/>
+        </linearGradient>
+      </defs>
+      
+      <!-- Glass Shards -->
+      ${shards.join('\n      ')}
+      
+      <!-- Depth Shadow Layer (simulates glass refraction edge) -->
+      <path d="${darkPaths}" fill="none" stroke="rgba(2, 8, 20, 0.7)" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" transform="translate(1, 1.5)"/>
+      <path d="${webArcsStr}" fill="none" stroke="rgba(2, 8, 20, 0.6)" stroke-width="2.2" stroke-linecap="round" transform="translate(1, 1.5)"/>
+      
+      <!-- Cyan Stress Tint Layer -->
+      <path d="${darkPaths}" fill="none" stroke="rgba(56, 189, 248, 0.8)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="${webArcsStr}" fill="none" stroke="rgba(56, 189, 248, 0.7)" stroke-width="1.4" stroke-linecap="round"/>
+      
+      <!-- Specular Highlight Layer (Bright White Glass Edge) -->
+      <path d="${darkPaths}" fill="none" stroke="rgba(255, 255, 255, 0.98)" stroke-width="1.1" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="${webArcsStr}" fill="none" stroke="rgba(255, 255, 255, 0.92)" stroke-width="0.9" stroke-linecap="round"/>
+      
+      <!-- Central Impact Crater -->
+      <polygon points="${craterPts.join(' ')}" fill="url(#glassCraterGrad-${crackId})" stroke="#ffffff" stroke-width="1.2" />
+      <circle cx="0" cy="0" r="3" fill="#ffffff" />
+    </svg>
+  `;
+}
+
+export function spawnGlassCrack(x, y, container) {
+  if (!container || typeof document === 'undefined' || typeof document.createElement !== 'function') return;
+  const layer = container.querySelector('#trsa-glass-crack-layer');
+  if (!layer) return;
+
+  // Limit max active cracks to 8
+  while (layer.children.length >= 8) {
+    layer.firstElementChild.remove();
+  }
+
+  const crackId = `crack_${Date.now()}_${Math.floor(Math.random() * 10000)}`;
+  const crackEl = document.createElement('div');
+  crackEl.className = 'glass-crack-instance';
+  crackEl.style.left = `${Math.round(x)}px`;
+  crackEl.style.top = `${Math.round(y)}px`;
+  crackEl.innerHTML = generateGlassCrackSVG(crackId);
+
+  layer.appendChild(crackEl);
+
+  // Shudder the form slightly for tactile impact feedback
+  const form = container.querySelector('#trsa-login-form');
+  if (form) {
+    form.classList.remove('glass-impact-shake');
+    void form.offsetWidth; // force reflow
+    form.classList.add('glass-impact-shake');
+    setTimeout(() => {
+      form.classList.remove('glass-impact-shake');
+    }, 200);
+  }
+
+  // Audio feedback
+  playGlassCrackSound();
+
+  // Auto clean up after animation fades out
+  setTimeout(() => {
+    if (crackEl.parentNode) {
+      crackEl.remove();
+    }
+  }, 4600);
+}
+
+export function attachGlassCrackEffect(loginRing) {
+  if (!loginRing) return;
+  loginRing.addEventListener('pointerdown', (e) => {
+    // Only trigger on mouse left click or single touch pointer
+    if (e.button !== 0 && e.pointerType === 'mouse') return;
+
+    const rect = loginRing.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+
+    spawnGlassCrack(x, y, loginRing);
+  });
+}
+
 function attachLoginHandlers() {
   const form = document.getElementById('trsa-login-form');
   if (form) {
@@ -2798,9 +3188,35 @@ function attachLoginHandlers() {
       const identifier = idEl ? idEl.value.trim() : '';
       const password = pwdEl ? pwdEl.value : '';
       store.loginDraftIdentifier = identifier;
+      const rocket = document.getElementById('trsa-launch-rocket');
+      if (rocket) rocket.classList.add('rocket-boosting');
       store.login(identifier, password);
       render();
     });
+  }
+
+  // Attach interactive glass crack animation to the login form container
+  const loginRing = document.querySelector('.trsa-login-ring');
+  if (loginRing) {
+    attachGlassCrackEffect(loginRing);
+  }
+
+  // Ensure robot video autoplays smoothly
+  const robotVideo = document.querySelector('.trsa-robot-video-header');
+  if (robotVideo) {
+    robotVideo.muted = true;
+    const playPromise = robotVideo.play();
+    if (playPromise !== undefined) {
+      playPromise.catch(() => {
+        const resumePlay = () => {
+          robotVideo.play().catch(() => {});
+          window.removeEventListener('pointerdown', resumePlay);
+          window.removeEventListener('keydown', resumePlay);
+        };
+        window.addEventListener('pointerdown', resumePlay, { once: true });
+        window.addEventListener('keydown', resumePlay, { once: true });
+      });
+    }
   }
 }
 
@@ -2810,7 +3226,7 @@ function renderPdfModal() {
       <div class="bg-white rounded-3xl shadow-2xl border border-slate-200 w-full max-w-5xl h-[90vh] flex flex-col overflow-hidden animate-scaleUp">
         <div class="p-4 sm:p-5 bg-gradient-to-r from-[#0F2942] to-[#0284C7] text-white flex items-center justify-between gap-3 shrink-0">
           <div>
-            <h3 class="text-sm font-bold">TRSA Compliance Matrix Reference Document (PT Indofood Fortuna Makmur)</h3>
+            <h3 class="text-sm font-bold">TRSA Compliance Matrix Reference Document (<span class="ifm-company-brand" style="color: rgb(0, 168, 232); font-weight: 700;">PT Indofood Fortuna Makmur</span>)</h3>
             <p class="text-[11px] text-sky-200">Authoritative 19-Clause Standard (Clauses I–XIX) &bull; Plants 1402, 1403, 1405, 1411</p>
           </div>
           <div class="flex items-center gap-2">
@@ -3176,8 +3592,8 @@ function renderSidebar(activeProject) {
             </div>
             <div>
               <div class="font-black tracking-tight text-white text-base">TRSA Studio</div>
-              <div class="text-[10px] text-sky-100 font-bold tracking-widest uppercase">
-                PT Indofood Fortuna
+              <div class="text-[10px] tracking-widest uppercase">
+                <span class="ifm-company-brand" style="color: rgb(0, 168, 232); font-weight: 700;">PT Indofood Fortuna Makmur</span>
               </div>
             </div>
           </div>
@@ -3522,7 +3938,7 @@ function renderDashboard() {
       <div class="dropx-card p-6 bg-white border border-slate-200 flex flex-col lg:flex-row lg:items-center justify-between gap-5">
         <div class="space-y-1.5 max-w-2xl">
           <div class="flex flex-wrap items-center gap-2 text-xs text-slate-500">
-            <span>PT Indofood Fortuna Makmur</span>
+            <span class="ifm-company-brand" style="color: rgb(0, 168, 232); font-weight: 700;">PT Indofood Fortuna Makmur</span>
             <span aria-hidden="true">&middot;</span>
             <span>TRSA Specification Portfolio</span>
             <span aria-hidden="true">&middot;</span>
@@ -4490,7 +4906,7 @@ function renderComplianceMatrixView(proj) {
               <span aria-hidden="true">&middot;</span>
               <span class="font-mono tabular-nums text-[#0369A1]">${escapeHtml(proj.documentInfo?.docNumber || '')}</span>
             </div>
-            <h1 class="text-xl font-bold text-[#0F172A]">PT Indofood Fortuna Makmur — TRSA Compliance Matrix</h1>
+            <h1 class="text-xl font-bold text-[#0F172A]"><span class="ifm-company-brand" style="color: rgb(0, 168, 232); font-weight: 700;">PT Indofood Fortuna Makmur</span> &mdash; TRSA Compliance Matrix</h1>
             <p class="text-xs text-slate-600">
               Authoritative 19-clause mapping for <strong class="text-slate-800">${activeCode} (${escapeHtml(profile.plantName)})</strong> &times; <strong class="text-[#0284C7]">${activeOrigin} Vendor</strong> (${audit.applicableMatrixRows}/${audit.totalMatrixRows} rules active).
             </p>
@@ -7085,7 +7501,7 @@ function renderStep6(proj, validation = validateProject(proj)) {
           </div>
 
           <div class="p-4 border border-sky-200 rounded-2xl bg-[#F0F9FF] space-y-2">
-            <div class="font-bold text-[#0369A1] uppercase">The Buyer (PT Indofood Fortuna Makmur)</div>
+            <div class="font-bold text-[#0369A1] uppercase">The Buyer (<span class="ifm-company-brand" style="color: rgb(0, 168, 232); font-weight: 700;">PT Indofood Fortuna Makmur</span>)</div>
             <div>
               <label class="text-[10px] text-[#5A7184] font-semibold">Company Name</label>
               <input type="text" disabled value="${escapeHtml(proj.signOff.purchaser.companyName)}" class="w-full p-2 border border-[#E0ECF6] rounded-xl bg-slate-100 font-medium text-slate-600" />
@@ -7280,7 +7696,7 @@ function renderStudio(proj) {
           <!-- Section IV: Key Contacts -->
           <div class="mb-6">
             <h2 class="text-xs font-bold text-[#0B2447] uppercase tracking-wider mb-2">IV. Key Contacts</h2>
-            <p class="text-[11px] text-[#5A7184] mb-2">All correspondence pertaining to this project with PT. Indofood Fortuna Makmur shall be directed through the following individuals:</p>
+            <p class="text-[11px] text-[#5A7184] mb-2">All correspondence pertaining to this project with <span class="ifm-company-brand" style="color: rgb(0, 168, 232); font-weight: 700;">PT. Indofood Fortuna Makmur</span> shall be directed through the following individuals:</p>
             <table class="clean-form-table table-header-orange">
               <thead>
                 <tr>
@@ -7658,7 +8074,7 @@ function renderStudio(proj) {
 
               <!-- Purchaser Endorsement (PT Indofood Fortuna Makmur) -->
               <div class="space-y-3">
-                <div class="border-b border-[#D6E6F2] pb-1 font-bold text-[#0B2447] uppercase">ACKNOWLEDGED AND APPROVED BY (THE BUYER &mdash; PT INDOFOOD FORTUNA MAKMUR):</div>
+                <div class="border-b border-[#D6E6F2] pb-1 font-bold text-[#0B2447] uppercase">ACKNOWLEDGED AND APPROVED BY (THE BUYER &mdash; <span class="ifm-company-brand" style="color: rgb(0, 168, 232); font-weight: 700;">PT INDOFOOD FORTUNA MAKMUR</span>):</div>
                 <div class="flex justify-between"><span class="text-[#5A7184]">Company:</span> <span class="font-bold">${escapeHtml(proj.signOff.purchaser.companyName)}</span></div>
                 <div class="flex justify-between"><span class="text-[#5A7184]">Name:</span> <span class="font-bold text-[#0B2447]">${escapeHtml(proj.signOff.purchaser.name)}</span></div>
                 <div class="flex justify-between"><span class="text-[#5A7184]">Title / Position:</span> <span class="font-bold text-[#0284C7]">${escapeHtml(proj.signOff.purchaser.position)}</span></div>
@@ -7766,7 +8182,7 @@ function renderDirectoryView(activeProject) {
       <div class="dropx-card p-6 border-t-4 border-t-[#0284C7]">
         <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
           <div>
-            <div class="text-[11px] font-bold uppercase tracking-wider text-[#0284C7]">PT Indofood Fortuna Makmur &middot; Master Governance</div>
+            <div class="text-[11px] font-bold uppercase tracking-wider text-[#0284C7]"><span class="ifm-company-brand" style="color: rgb(0, 168, 232); font-weight: 700;">PT Indofood Fortuna Makmur</span> &middot; Master Governance</div>
             <h1 class="text-xl font-extrabold text-[#0F172A] mt-0.5">Enterprise Master Directory</h1>
             <p class="text-xs text-slate-500 mt-1">
               Kelola detail User, Role, Department, Jabatan User, Vendor OEM/Lokal, dan Detail Alamat Lengkap Plant IFM.
@@ -8304,7 +8720,7 @@ function renderDirectoryView(activeProject) {
         <!-- TAB 3: DETAIL ADDRESS MASING-MASING PLANT -->
         <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
           <div class="lg:col-span-4 dropx-card p-5 space-y-3">
-            <h2 class="text-sm font-extrabold text-[#0F172A]">Daftar Plant PT Indofood Fortuna Makmur</h2>
+            <h2 class="text-sm font-extrabold text-[#0F172A]">Daftar Plant <span class="ifm-company-brand" style="color: rgb(0, 168, 232); font-weight: 700;">PT Indofood Fortuna Makmur</span></h2>
             <p class="text-[11px] text-slate-500">Pilih lokasi Plant untuk melihat rincian alamat pengiriman, gate logistik, entitas pajak, dan PIC resmi.</p>
             <div class="space-y-2 pt-1">
               ${plantList.map(pl => {
@@ -8511,7 +8927,7 @@ function renderDirectoryView(activeProject) {
             <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4">
               <div>
                 <h2 class="text-sm font-extrabold text-[#0F172A]">Matriks 4 Role Organisasi IFM</h2>
-                <p class="text-xs text-slate-500">Standar peran pengguna pada sistem Create-TRSA PT Indofood Fortuna Makmur.</p>
+                <p class="text-xs text-slate-500">Standar peran pengguna pada sistem Create-TRSA <span class="ifm-company-brand" style="color: rgb(0, 168, 232); font-weight: 700;">PT Indofood Fortuna Makmur</span>.</p>
               </div>
             </div>
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -8766,7 +9182,7 @@ function renderActivityLogView(activeProject) {
       <!-- Header -->
       <div class="bg-white border border-slate-200 rounded-2xl p-6 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
         <div>
-          <div class="text-xs font-semibold text-[#0284C7]">PT Indofood Fortuna Makmur &middot; Governance &amp; Traceability</div>
+          <div class="text-xs font-semibold text-[#0284C7]"><span class="ifm-company-brand" style="color: rgb(0, 168, 232); font-weight: 700;">PT Indofood Fortuna Makmur</span> &middot; Governance &amp; Traceability</div>
           <h1 class="text-xl font-extrabold text-[#0F172A] mt-0.5">Activity &amp; Compliance Audit Log</h1>
           <p class="text-xs text-slate-500 mt-1">
             Pemantauan kronologis untuk aktivitas pengguna, perubahan spesifikasi TRSA, dan pembaruan Compliance Matrix.
@@ -9488,6 +9904,10 @@ function attachEventHandlers(activeProject) {
 // Global methods accessible from inline event handlers
 if (typeof window !== 'undefined') {
   window.TRSA = {
+    showLogin: () => {
+      store.isAuthenticated = false;
+      render();
+    },
   setView,
   setStep(s) {
     store.builderStep = s;

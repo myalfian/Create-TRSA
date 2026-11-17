@@ -13,7 +13,18 @@ globalThis.localStorage = {
 };
 globalThis.document = {
   getElementById: () => null,
-  querySelectorAll: () => []
+  querySelectorAll: () => [],
+  createElement: (tag) => ({
+    tag,
+    style: {},
+    className: '',
+    innerHTML: '',
+    remove() {
+      if (this.parentNode && this.parentNode.removeChild) {
+        this.parentNode.removeChild(this);
+      }
+    }
+  })
 };
 
 import { test, describe } from 'node:test';
@@ -45,7 +56,7 @@ import {
   upsertPlant
 } from '../src/js/masterDataService.js';
 import { PLANT_MATRIX_PROFILES } from '../src/js/trsaMatrixService.js';
-import { TRSAStore } from '../src/js/app.js';
+import { TRSAStore, generateGlassCrackSVG, spawnGlassCrack } from '../src/js/app.js';
 import { getAuditLogs } from '../src/js/auditService.js';
 
 describe('Master Data (Plants, Roles, Dept, Jabatan, Users, Vendors) & Login Tests', () => {
@@ -235,5 +246,36 @@ describe('Master Data (Plants, Roles, Dept, Jabatan, Users, Vendors) & Login Tes
     const logs = getAuditLogs();
     assert.ok(logs.some(l => l.action === 'USER_LOGIN'));
     assert.ok(logs.some(l => l.action === 'USER_LOGOUT'));
+  });
+
+  test('Glass Crack Animation: Generates valid fractured SVG and spawns cleanly on form', () => {
+    const crackSVG = generateGlassCrackSVG('test-crack-1');
+    assert.ok(typeof crackSVG === 'string');
+    assert.ok(crackSVG.includes('<svg class="glass-crack-svg"'));
+    assert.ok(crackSVG.includes('radialGradient id="glassCraterGrad-test-crack-1"'));
+    assert.ok(crackSVG.includes('linearGradient id="glassShardGrad-test-crack-1"'));
+    assert.ok(crackSVG.includes('<polygon'));
+    assert.ok(crackSVG.includes('<path'));
+
+    // Test spawning in mock DOM container
+    const mockChildren = [];
+    const mockLayer = {
+      children: mockChildren,
+      get firstElementChild() { return mockChildren[0]; },
+      appendChild(el) { mockChildren.push(el); }
+    };
+    const mockContainer = {
+      querySelector(sel) {
+        if (sel === '#trsa-glass-crack-layer') return mockLayer;
+        return null;
+      }
+    };
+
+    spawnGlassCrack(150, 200, mockContainer);
+    assert.strictEqual(mockChildren.length, 1);
+    assert.strictEqual(mockChildren[0].className, 'glass-crack-instance');
+    assert.strictEqual(mockChildren[0].style.left, '150px');
+    assert.strictEqual(mockChildren[0].style.top, '200px');
+    assert.ok(mockChildren[0].innerHTML.includes('glass-crack-svg'));
   });
 });

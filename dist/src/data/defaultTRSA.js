@@ -1,11 +1,39 @@
-// Default TRSA Template preloaded with PT Indofood Fortuna Makmur Specification
+import {
+  PLANT_MATRIX_PROFILES,
+  DOCUMENT_SUBMISSION_COMPLIANCE,
+  CONFIDENTIALITY_STANDARD,
+  LANGUAGE_REQUIREMENT_STANDARD,
+  SERVICES_SCOPE_STANDARD,
+  ANCILLARIES_LOGISTICS_STANDARD,
+  TECHNICAL_HYGIENIC_REQUIREMENTS_12,
+  CONTROL_SYSTEM_ACCESS_RIGHTS,
+  FINAL_ACCEPTANCE_RULES,
+  REMEDIES_CONSEQUENCES_STANDARD,
+  MATRIX_EQUIPMENT_PAYMENT_BREAKDOWN,
+  MATRIX_ENGINEERING_SERVICES_PAYMENT,
+  INVOICING_AND_BG_CONDITIONS,
+  SHIPMENT_DELIVERY_ITEMS_5,
+  WARRANTY_STANDARD,
+  REQUIRED_DOCUMENTATION_13,
+  APPENDICES_6,
+  resolveContactsForPlant,
+  buildLegalAndTaxProvisions,
+  getShipmentTermsForMatrix
+} from '../js/trsaMatrixService.js';
+
+const plant1403Contacts = resolveContactsForPlant('1403');
+const plant1403Profile = PLANT_MATRIX_PROFILES['1403'];
+
+// Default TRSA Template preloaded with PT Indofood Fortuna Makmur Specification Matrix
 export const defaultTRSAProject = {
   id: "trsa-006-ifm-2024",
+  createdAt: "2024-08-30T08:00:00.000Z",
+  updatedAt: "2024-08-30T08:00:00.000Z",
   documentInfo: {
     title: "Tender Requirements and Specification Agreement",
     subTitle: "For Supply of Sheeted Pellet Fryer & Seasoning System",
     docNumber: "006/RAP/TRSA – 1403/MFG-IFM/VIII/2024",
-    status: "Published", // Draft, Under Review, Tender Published, Bid Received, Awarded
+    status: "Published", // Draft, Approved, Under Review, Published
     category: "Food Processing Machinery",
     plantLocation: "Semarang Plant",
     vendorOrigin: "Foreign", // "Foreign" | "Local" | "Mixed"
@@ -45,60 +73,17 @@ export const defaultTRSAProject = {
       finalQuotationDrawings: "Mid-October 2024",
       orderPlacement: "Early November 2024"
     },
-    confidentialityClause: "All information disclosed within this document and during the course of this project shall be treated as confidential and proprietary. The recipient agrees to maintain the confidentiality of this information and not to disclose it to any third party without the prior written consent of PT. Indofood Fortuna Makmur.",
-    languageRequirement: "All site installation equipment and software (OIT) should be in English. Label on control panels and operator interface panel will be in English. OIT screens are to be in English selection."
+    confidentialityClause: CONFIDENTIALITY_STANDARD,
+    languageRequirement: LANGUAGE_REQUIREMENT_STANDARD
   },
-  keyContacts: [
-    {
-      id: "c1",
-      name: "Moh Yusuf Alfian",
-      role: "Project & Engineering Manager",
-      companyAddress: "PT. Indofood Fortuna Makmur Cikupa, Jalan Bhumimas II No. 5 Kawasan Industri dan Pergudangan Cikupamas RT 01 RW 03 Kampung Telaga, Cikupa - Banten",
-      email: "my.alfian@icbp.indofood.co.id",
-      isPrimary: true
-    },
-    {
-      id: "c2",
-      name: "Natalia Happy",
-      role: "Purchasing Supervisor",
-      companyAddress: "PT. Indofood Fortuna Makmur Semarang, Jalan Tambak Aji IV No.10, Tambakaji, Kec. Ngaliyan, Kota Semarang, Jawa Tengah 50185",
-      email: "natalia.happy@icbp.indofood.co.id",
-      isPrimary: true
-    },
-    {
-      id: "c3",
-      name: "Murdani",
-      role: "Project & Engineering",
-      companyAddress: "PT. Indofood Fortuna Makmur Cikupa",
-      email: "m.murdani@icbp.indofood.co.id",
-      isPrimary: false
-    },
-    {
-      id: "c4",
-      name: "Ayodya Maulana Gunoro",
-      role: "Project & Engineering",
-      companyAddress: "PT. Indofood Fortuna Makmur Cikupa",
-      email: "ayodya.gunoro@icbp.indofood.co.id",
-      isPrimary: false
-    },
-    {
-      id: "c5",
-      name: "Dany Taufiq Alim Ansori",
-      role: "Project & Engineering",
-      companyAddress: "PT. Indofood Fortuna Makmur Cikupa",
-      email: "dany.ansori@icbp.indofood.co.id",
-      isPrimary: false
-    }
-  ],
+  keyContacts: JSON.parse(JSON.stringify(plant1403Contacts.contacts)),
   siteDescription: {
-    invoiceRecipient: "PT Indofood Fortuna Makmur",
-    address: "Jalan Tambak Aji IV Nomor 10, Tambakaji, Kecamatan Ngaliyan, Kota Semarang, Jawa Tengah 50185, Indonesia",
-    purchasingAttn: [
-      { name: "Natalia Happy", email: "natalia.happy@icbp.indofood.co.id" },
-      { name: "Yanuar Ari Wibowo", email: "yanuar.wibowo@icbp.indofood.co.id" }
-    ],
-    deliveryPort: "Semarang Port (CIF/CIP)",
-    customClearanceNote: "Indofood will handle custom clearance in the Indonesian port after receiving final original shipping documents. If the goods arrive before documents, any demurrage/storage cost will be charged to The Seller."
+    invoiceRecipient: plant1403Profile.invoiceRecipient,
+    address: plant1403Profile.address,
+    purchasingAttn: JSON.parse(JSON.stringify(plant1403Profile.purchasingAttn)),
+    deliveryPort: plant1403Profile.deliveryPort,
+    customClearanceNote: plant1403Profile.customClearanceNote,
+    documentSubmissionCompliance: DOCUMENT_SUBMISSION_COMPLIANCE
   },
   productSpecifications: [
     {
@@ -390,22 +375,26 @@ export const defaultTRSAProject = {
           "Supervised installation, commissioning, operator and maintenance training courses"
         ]
       }
-    ]
+    ],
+    servicesScope: JSON.parse(JSON.stringify(SERVICES_SCOPE_STANDARD)),
+    ancillariesAndLogistics: [...ANCILLARIES_LOGISTICS_STANDARD],
+    controlSystemAccess: JSON.parse(JSON.stringify(CONTROL_SYSTEM_ACCESS_RIGHTS))
   },
   utilityRequirements: {
     electrical: "Voltage: 3P 380 VAC / 1P 220 VAC 50 Hz (Consumption to be declared by Seller in kW)",
     compressedAir: "Indofood supplies piping. Seller supplies pressure regulator & filter. (Consumption l/hr and pressure to be filled)",
     gasSupply: "Indofood supplies piping. Seller supplies gas train, regulator, filter, and safety valves.",
-    panels: "2 main electrical panels (1 for fryer, 1 for seasoning) made of SUS304 with safety isolator switches."
+    panels: "2 main electrical panels (1 for fryer, 1 for seasoning) made of SUS304 (min IP65) with lockable safety isolator switches."
   },
   hygieneAndQuality: {
-    foodContactMaterial: "Stainless Steel 304 or certified food-grade materials for all parts in contact with product.",
-    designStandards: "Hygienic design: smooth, accessible, cleanable, self-draining surfaces in wet process areas; no penetrates holes/nuts; piping with zero dead ends.",
+    foodContactMaterial: "Minimum Certified Stainless Steel 304 (SUS304) or certified food-grade materials (FDA / EU 1935/2004 + EN 10204 3.1) for all product-contact parts.",
+    designStandards: "EHEDG / 3-A compliant hygienic design: smooth, crevice-free, seal-welded frames, zero dead-leg drainable piping, IP65 SUS304 enclosures, IE3 motors (IEC 60034-30-1), lockable isolators, drip/grease pans, and interlocked safety guards.",
     certificatesRequired: [
-      "Calibration certificate for each measuring device (temperature, pressure, weight, etc.)",
-      "Food grade certificate for all material touching product (Teflon, hose, belts, seals)",
-      "Material Safety Data Sheet (MSDS) / Material Certificates"
-    ]
+      "Valid calibration certificates (with documented calibration points) for every measuring instrument (temperature, pressure, flow, load cells/weight sensors)",
+      "Valid food-grade compliance certificates (FDA or EU 1935/2004) for non-metallic contact parts (PTFE/Teflon, gaskets, hoses)",
+      "Mill Test Certificates (EN 10204 3.1) plus SDS/MSDS for metallic contact components"
+    ],
+    generalTechnicalHygienic12: JSON.parse(JSON.stringify(TECHNICAL_HYGIENIC_REQUIREMENTS_12))
   },
   performanceAcceptance: {
     commissioningDuration: "2 hours per product (excluding setup/prep time). Moisture & oil checked ex-cooling conveyor.",
@@ -436,77 +425,47 @@ export const defaultTRSAProject = {
         target: "Salt content: 1.0% (base excluded); Application rate: 7.4%; Seasoning capacity: 635 – 700 kg/h."
       }
     ],
-    finalAcceptance: "Final Site Acceptance will be certified upon successful completion of the continuous 7-hour capability trial meeting all throughput (600 kg/h), moisture (1.0–2.1%, L-C-R ≤0.3%), oil uptake (28–40%), and seasoning consistency criteria. Both Seller and Indofood representatives shall execute the official Final Acceptance Certificate.",
-    failureConsequence: "If The Seller cannot achieve target performance, Seller must rectify and modify within 3 months. All extra costs for modification, replacement machines, and raw materials must be borne by The Seller."
+    finalAcceptance: "Final Site Acceptance (SAT) will be certified only after continuous reliable operation, comprehensive FAT/SAT Operator & Maintenance training evidenced by signed training attendance sheets, formal FAC execution, and recording of any pending items on a binding Snag List (Punch List) with corrective action plans, PIC, and completion timelines prior to final sign-off.",
+    finalAcceptanceChecklist: JSON.parse(JSON.stringify(FINAL_ACCEPTANCE_RULES)),
+    failureConsequence: "1. Rectification Period: Seller shall undertake all corrective actions—repairs, modifications, or machine/component replacement—within three (3) months from Buyer's failure notification, bearing all associated costs including raw materials consumed during re-testing. 2. Rejection & Full Refund: Should target performance remain unmet after 3 months, Seller shall refund 100% of all payments released by Buyer and dismantle/remove the equipment from Buyer's premises at Seller's sole expense and risk.",
+    remediesAndConsequences: JSON.parse(JSON.stringify(REMEDIES_CONSEQUENCES_STANDARD))
   },
   commercialTerms: {
-    selectedPaymentOption: "Option 1", // Option 1 or Option 2
+    selectedPaymentOption: "Matrix Standard", // Matrix Standard, Option 1, or Option 2
+    matrixEquipmentSchedule: JSON.parse(JSON.stringify(MATRIX_EQUIPMENT_PAYMENT_BREAKDOWN)),
     options: {
+      matrixStandard: {
+        title: "IFM Compliance Matrix Standard (T/T & SWIFT APBG)",
+        breakdown: JSON.parse(JSON.stringify(MATRIX_EQUIPMENT_PAYMENT_BREAKDOWN))
+      },
       option1: {
         title: "Option 1 (Standard L/C & T/T)",
         breakdown: [
           { percent: "85%", method: "L/C against Shipping Documents" },
-          { percent: "10%", method: "T/T after machine running (not later than 60 days from B/L date)" },
-          { percent: "5%", method: "T/T 3 months after machine running (not later than 120 days from B/L date)" }
+          { percent: "10%", method: "T/T after machine running (not later than 60 calendar days from B/L date)" },
+          { percent: "5%", method: "T/T 3 months after machine running (not later than 150 calendar days from B/L date)" }
         ]
       },
       option2: {
         title: "Option 2 (Down Payment with Bank Guarantee)",
         breakdown: [
-          { percent: "30%", method: "Down Payment Counter with Bank Guarantee" },
-          { percent: "55%", method: "L/C payable prior to shipping" },
-          { percent: "10%", method: "After Machine Running" },
-          { percent: "5%", method: "T/T Retention 3 Months after machine running" }
+          { percent: "30%", method: "Down Payment via T/T against irrevocable SWIFT/Telex Advance Payment Bank Guarantee" },
+          { percent: "55%", method: "Progress Payment via T/T against original commercial invoice & complete shipping documents" },
+          { percent: "10%", method: "Commissioning T/T upon trial run + signed Acceptance Certificate (or <= 60 calendar days from B/L)" },
+          { percent: "5%", method: "Retention T/T 3 Months after machine running & FAC (or <= 150 calendar days from B/L)" }
         ]
       }
     },
     vendorOrigin: "Foreign",
-    engineeringServicesPayment: "100% by T/T after machine running with signed acceptance certificate.",
-    shipmentTerms: "CIF / CIP Semarang Port, Indonesia. Endorsed Marine Insurance ICC A/AIR for at least 110% invoice value payable to Bank Central Asia (BCA) in Jakarta. Carrying vessel must not be older than 25 years.",
-    warranty: "Minimum 12 months continuous operation after final site acceptance, with phone support during office hours.",
+    engineeringServicesPayment: MATRIX_ENGINEERING_SERVICES_PAYMENT,
+    invoicingAndBankGuarantee: [...INVOICING_AND_BG_CONDITIONS],
+    shipmentTerms: getShipmentTermsForMatrix('1403', 'Foreign'),
+    shipmentItems: JSON.parse(JSON.stringify(SHIPMENT_DELIVERY_ITEMS_5)),
+    warranty: WARRANTY_STANDARD
   },
-  legalAndTaxProvisions: [
-    {
-      title: "Cost Quotation Separation",
-      description: "The Seller shall provide separate quotations for Equipment and Engineering Services costs."
-    },
-    {
-      title: "Duty Exemption Documentation",
-      description: "For equipment from countries with Economic Partnership Agreements (EPA), Seller must furnish Form DGT/exemption prior to demurrage expiry, or incurrence is deducted from contract value."
-    },
-    {
-      title: "Withholding Tax (PPh 26 / Double Tax Treaty)",
-      description: "Indonesian withholding tax (PPh 26) of 20% applies to services. If valid DGT Form is provided, treaty rates apply (e.g., 5% Switzerland, 7.5% Germany, 10% India/Luxembourg, 0% for applicable treaties)."
-    },
-    {
-      title: "Permanent Establishment (PMK 35/2019)",
-      description: "Exceeding 6 months cumulative service stay in 1 year requires Indonesian NPWP & Permanent Establishment (BUT), subject to PPh 23 (approx 4%). Otherwise 20% PPh 26 applies."
-    },
-    {
-      title: "Visas & Engineer Expenses",
-      description: "Dispatched engineers must possess valid Indonesian working visas. Indonesian visa costs borne by IFM; home country visa by Seller. Daily allowance, flights, insurance borne by Seller; local Indonesian lodging & transport borne by IFM."
-    },
-    {
-      title: "Value Added Tax (PPN & PPh Local)",
-      description: "Subject to Indonesian tax laws (PP No. 44 Tahun 2022 Pasal 23 ayat 2). Invoices must include original Kwitansi affixed with official Materai (stamp duty)."
-    }
-  ],
-  requiredDocumentation: [
-    { id: 1, title: "As-built Drawings", desc: "As-built control panel drawings", required: true },
-    { id: 2, title: "Cabling Schedule", desc: "Detailed cabling schedule and conduit layout", required: true },
-    { id: 3, title: "Functional Design Specification (FDS)", desc: "Complete Functional Design Specification", required: true },
-    { id: 4, title: "Software Design Specifications", desc: "Comprehensive software and PLC architecture specifications", required: true },
-    { id: 5, title: "PLC Listings", desc: "Fully annotated PLC ladder/code listings", required: true },
-    { id: 6, title: "PLC and HMI Code and Licenses", desc: "Copy of complete PLC code, HMI runtime files, and associated software licenses", required: true },
-    { id: 7, title: "Operational Manual", desc: "Comprehensive operational manual for equipment in English", required: true },
-    { id: 8, title: "Maintenance Manual", desc: "Mechanical and electrical maintenance manual with troubleshooting guides", required: true },
-    { id: 9, title: "Operator Work Instructions", desc: "Detailed step-by-step SOP / working instructions for line operators", required: true },
-    { id: 10, title: "Recommended Spare Parts List", desc: "List of recommended critical and consumable spare parts for 1-2 years", required: true },
-    { id: 11, title: "Recommended Maintenance Schedule", desc: "Periodic preventative maintenance timetable (daily, weekly, monthly, annual)", required: true },
-    { id: 12, title: "Calibration Certificates", desc: "Calibration certificates for all temperature, pressure, flow, and weight measuring devices", required: true },
-    { id: 13, title: "Halal Compliance Documentation", desc: "Halal certificate or formal Statement Letter confirming non-halal contact exclusion", required: true },
-    { id: 14, title: "Equipment Layout (DWG)", desc: "Layout drawings including top view, elevation, sections, and interface boundaries in DWG format", required: true }
-  ],
+  legalAndTaxProvisions: buildLegalAndTaxProvisions('1403', 'Foreign'),
+  requiredDocumentation: JSON.parse(JSON.stringify(REQUIRED_DOCUMENTATION_13)),
+  appendices: JSON.parse(JSON.stringify(APPENDICES_6)),
   signOff: {
     seller: {
       companyName: "PT. Global Machinery Solutions / OEM Partner",
@@ -525,3 +484,4 @@ export const defaultTRSAProject = {
     }
   }
 };
+

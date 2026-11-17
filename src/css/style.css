@@ -443,6 +443,444 @@ body {
     linear-gradient(180deg, rgba(3, 12, 28, 0.42) 0%, rgba(2, 10, 22, 0.28) 50%, rgba(2, 9, 20, 0.65) 100%);
 }
 
+/* Robot Mascot Animation Above Login Text Header */
+.trsa-login-robot-mascot-header {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  margin-top: -8px;
+  margin-bottom: -4px;
+  pointer-events: none;
+  user-select: none;
+  animation: robotFloatHeader 3.2s ease-in-out infinite alternate;
+  filter: drop-shadow(0 8px 22px rgba(2, 132, 199, 0.45));
+}
+
+.trsa-robot-video-header {
+  width: clamp(170px, 26vw, 220px);
+  height: auto;
+  max-height: 210px;
+  object-fit: contain;
+  display: block;
+  background: transparent;
+  filter: drop-shadow(0 6px 14px rgba(0, 0, 0, 0.4));
+}
+
+.trsa-robot-badge-header {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2.5px 9px;
+  border-radius: 9999px;
+  background: rgba(15, 23, 42, 0.82);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(56, 189, 248, 0.45);
+  color: #38bdf8;
+  font-family: var(--font-sans);
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
+}
+
+.trsa-robot-badge-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background-color: #10b981;
+  box-shadow: 0 0 8px #10b981;
+  animation: robotPulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+@keyframes robotFloatHeader {
+  0% {
+    transform: translateY(0px) scale(1);
+  }
+  100% {
+    transform: translateY(-6px) scale(1.02);
+  }
+}
+
+@keyframes robotPulse {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.4;
+    transform: scale(0.85);
+  }
+}
+
+@media (max-width: 640px) {
+  .trsa-robot-video-header {
+    width: 160px;
+    max-height: 170px;
+  }
+  .trsa-robot-badge-header {
+    font-size: 9.5px;
+    padding: 2.5px 9px;
+  }
+}
+
+/* ==========================================================================
+   Blazing Sky Rocket Adventure Animation (Login Screen)
+   ========================================================================== */
+
+.trsa-rocket-scene {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+  z-index: 18;
+}
+
+/* Cosmic Shooting Speed Streaks */
+.rocket-star-streak {
+  position: absolute;
+  width: 2px;
+  height: 90px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.95), rgba(56, 189, 248, 0.4), transparent);
+  border-radius: 9999px;
+  opacity: 0.5;
+  transform: rotate(45deg);
+  animation: streakShoot 3.2s linear infinite;
+}
+
+.rocket-star-streak.streak-1 {
+  top: 8%;
+  right: 28%;
+  height: 120px;
+  animation-delay: 0s;
+  animation-duration: 2.6s;
+}
+
+.rocket-star-streak.streak-2 {
+  top: 22%;
+  right: 12%;
+  height: 80px;
+  animation-delay: 1.1s;
+  animation-duration: 3.4s;
+}
+
+.rocket-star-streak.streak-3 {
+  top: 38%;
+  right: 36%;
+  height: 140px;
+  animation-delay: 0.6s;
+  animation-duration: 2.9s;
+}
+
+.rocket-star-streak.streak-4 {
+  top: 15%;
+  right: 48%;
+  height: 70px;
+  animation-delay: 1.8s;
+  animation-duration: 3.8s;
+}
+
+@keyframes streakShoot {
+  0% {
+    transform: translate(120px, -120px) rotate(45deg);
+    opacity: 0;
+  }
+  25% {
+    opacity: 0.75;
+  }
+  75% {
+    opacity: 0.75;
+  }
+  100% {
+    transform: translate(-300px, 300px) rotate(45deg);
+    opacity: 0;
+  }
+}
+
+/* =========================================================================
+   TRSA Rocket Adventure - Mathematically Pure Circular Orbit System
+   Continuous 360-degree orbit around the outside of the login form
+   Ultra-smooth, tangent-aligned orientation, GPU-accelerated motion
+   ========================================================================= */
+
+:root {
+  --rocket-orbit-radius: clamp(285px, calc(min(250px, 46vw) + 65px), 325px);
+}
+
+@media (max-width: 768px) {
+  :root {
+    --rocket-orbit-radius: clamp(225px, calc(min(240px, 46vw) + 50px), 270px);
+  }
+}
+
+.rocket-flight-path {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+  z-index: 5;
+  will-change: transform;
+  animation: rocketCircularOrbit 16s linear infinite;
+}
+
+@keyframes rocketCircularOrbit {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+.rocket-assembly {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: clamp(75px, 9vw, 105px);
+  /* Positioned at exact orbit radius outside form, rotated 90deg so nose faces tangent clockwise */
+  transform: translate(-50%, -50%) translateY(calc(-1 * var(--rocket-orbit-radius))) rotate(90deg);
+  transform-origin: center center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  filter: drop-shadow(0 12px 26px rgba(0, 0, 0, 0.55)) drop-shadow(0 0 18px rgba(249, 115, 22, 0.45));
+  will-change: transform, filter;
+  pointer-events: none;
+}
+
+.rocket-svg {
+  width: 100%;
+  height: auto;
+  position: relative;
+  z-index: 4;
+}
+
+/* Blazing Multi-Color Rocket Exhaust Fire (Api Biru & Api Orange) */
+.rocket-fire-plume {
+  position: absolute;
+  top: 78%;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 50px;
+  height: 125px;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  z-index: 2;
+  pointer-events: none;
+}
+
+/* --- API ORANGE (Outer & Mid Fiery Flame) --- */
+.flame-orange-outer {
+  position: absolute;
+  top: 0;
+  width: 38px;
+  height: 110px;
+  background: radial-gradient(ellipse at 50% 15%, #ff2200 0%, #ff5d00 40%, #ff9500 70%, transparent 100%);
+  border-radius: 45% 45% 60% 60% / 30% 30% 70% 70%;
+  filter: blur(1px) drop-shadow(0 0 16px #ff4500) drop-shadow(0 0 28px rgba(255, 69, 0, 0.6));
+  animation: flameOrangeWiggle 0.14s ease-in-out infinite alternate;
+  transform-origin: 50% 0%;
+}
+
+.flame-orange-mid {
+  position: absolute;
+  top: 2px;
+  width: 26px;
+  height: 82px;
+  background: radial-gradient(ellipse at 50% 15%, #ff5500 0%, #ffaa00 50%, #ffd000 80%, transparent 100%);
+  border-radius: 45% 45% 60% 60% / 30% 30% 70% 70%;
+  filter: drop-shadow(0 0 10px #ffaa00);
+  animation: flameOrangeMidWiggle 0.11s ease-in-out infinite alternate;
+  transform-origin: 50% 0%;
+}
+
+/* --- API BIRU (Supersonic Plasma Jet Core & Mach Diamond) --- */
+.flame-blue-outer {
+  position: absolute;
+  top: 0px;
+  width: 22px;
+  height: 64px;
+  background: radial-gradient(ellipse at 50% 10%, #00f7ff 0%, #0099ff 45%, #0055ff 80%, transparent 100%);
+  border-radius: 45% 45% 60% 60% / 25% 25% 75% 75%;
+  filter: blur(0.6px) drop-shadow(0 0 10px #00e5ff) drop-shadow(0 0 20px #0284c7);
+  animation: flameBluePulse 0.09s ease-in-out infinite alternate;
+  transform-origin: 50% 0%;
+  z-index: 3;
+}
+
+.flame-blue-core {
+  position: absolute;
+  top: 1px;
+  width: 12px;
+  height: 40px;
+  background: radial-gradient(ellipse at 50% 10%, #ffffff 0%, #bbf7d0 30%, #38bdf8 70%, transparent 100%);
+  border-radius: 50% 50% 60% 60% / 30% 30% 70% 70%;
+  filter: drop-shadow(0 0 8px #ffffff) drop-shadow(0 0 14px #38bdf8);
+  animation: flameBlueCorePulse 0.06s ease-in-out infinite alternate;
+  transform-origin: 50% 0%;
+  z-index: 4;
+}
+
+.flame-blue-mach-disk {
+  position: absolute;
+  top: 15px;
+  width: 9px;
+  height: 4px;
+  background: #ffffff;
+  border-radius: 50%;
+  box-shadow: 0 0 8px #00ffff, 0 0 14px #38bdf8;
+  animation: machDiamondPulse 0.16s ease-in-out infinite alternate;
+  z-index: 5;
+}
+
+/* --- SPARKS & EMBERS (Orange & Blue) --- */
+.flame-spark {
+  position: absolute;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  opacity: 0;
+}
+
+.flame-spark.spark-orange-1 {
+  left: 30%;
+  background: #ffd000;
+  box-shadow: 0 0 8px #ff7700;
+  animation: sparkFlyOrange 0.55s ease-out infinite;
+  animation-delay: 0.1s;
+}
+
+.flame-spark.spark-orange-2 {
+  left: 68%;
+  background: #ffaa00;
+  box-shadow: 0 0 8px #ff5500;
+  animation: sparkFlyOrange 0.65s ease-out infinite;
+  animation-delay: 0.35s;
+}
+
+.flame-spark.spark-blue-1 {
+  left: 45%;
+  background: #e0f2fe;
+  box-shadow: 0 0 10px #00e5ff;
+  animation: sparkFlyBlue 0.45s ease-out infinite;
+  animation-delay: 0.05s;
+}
+
+.flame-spark.spark-blue-2 {
+  left: 55%;
+  background: #a5f3fc;
+  box-shadow: 0 0 10px #0284c7;
+  animation: sparkFlyBlue 0.5s ease-out infinite;
+  animation-delay: 0.25s;
+}
+
+/* --- ASAP PUTIH (Billowy Dense Pure White Smoke Trail) --- */
+.rocket-smoke-trail {
+  position: absolute;
+  top: 125px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 80px;
+  height: 160px;
+  z-index: 1;
+  pointer-events: none;
+}
+
+.smoke-puff {
+  position: absolute;
+  border-radius: 50%;
+  background: radial-gradient(circle at 45% 45%, rgba(255, 255, 255, 0.95) 0%, rgba(250, 250, 255, 0.85) 35%, rgba(224, 242, 254, 0.45) 65%, transparent 100%);
+  filter: blur(3.5px) drop-shadow(0 2px 8px rgba(255, 255, 255, 0.4));
+  animation: whiteSmokePuffDrift 1.7s ease-out infinite;
+}
+
+.smoke-puff.puff-1 { width: 28px; height: 28px; top: 0; left: 24px; animation-delay: 0s; }
+.smoke-puff.puff-2 { width: 38px; height: 38px; top: 22px; left: 10px; animation-delay: 0.3s; }
+.smoke-puff.puff-3 { width: 50px; height: 50px; top: 48px; left: 22px; animation-delay: 0.6s; }
+.smoke-puff.puff-4 { width: 64px; height: 64px; top: 78px; left: 2px; animation-delay: 0.9s; }
+.smoke-puff.puff-5 { width: 78px; height: 78px; top: 112px; left: 16px; animation-delay: 1.2s; }
+.smoke-puff.puff-6 { width: 92px; height: 92px; top: 148px; left: -8px; animation-delay: 1.5s; }
+
+/* Flame & Smoke Keyframes */
+@keyframes flameOrangeWiggle {
+  0% { transform: scaleY(0.92) scaleX(0.95); opacity: 0.9; }
+  100% { transform: scaleY(1.16) scaleX(1.05); opacity: 1; }
+}
+
+@keyframes flameOrangeMidWiggle {
+  0% { transform: scaleY(0.9) scaleX(0.93); }
+  100% { transform: scaleY(1.2) scaleX(1.06); }
+}
+
+@keyframes flameBluePulse {
+  0% { transform: scaleY(0.88) scaleX(0.92); opacity: 0.85; }
+  100% { transform: scaleY(1.18) scaleX(1.08); opacity: 1; }
+}
+
+@keyframes flameBlueCorePulse {
+  0% { transform: scaleY(0.85) scaleX(0.88); }
+  100% { transform: scaleY(1.22) scaleX(1.1); }
+}
+
+@keyframes machDiamondPulse {
+  0% { transform: scale(0.8) translateY(-1px); opacity: 0.7; }
+  100% { transform: scale(1.25) translateY(1px); opacity: 1; }
+}
+
+@keyframes sparkFlyOrange {
+  0% { top: 40px; opacity: 1; transform: scale(1.2); }
+  100% { top: 125px; opacity: 0; transform: scale(0.3) translateY(25px); }
+}
+
+@keyframes sparkFlyBlue {
+  0% { top: 25px; opacity: 1; transform: scale(1.4); }
+  100% { top: 90px; opacity: 0; transform: scale(0.2) translateY(20px); }
+}
+
+@keyframes whiteSmokePuffDrift {
+  0% {
+    opacity: 0.85;
+    transform: scale(0.5) translateY(0);
+  }
+  50% {
+    opacity: 0.65;
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.75) translateY(65px);
+  }
+}
+
+/* Hyperdrive Launch Boost (on form submit) */
+.rocket-assembly.rocket-boosting {
+  filter: drop-shadow(0 0 35px #ff4500) drop-shadow(0 0 65px #00e5ff) !important;
+  transform: translate(-50%, -50%) translateY(calc(-1 * var(--rocket-orbit-radius))) rotate(90deg) scale(1.15) !important;
+  transition: transform 0.6s cubic-bezier(0.16, 1, 0.3, 1), filter 0.6s ease !important;
+}
+
+.rocket-assembly.rocket-boosting .flame-orange-outer {
+  height: 180px;
+  filter: blur(2px) drop-shadow(0 0 35px #ff4500) drop-shadow(0 0 50px #ff2200);
+}
+
+.rocket-assembly.rocket-boosting .flame-blue-outer {
+  height: 105px;
+  filter: blur(1px) drop-shadow(0 0 24px #00e5ff) drop-shadow(0 0 40px #0284c7);
+}
+
+@media (max-width: 768px) {
+  .rocket-assembly {
+    width: clamp(68px, 18vw, 88px);
+  }
+}
+
+.trsa-login-screen .trsa-login-ring,
 .trsa-login-screen .ring {
   position: relative;
   width: min(500px, 92vw);
@@ -452,35 +890,79 @@ body {
   justify-content: center;
   align-items: center;
   z-index: 2;
+  border: 0 none transparent !important;
+  outline: 0 none transparent !important;
+  box-shadow: none !important;
+  --tw-ring-shadow: 0 0 #0000 !important;
+  --tw-ring-offset-shadow: 0 0 #0000 !important;
+  --tw-shadow: 0 0 #0000 !important;
+  --tw-ring-color: transparent !important;
+  --tw-ring-width: 0px !important;
+  --tw-ring-offset-width: 0px !important;
 }
 
+.trsa-login-screen .trsa-login-ring::before,
+.trsa-login-screen .trsa-login-ring::after,
+.trsa-login-screen .ring::before,
+.trsa-login-screen .ring::after {
+  display: none !important;
+  content: none !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+
+.trsa-login-screen .trsa-login-ring i,
 .trsa-login-screen .ring i {
   position: absolute;
   inset: 0;
-  border: 2px solid rgba(255, 255, 255, 0.88);
-  transition: 0.5s;
+  border: 2px solid var(--clr, rgba(255, 255, 255, 0.88));
+  border-radius: 41% 44% 56% 59% / 38% 62% 63% 37%;
+  filter: drop-shadow(0 0 6px var(--clr-glow, rgba(255, 255, 255, 0.45)));
+  transition: border-width 0.3s ease, filter 0.3s ease;
   pointer-events: none;
 }
 
-.trsa-login-screen .ring i:nth-child(1) {
-  border-radius: 38% 62% 63% 37% / 41% 44% 56% 59%;
-  animation: animate 6s linear infinite;
+/* Curve 1: Cyan Neon (Clockwise 7s) */
+.trsa-login-screen .trsa-login-ring i.trsa-ring-curve-1,
+.trsa-login-screen .trsa-login-ring i:nth-of-type(1) {
+  border-radius: 38% 62% 63% 37% / 41% 44% 56% 59% !important;
+  animation: animate 7s linear infinite;
 }
 
-.trsa-login-screen .ring i:nth-child(2) {
-  border-radius: 41% 44% 56% 59% / 38% 62% 63% 37%;
-  animation: animate 4s linear infinite;
+/* Curve 2: Magenta Hot Pink (Counter-Clockwise 9s) */
+.trsa-login-screen .trsa-login-ring i.trsa-ring-curve-2,
+.trsa-login-screen .trsa-login-ring i:nth-of-type(2) {
+  border-radius: 41% 44% 56% 59% / 38% 62% 63% 37% !important;
+  animation: animate2 9s linear infinite;
 }
 
-.trsa-login-screen .ring i:nth-child(3) {
-  border-radius: 41% 44% 56% 59% / 38% 62% 63% 37%;
-  animation: animate2 10s linear infinite;
+/* Curve 3: Cyber Gold (Clockwise 12s) */
+.trsa-login-screen .trsa-login-ring i.trsa-ring-curve-3,
+.trsa-login-screen .trsa-login-ring i:nth-of-type(3) {
+  border-radius: 54% 46% 38% 62% / 49% 70% 30% 51% !important;
+  animation: animate 12s linear infinite;
 }
 
+/* Curve 4: Neon Mint Emerald (Counter-Clockwise 15s) */
+.trsa-login-screen .trsa-login-ring i.trsa-ring-curve-4,
+.trsa-login-screen .trsa-login-ring i:nth-of-type(4) {
+  border-radius: 46% 54% 63% 37% / 35% 41% 59% 65% !important;
+  animation: animate2 15s linear infinite;
+}
+
+/* Curve 5: Electric Purple Plasma (Clockwise 18s) */
+.trsa-login-screen .trsa-login-ring i.trsa-ring-curve-5,
+.trsa-login-screen .trsa-login-ring i:nth-of-type(5) {
+  border-radius: 61% 39% 51% 49% / 45% 58% 42% 55% !important;
+  animation: animate 18s linear infinite;
+}
+
+.trsa-login-screen .trsa-login-ring:hover i,
+.trsa-login-screen .trsa-login-ring:focus-within i,
 .trsa-login-screen .ring:hover i,
 .trsa-login-screen .ring:focus-within i {
-  border: 6px solid var(--clr);
-  filter: drop-shadow(0 0 20px var(--clr));
+  border-width: 3.5px;
+  filter: drop-shadow(0 0 16px var(--clr)) drop-shadow(0 0 26px var(--clr-glow, var(--clr)));
 }
 
 .trsa-login-screen .login {
@@ -490,8 +972,11 @@ body {
   justify-content: center;
   align-items: center;
   flex-direction: column;
-  gap: 16px;
+  gap: 12px;
   z-index: 10;
+  border: 0 none transparent !important;
+  outline: 0 none transparent !important;
+  box-shadow: none !important;
 }
 
 .trsa-login-screen .login h2 {
@@ -511,6 +996,17 @@ body {
   text-shadow: 0 1px 8px rgba(2, 10, 24, 0.8);
 }
 
+.trsa-login-screen .login .login-company {
+  display: block;
+  font-size: 2em;
+  line-height: 1.25;
+  margin-top: 4px;
+  color: rgb(0, 168, 232);
+  font-weight: 800;
+  letter-spacing: 0.015em;
+  text-shadow: 0 2px 14px rgba(0, 168, 232, 0.55), 0 0 24px rgba(0, 168, 232, 0.35);
+}
+
 .trsa-login-screen .login .inputBx {
   position: relative;
   width: 100%;
@@ -519,22 +1015,40 @@ body {
 .trsa-login-screen .login .inputBx input {
   position: relative;
   width: 100%;
-  padding: 12px 20px;
-  background: rgba(6, 19, 40, 0.56);
-  backdrop-filter: blur(8px);
-  border: 2px solid rgba(255, 255, 255, 0.9);
+  padding: 13px 22px;
+  background: rgba(10, 25, 47, 0.28);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1.5px solid rgba(255, 255, 255, 0.45);
   border-radius: 40px;
   font-size: 0.95em;
+  font-weight: 600;
   color: #ffffff;
-  box-shadow: none;
+  letter-spacing: 0.02em;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.85);
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.25), inset 0 1px 2px rgba(255, 255, 255, 0.15);
   outline: none;
   transition: border-color 0.25s ease, box-shadow 0.25s ease, background-color 0.25s ease;
 }
 
 .trsa-login-screen .login .inputBx input:focus {
-  background: rgba(6, 22, 46, 0.78);
+  background: rgba(10, 25, 47, 0.48);
   border-color: #38bdf8;
-  box-shadow: 0 0 14px rgba(56, 189, 248, 0.42);
+  box-shadow: 0 0 18px rgba(56, 189, 248, 0.5), inset 0 1px 2px rgba(255, 255, 255, 0.2);
+}
+
+/* Override WebKit / Chromium Autofill solid color block */
+.trsa-login-screen .login .inputBx input:-webkit-autofill,
+.trsa-login-screen .login .inputBx input:-webkit-autofill:hover,
+.trsa-login-screen .login .inputBx input:-webkit-autofill:focus,
+.trsa-login-screen .login .inputBx input:-webkit-autofill:active {
+  -webkit-text-fill-color: #ffffff !important;
+  caret-color: #ffffff !important;
+  -webkit-box-shadow: 0 0 0 1000px rgba(10, 25, 47, 0.35) inset !important;
+  box-shadow: 0 0 0 1000px rgba(10, 25, 47, 0.35) inset !important;
+  transition: background-color 99999s ease-in-out 0s !important;
+  font-weight: 600 !important;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.85) !important;
 }
 
 .trsa-login-screen .login .inputBx input[type="submit"],
@@ -559,7 +1073,9 @@ body {
 }
 
 .trsa-login-screen .login .inputBx input::placeholder {
-  color: rgba(255, 255, 255, 0.75);
+  color: rgba(224, 242, 254, 0.72);
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.7);
+  font-weight: 500;
 }
 
 .trsa-login-screen .login .links {
@@ -607,9 +1123,92 @@ body {
   }
 }
 
+/* ==========================================================================
+   Interactive Shattered Glass Crack Effect (Login Form)
+   ========================================================================== */
+
+.trsa-glass-crack-layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: visible;
+  z-index: 25;
+  user-select: none;
+}
+
+.glass-crack-instance {
+  position: absolute;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+  user-select: none;
+  z-index: 25;
+  animation: glassCrackSpawn 0.08s cubic-bezier(0.1, 0.9, 0.2, 1) forwards,
+             glassCrackDissolve 4.5s ease-out forwards;
+}
+
+@keyframes glassCrackSpawn {
+  0% {
+    transform: scale(0.65);
+    opacity: 0.3;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes glassCrackDissolve {
+  0%, 75% {
+    opacity: 1;
+    filter: none;
+  }
+  100% {
+    opacity: 0;
+    filter: blur(1.5px);
+    visibility: hidden;
+  }
+}
+
+@keyframes glassImpactShake {
+  0% {
+    transform: translate(0, 0);
+  }
+  20% {
+    transform: translate(-2px, 1.5px) rotate(-0.35deg);
+  }
+  45% {
+    transform: translate(2px, -1.5px) rotate(0.25deg);
+  }
+  70% {
+    transform: translate(-1px, 0.8px) rotate(-0.15deg);
+  }
+  100% {
+    transform: translate(0, 0) rotate(0deg);
+  }
+}
+
+.glass-impact-shake {
+  animation: glassImpactShake 0.18s cubic-bezier(0.36, 0.07, 0.19, 0.97) !important;
+}
+
 @media (prefers-reduced-motion: reduce) {
+  .trsa-login-screen .trsa-login-ring i,
   .trsa-login-screen .ring i {
+    animation: none !important;
+  }
+  .glass-impact-shake {
     animation: none !important;
   }
 }
 
+
+/* ==========================================================================
+   Universal Brand Identity Highlight for PT Indofood Fortuna Makmur
+   ========================================================================== */
+.ifm-company-brand,
+.login-company,
+.ifm-brand-highlight {
+  color: rgb(0, 168, 232) !important;
+  font-weight: 700 !important;
+}

@@ -17,6 +17,8 @@ const MIME_TYPES = {
   ".ico": "image/x-icon",
   ".pdf": "application/pdf",
   ".txt": "text/plain; charset=utf-8",
+  ".webm": "video/webm",
+  ".mp4": "video/mp4",
 };
 
 function jsonResponse(data) {

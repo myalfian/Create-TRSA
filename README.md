@@ -12,6 +12,7 @@ TRSA Studio menggabungkan antarmuka dashboard dan formulir dokumen bisnis, penyi
 - [Teknologi](#teknologi)
 - [Persyaratan](#persyaratan)
 - [Menjalankan aplikasi](#menjalankan-aplikasi)
+- [Autentikasi & Akun Pengguna (Login)](#autentikasi--akun-pengguna-login)
 - [Endpoint server](#endpoint-server)
 - [Pengujian, lint, dan build](#pengujian-lint-dan-build)
 - [Konfigurasi Supabase](#konfigurasi-supabase)
@@ -112,6 +113,48 @@ Buka alamat server di browser. Route `/` memang mengembalikan JSON untuk pemerik
 - `http://localhost:3000/health` — pemeriksaan kesehatan dalam JSON.
 - `http://localhost:3000/index.html` — antarmuka TRSA Studio.
 
+## Autentikasi & Akun Pengguna (Login)
+
+TRSA Studio dilengkapi modul Master Data & Autentikasi internal (`src/js/masterDataService.js`) dengan sistem Role-Based Access Control (RBAC) bertingkat.
+
+### Cara Login
+1. Buka antarmuka di `http://localhost:3000/index.html`.
+2. Klik avatar/profil pengguna di sudut kanan atas header atau tombol **Switch User / Login**.
+3. Masukkan salah satu identifier:
+   - **Email resmi Indofood** (misal: `my.alfian@icbp.indofood.co.id`)
+   - **Nama Lengkap** (misal: `Moh Yusuf Alfian` atau `Refin A Putra`)
+   - **Employee ID** (misal: `IFM-MFG-001`)
+4. Masukkan Password / Passcode Standar:
+   ```text
+   indofood2026
+   ```
+
+---
+
+### Daftar Akun Pengguna Berdasarkan Peran & Lokasi Pabrik
+
+| Employee ID | Nama Pengguna | Email | Jabatan | Role (RBAC) | Cakupan Plant |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **IFM-MFG-001** | **Moh Yusuf Alfian** | `my.alfian@icbp.indofood.co.id` | Project & Engineering Manager | **Super Admin** | All Plants (1402, 1403, 1405, 1411) |
+| **IFM-MFG-002** | Refin A Putra | `refin.putra@icbp.indofood.co.id` | Project Engineer | Project & Engineering Team | 1403 - Semarang Plant |
+| **IFM-MFG-013** | Murdani | `m.murdani@icbp.indofood.co.id` | Senior Project Engineer | Project & Engineering Team | 1402 - Cikokol Plant |
+| **IFM-PUR-003** | Natalia Happy | `natalia.happy@icbp.indofood.co.id` | Purchasing Supervisor | Purchasing Plant | 1403 - Semarang Plant |
+| **IFM-PUR-004** | Dewi Natalia | `dewi.natalia@icbp.indofood.co.id` | Purchasing Team PIC | Purchasing Plant | All Plants |
+| **IFM-PUR-011** | Yanuar Ari Wibowo | `yanuar.wibowo@icbp.indofood.co.id` | Purchasing Team PIC | Purchasing Plant | 1403 - Semarang Plant |
+| **IFM-PUR-012** | Muhammad Alfatih | `muhammad.alfatih@icbp.indofood.co.id` | Purchasing Team PIC | Purchasing Plant | 1405 - Cikupa / 1411 - Agro |
+| **IFM-ENG-005** | Mohammad Faiz | `mohammad.faiz@icbp.indofood.co.id` | User / Engineering PIC | PIC Project | All Plants |
+| **IFM-ENG-006** | Dany Taufiq Alim Ansori | `dany.ansori@icbp.indofood.co.id` | User / Engineering PIC | PIC Project | All Plants |
+| **IFM-ENG-007** | Putra AP | `adiprana@icbp.indofood.co.id` | User / Engineering PIC | PIC Project | All Plants |
+| **IFM-ENG-008** | Septian Bagus Jumantoro | `septian.jumantoro@icbp.indofood.co.id` | User / Engineering PIC | PIC Project | All Plants |
+| **IFM-MFG-009** | Ayodya Maulana Gunoro | `ayodya.gunoro@icbp.indofood.co.id` | Project Team PIC | PIC Project | 1403 - Semarang Plant |
+| **IFM-MFG-010** | Angga Dwiki Wicaksono | `angga.wicaksono@icbp.indofood.co.id` | Project Team PIC | PIC Project | 1402 - Cikokol Plant |
+
+> **Ringkasan Hak Akses Peran (RBAC):**
+> - **Super Admin**: Akses mutlak untuk tata kelola TRSA, persetujuan dan publikasi status dokumen, perubahan klausul khusus *Customs Clearance*, manajemen Master Data (Users, Vendors, Plants, Departments, Jabatan), serta penentuan kebijakan *Compliance Matrix* per-user.
+> - **Project & Engineering Team**: Pembuatan dan penyusunan spesifikasi teknis TRSA, matriks produk snack, parameter operasional penggorengan dan seasoning, ruang lingkup pasokan, serta kriteria uji FAT/SAT.
+> - **Purchasing Plant**: Peninjauan dan pemeliharaan ketentuan komersial (tahapan pembayaran, SWIFT BG/APBG), ketentuan perpajakan & pabean (PPN 11%, PPh 23, PPh 26 / DGT Form), dan kualifikasi vendor.
+> - **PIC Project**: Verifikasi teknis lapangan, perwakilan plant untuk persetujuan Klausul IV (User Sign-off), dan pengawalan daftar catatan serah terima (*snag list*).
+
 ## Endpoint server
 
 Server pada `server.js` menyediakan:
@@ -169,23 +212,42 @@ Skema juga mendefinisikan indeks, trigger pembaruan `updated_at`, serta Row Leve
 
 ```text
 Create-TRSA/
-├── index.html                 # Entry point antarmuka web
-├── server.js                  # HTTP server Bun, health check, dan static assets
-├── package.json               # Script start, dev, test, build, dan lint
+├── index.html                           # Entry point antarmuka web
+├── server.js                            # HTTP server Bun/Node.js, health check, dan static assets
+├── package.json                         # Script start, dev, test, build, dan lint
+├── public/
+│   └── assets/aistudio/                 # Dokumen matriks standar IFM (PDF)
 ├── src/
-│   ├── css/style.css          # Gaya aplikasi dan format cetak
-│   ├── data/defaultTRSA.js    # Data/template TRSA awal
+│   ├── assets/images/                   # Asset gambar latar & visual branding
+│   ├── css/style.css                    # Gaya aplikasi, corporate design system & format cetak A4
+│   ├── data/defaultTRSA.js              # Data/template spesifikasi TRSA standar Indofood
 │   ├── js/
-│   │   ├── app.js             # Inisialisasi UI dan alur aplikasi
-│   │   ├── auditService.js    # Audit trail dan deteksi perubahan
-│   │   ├── security.js        # Peran dan sanitasi sisi klien
-│   │   └── supabaseClient.js  # Koneksi Supabase dan antrean offline
-│   └── sql/schema.sql         # Skema PostgreSQL/Supabase
+│   │   ├── app.js                       # Controller utama, Store (state management), & UI components
+│   │   ├── masterDataService.js         # Master data (Users, Vendors, Plants, Dept, Jabatan, & Login)
+│   │   ├── trsaMatrixService.js         # IFM 19-Clause compliance matrix & deep audit engine
+│   │   ├── userMatrixSettingsService.js # Kebijakan akses matrix spesifikasi per-pengguna (RBAC)
+│   │   ├── validationService.js         # Real-time field & multi-step validation engine
+│   │   ├── draftHistoryService.js       # Auto-save 30s & snapshot history di LocalStorage
+│   │   ├── dashboardStatsService.js     # Analitik ringkasan metrik dan agregasi proyek TRSA
+│   │   ├── auditService.js              # Forensic audit trail & deteksi perubahan spesifikasi
+│   │   ├── security.js                  # Standardisasi peran organisasi (RBAC) & sanitasi input
+│   │   └── supabaseClient.js            # Koneksi Supabase PostgreSQL & antrean offline
+│   └── sql/schema.sql                   # Skema PostgreSQL enterprise & RLS policies
 ├── scripts/
-│   ├── build.js               # Validasi dan pembuatan distribusi
-│   └── lint.js                # Pemeriksaan lint proyek
-├── tests/                     # Unit dan pengujian integrasi
-└── dist/                      # Aset hasil build
+│   ├── build.js                         # Script validasi syntax, style rules, & packaging dist/
+│   └── lint.js                          # Pemeriksaan linting proyek
+├── tests/                               # 78 automated tests melintasi 9 test suites
+│   ├── run.js                           # Test runner utama
+│   ├── defaultTRSA.test.js              # Validasi spesifikasi dokumen & 19 klausul
+│   ├── store.test.js                    # Validasi logika TRSAStore & perhitungan progres
+│   ├── masterDataAndAuth.test.js        # Validasi autentikasi login & master data CRUD
+│   ├── matrixAudit.test.js              # Validasi audit kepatuhan matriks 19 klausul IFM
+│   ├── userMatrixSettings.test.js       # Validasi pembatasan plant & origin per user
+│   ├── validation.test.js               # Validasi engine real-time validasi field
+│   ├── draftHistory.test.js             # Validasi auto-save & pemulihan snapshot
+│   ├── dashboardStats.test.js           # Validasi kalkulasi analitik & filter
+│   └── activityLogging.test.js          # Validasi pencatatan forensic audit log
+└── dist/                                # Aset bundle hasil build siap produksi
 ```
 
 ## Troubleshooting
