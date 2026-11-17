@@ -199,27 +199,27 @@ export const VENDOR_ORIGIN_CONFIG = {
     badgeClass: 'bg-emerald-50 text-emerald-700 border border-emerald-200',
     description: 'Domestic Indonesian manufacturer or fabricator. Domestic Franco delivery in IDR, PPN 11% e-Faktur, PPh 23 withholding tax, without customs demurrage.',
     currency: 'IDR (Rupiah)',
-    defaultShipment: 'Franco Pabrik / Gudang PT Indofood Fortuna Makmur (Semarang / Cikupa). Seluruh biaya pengangkutan darat, asuransi pengiriman domestik, dan risiko transportasi ditanggung penuh oleh Penjual hingga barang diterima dengan baik di site Pembeli.',
+    defaultShipment: 'Franco Pabrik / Buyer\'s Warehouse PT Indofood Fortuna Makmur (Semarang / Cikupa / Cikokol / Agro Plant). All domestic inland freight, transportation insurance, and transit risks are fully borne by Seller until goods are safely delivered to Buyer\'s plant site.',
     defaultProvisions: [
       {
-        title: "Pajak Pertambahan Nilai (PPN 11%)",
-        description: "Penyerahan Barang Kena Pajak dan Jasa Kena Pajak dalam daerah pabean dikenakan PPN sebesar 11% sesuai ketentuan UU HPP. Penjual wajib menerbitkan e-Faktur Pajak yang valid dan dapat dikreditkan."
+        title: "Value Added Tax (PPN 11%)",
+        description: "Delivery of Taxable Goods and Services within Indonesian customs territory is subject to 11% PPN in accordance with Indonesian Tax Harmonization Law (UU HPP). Seller must issue valid and creditable electronic tax invoices (e-Faktur)."
       },
       {
-        title: "Pemotongan PPh Pasal 23",
-        description: "Atas jasa instalasi, fabrikasi, testing, dan commissioning dikenakan pemotongan PPh Pasal 23 sebesar 2% (bagi yang ber-NPWP). Bukti potong resmi akan diterbitkan oleh PT Indofood Fortuna Makmur."
+        title: "Withholding Tax (PPh Pasal 23)",
+        description: "Installation, fabrication, testing, and commissioning services are subject to 2% PPh 23 withholding tax for valid NPWP holders. Official withholding tax slips (Bukti Potong) will be issued by PT Indofood Fortuna Makmur."
       },
       {
-        title: "Mata Uang Pembayaran & Penagihan (IDR)",
-        description: "Seluruh transaksi dan pembayaran dilakukan dalam mata uang Rupiah (IDR) melalui transfer perbankan nasional. Invoice wajib dilengkapi Kwitansi asli bermaterai cukup (Rp 10.000) dan copy Surat Perintah Kerja (PO/SPK)."
+        title: "Contract Currency & Payment Terms (IDR)",
+        description: "All transactions and disbursements are executed in Indonesian Rupiah (IDR) via national bank transfer. Invoices must include original official receipt (Kwitansi) affixed with valid stamp duty (Materai Rp 10,000) and copy of Purchase Order (PO/SPK)."
       },
       {
-        title: "Kepatuhan Tenaga Kerja Lokal & Keselamatan Kerja (K3)",
-        description: "Seluruh teknisi dan pekerja yang dikirim ke site wajib mematuhi standar K3 PT Indofood Fortuna Makmur, memiliki kartu BPJS Ketenagakerjaan aktif, dan menggunakan APD lengkap selama di area pabrik."
+        title: "Local Labor Compliance & HSE (K3) Standards",
+        description: "All technicians and personnel dispatched to the site must comply with PT Indofood Fortuna Makmur HSE/K3 guidelines, hold active BPJS Ketenagakerjaan coverage, and wear certified Personal Protective Equipment (PPE) within plant premises."
       },
       {
-        title: "Garansi & Layanan Purna Jual On-Site",
-        description: "Garansi mekanikal dan elektrikal minimum 12 bulan sejak Berita Acara Serah Terima (BAST). Vendor lokal wajib menyediakan kunjungan teknis on-site maksimal dalam waktu 1x24 jam saat terjadi emergency breakdown."
+        title: "Warranty & On-Site After-Sales Support",
+        description: "Mechanical and electrical warranty period of minimum 12 months from Final Acceptance Protocol (BAST). Local vendor must provide guaranteed on-site technical response within 1x24 hours for emergency line stoppages."
       }
     ]
   },
@@ -229,27 +229,27 @@ export const VENDOR_ORIGIN_CONFIG = {
     badgeClass: 'bg-purple-50 text-purple-700 border border-purple-200',
     description: 'Hybrid sourcing model: Core specialized machinery imported from abroad (CIF/CIP, L/C, PPh 26), while peripheral fabrication, ducting, piping, and local installation executed locally (Franco, IDR, PPN).',
     currency: 'USD/EUR (Import Equipment) & IDR (Local Scope)',
-    defaultShipment: 'Dual Terms: Mesin Utama impor dikapalkan secara CIF / CIP Pelabuhan Tanjung Emas Semarang (Asuransi ICC A/AIR 110%). Material lokal, platform, ducting exhaust, dan panel integrasi dikirim secara Franco Pabrik Indofood.',
+    defaultShipment: 'Dual Terms: Main imported machinery shipped CIF / CIP Tanjung Emas Port Semarang (ICC A/AIR 110% Marine Cargo Insurance). Peripheral local materials, platforms, exhaust ducting, and integration panels delivered Franco Pabrik Indofood Plant.',
     defaultProvisions: [
       {
         title: "Separation of Offshore Supply & Onshore Scope",
-        description: "Kontrak dan penawaran harga dipisahkan secara tegas antara Offshore Equipment Supply (dalam mata uang asing / Valas) dan Onshore Local Works/Services (dalam mata uang IDR)."
+        description: "Contracts and commercial quotations are strictly divided between Offshore Equipment Supply (in foreign currency / USD/EUR) and Onshore Local Works/Services (in IDR)."
       },
       {
         title: "Import Taxation & Custom Clearance Protocol",
-        description: "Untuk porsi impor berlaku ketentuan PPh 26 / DGT Form tax treaty dan pengurusan custom clearance pelabuhan. Dokumen impor (B/L, Packing List, Certificate of Origin) harus diserahkan tepat waktu untuk menghindari demurrage."
+        description: "Applicable import regulations, PPh 26 withholding / DGT Form tax treaty, and port customs clearance apply to offshore equipment. Import documentation (B/L, Packing List, Certificate of Origin) must be submitted on time to prevent demurrage."
       },
       {
         title: "Domestic Scope Taxation (PPN 11% & PPh 23)",
-        description: "Untuk porsi fabrikasi lokal, jasa pemasangan, dan material penunjang domestik dikenakan PPN 11% dengan e-Faktur dan pemotongan PPh Pasal 23 sebesar 2%."
+        description: "Domestic fabrication, on-site installation labor, and local support materials are subject to 11% PPN with e-Faktur and 2% PPh 23 withholding tax."
       },
       {
         title: "Expatriate & Local Engineer Coordination",
-        description: "Commissioning dipimpin oleh commissioning engineer prinsipal luar negeri (dengan Working Visa/KITAS resmi) didampingi tim teknis lokal ber-BPJS Ketenagakerjaan."
+        description: "Installation and commissioning led by overseas principal commissioning engineers (holding official Working Visa/KITAS), assisted by BPJS-insured local technical personnel."
       },
       {
         title: "Combined Performance Acceptance & Warranty",
-        description: "Pengujian continuous 7-hour trial mencakup integrasi total antara sistem mesin impor dan sistem penunjang lokal. Garansi komprehensif 12 bulan mengikat kedua penyedia komponen."
+        description: "Continuous 7-hour trial verifies end-to-end integration between imported core machinery and local auxiliary systems. Comprehensive 12-month warranty binds both supply portions."
       }
     ]
   }
@@ -1094,7 +1094,7 @@ function renderAuditModal() {
                   ${allLogs.length} Records
                 </span>
               </div>
-              <p class="text-xs text-sky-200 mt-0.5">Penelusuran lengkap: <strong>Kapan</strong> waktu perubahan, <strong>Siapa</strong> yang merubah, dan <strong>Apa</strong> nilai sebelum & sesudah diubah.</p>
+              <p class="text-xs text-sky-200 mt-0.5">Comprehensive audit trail: <strong>When</strong> modified, <strong>Who</strong> made the change, and <strong>What</strong> values were updated (before & after).</p>
             </div>
           </div>
           <button onclick="window.TRSA.closeAuditModal()" class="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-white transition-all text-sm font-bold">
@@ -1172,7 +1172,7 @@ function renderAuditModal() {
 
                     <!-- Event Header: Siapa & Kapan -->
                     <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2.5 border-b border-slate-100">
-                      <!-- Siapa yang merubah -->
+                      <!-- Who made the change -->
                       <div class="flex items-center gap-2.5">
                         <div class="w-7 h-7 rounded-full bg-[#0284C7] text-white flex items-center justify-center text-[10px] font-extrabold shadow-2xs">
                           ${log.userInitials || 'IFM'}
@@ -1206,11 +1206,11 @@ function renderAuditModal() {
                       </div>
                     ` : ''}
 
-                    <!-- Apa yang diubah (Detailed Semantic Diffs) -->
+                    <!-- What was changed (Detailed Semantic Diffs) -->
                     <div class="space-y-2">
                       <div class="text-[11px] font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1">
                         <svg class="w-3 h-3 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                        Detail Perubahan (Apa yang diubah):
+                        Modification Details (What Changed):
                       </div>
 
                       <div class="grid grid-cols-1 gap-2">
@@ -1231,11 +1231,11 @@ function renderAuditModal() {
                             ${diff.from || diff.to ? `
                               <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px] pt-1 border-t border-slate-200/60 font-mono">
                                 <div class="p-1.5 rounded-lg bg-rose-50/60 border border-rose-200 text-rose-800">
-                                  <div class="text-[9px] font-bold uppercase text-rose-500 mb-0.5">Nilai Sebelum:</div>
+                                  <div class="text-[9px] font-bold uppercase text-rose-500 mb-0.5">Previous Value:</div>
                                   <div class="break-words line-through opacity-85">${diff.from || '(None)'}</div>
                                 </div>
                                 <div class="p-1.5 rounded-lg bg-emerald-50/60 border border-emerald-200 text-emerald-900">
-                                  <div class="text-[9px] font-bold uppercase text-emerald-600 mb-0.5">Nilai Sesudah:</div>
+                                  <div class="text-[9px] font-bold uppercase text-emerald-600 mb-0.5">Updated Value:</div>
                                   <div class="break-words font-bold">${diff.to || '(Empty)'}</div>
                                 </div>
                               </div>
@@ -1443,7 +1443,7 @@ function renderHeader(activeProject) {
           type="button" 
           onclick="window.TRSA.openAuditModal()" 
           class="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-xs font-bold text-slate-700 transition-all shadow-xs cursor-pointer"
-          title="Audit Trail: Telusuri kapan, siapa yang merubah, dan apa yang diubah"
+          title="Audit Trail: Trace when, who modified, and what was changed"
         >
           <svg class="w-3.5 h-3.5 text-[#0284C7]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
           <span class="hidden md:inline">Change History</span>
@@ -2073,11 +2073,11 @@ function renderStep1(proj) {
             <div class="flex items-center gap-2">
               <span class="w-2.5 h-2.5 rounded-full bg-[#0284C7] ring-4 ring-sky-100"></span>
               <h3 class="text-xs font-bold uppercase tracking-wider text-[#0F172A]">
-                General Information (Informasi Umum Proyek & Mesin)
+                General Information
               </h3>
             </div>
             <p class="text-[11px] text-slate-500 mt-0.5">
-              Spesifikasi pokok tender: lokasi plant, negara asal pabrikan mesin (Country of Origin), jenis mesin, nama vendor/OEM, model, dan kapasitas desain.
+              Core tender specifications: plant location, machinery country of origin, equipment type, vendor/OEM name, model, and design capacity.
             </p>
           </div>
           <span class="inline-flex items-center gap-1.5 px-2.5 py-1 text-[10px] font-bold text-[#0369A1] bg-[#E0F2FE] border border-[#BAE6FD] rounded-lg">
@@ -2087,10 +2087,10 @@ function renderStep1(proj) {
         </div>
 
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          <!-- Plant Lokasi -->
+          <!-- Plant Location -->
           <div>
             <label class="block text-xs font-semibold text-slate-700 mb-1">
-              Plant Lokasi <span class="text-red-500">*</span>
+              Plant Location <span class="text-red-500">*</span>
             </label>
             <select id="gen-plant-location" class="corp-select font-bold text-slate-800">
               <option value="Cikokol Plant" ${(proj.generalInfo?.plantLocation || proj.documentInfo.plantLocation) === 'Cikokol Plant' ? 'selected' : ''}>1402 - Cikokol Plant</option>
@@ -2103,7 +2103,7 @@ function renderStep1(proj) {
           <!-- Country of Origin (Dropdown) -->
           <div>
             <label class="block text-xs font-semibold text-slate-700 mb-1">
-              Country of Origin (Negara Asal) <span class="text-red-500">*</span>
+              Country of Origin <span class="text-red-500">*</span>
             </label>
             <select id="gen-country-origin" class="corp-select font-bold text-[#0284C7]">
               ${COUNTRY_ORIGIN_OPTIONS.map(c => `
@@ -2124,10 +2124,10 @@ function renderStep1(proj) {
             </select>
           </div>
 
-          <!-- Nama Vendor -->
+          <!-- Vendor Name -->
           <div>
             <label class="block text-xs font-semibold text-slate-700 mb-1">
-              Nama Vendor (OEM / Manufacturer) <span class="text-red-500">*</span>
+              Vendor Name (OEM / Manufacturer) <span class="text-red-500">*</span>
             </label>
             <input type="text" id="gen-vendor-name" value="${proj.generalInfo?.vendorName || ''}" placeholder="e.g. Heat and Control / Kiremko B.V." class="corp-input font-bold text-slate-900" />
           </div>
@@ -2135,15 +2135,15 @@ function renderStep1(proj) {
           <!-- Model / Line Tag -->
           <div>
             <label class="block text-xs font-semibold text-slate-700 mb-1">
-              Model / Line Tag (dll)
+              Model / Line Tag
             </label>
             <input type="text" id="gen-model-number" value="${proj.generalInfo?.modelNumber || ''}" placeholder="e.g. SPF-600 Continuous" class="corp-input font-mono text-xs" />
           </div>
 
-          <!-- Kapasitas Desain -->
+          <!-- Design Capacity -->
           <div>
             <label class="block text-xs font-semibold text-slate-700 mb-1">
-              Kapasitas Desain (dll)
+              Design Capacity
             </label>
             <input type="text" id="gen-design-capacity" value="${proj.generalInfo?.designCapacity || ''}" placeholder="e.g. 600 kg/hour (Pellet Output)" class="corp-input font-medium text-emerald-800" />
           </div>
@@ -2162,7 +2162,7 @@ function renderStep1(proj) {
               </span>
             </div>
             <p class="text-[11px] text-slate-500 mt-0.5">
-              <strong class="text-slate-700">Originated By</strong> otomatis terisi dengan user aktif yang login (<span class="font-bold text-[#0284C7]">${store.currentUser.name}</span>), dan <strong class="text-slate-700">Date</strong> terisi otomatis tanggal hari ini saat revisi disimpan.
+              <strong class="text-slate-700">Originated By</strong> is automatically populated with the active authenticated user (<span class="font-bold text-[#0284C7]">${store.currentUser.name}</span>), and <strong class="text-slate-700">Date</strong> is stamped with the current date upon saving revisions.
             </p>
           </div>
           <div class="flex items-center gap-2">
@@ -2221,7 +2221,7 @@ function renderStep1(proj) {
                         <button 
                           type="button" 
                           onclick="window.TRSA.stampRevisionRow(${i})" 
-                          title="Sinkronkan dengan user login (${store.currentUser.name})" 
+                          title="Synchronize with logged-in user (${store.currentUser.name})" 
                           class="p-2 bg-sky-50 hover:bg-sky-100 text-[#0284C7] border border-sky-200 rounded-lg text-[11px] font-bold whitespace-nowrap transition-all shadow-xs"
                         >
                           Auto Set
@@ -2246,7 +2246,7 @@ function renderStep1(proj) {
                         <button 
                           type="button" 
                           onclick="window.TRSA.stampRevisionRow(${i})" 
-                          title="Perbarui tanggal ke hari ini (${new Date().toISOString().split('T')[0]})" 
+                          title="Update date to today (${new Date().toISOString().split('T')[0]})" 
                           class="p-2 bg-emerald-50 hover:bg-emerald-100 text-[#059669] border border-emerald-200 rounded-lg text-[11px] font-bold whitespace-nowrap transition-all shadow-xs"
                         >
                           Today
@@ -2254,7 +2254,7 @@ function renderStep1(proj) {
                       </div>
                       <div class="flex items-center gap-1 text-[10px] text-slate-400 font-medium">
                         <svg class="w-3 h-3 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                        <span>Auto-updated saat disimpan</span>
+                        <span>Auto-updated on save</span>
                       </div>
                     </div>
                   </td>
@@ -2262,7 +2262,7 @@ function renderStep1(proj) {
                     <button 
                       type="button" 
                       onclick="window.TRSA.stampRevisionRow(${i})" 
-                      title="Simpan baris revisi ini dengan tanggal & user saat ini" 
+                      title="Save revision row with current timestamp & user identity" 
                       class="text-xs px-2.5 py-1.5 bg-sky-50 text-[#0284C7] hover:bg-sky-100 rounded-lg font-bold border border-sky-200 transition-all shadow-xs"
                     >
                       Save
@@ -2271,7 +2271,7 @@ function renderStep1(proj) {
                       <button 
                         type="button" 
                         onclick="window.TRSA.removeRevisionRow(${i})" 
-                        title="Hapus baris revisi" 
+                        title="Delete revision row" 
                         class="text-xs px-2 py-1.5 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-lg font-bold transition-all"
                       >
                         &times;
@@ -2332,8 +2332,10 @@ function renderStep2(proj) {
             onchange="window.TRSA.onPlantLocationChanged(this.value)"
             class="corp-select font-bold text-xs py-1.5 px-3 bg-[#E0F2FE] text-[#0284C7] border-sky-300 focus:ring-2 focus:ring-sky-500/20"
           >
-            <option value="Semarang Plant" ${currentPlant === 'Semarang Plant' ? 'selected' : ''}>1402 - Semarang Plant</option>
-            <option value="Cikupa Plant" ${currentPlant === 'Cikupa Plant' ? 'selected' : ''}>1403 - Cikupa Plant</option>
+            <option value="Cikokol Plant" ${currentPlant === 'Cikokol Plant' ? 'selected' : ''}>1402 - Cikokol Plant</option>
+            <option value="Semarang Plant" ${currentPlant === 'Semarang Plant' ? 'selected' : ''}>1403 - Semarang Plant</option>
+            <option value="Cikupa Plant" ${currentPlant === 'Cikupa Plant' ? 'selected' : ''}>1405 - Cikupa Plant</option>
+            <option value="Agro Plant" ${currentPlant === 'Agro Plant' ? 'selected' : ''}>1411 - Agro Plant</option>
           </select>
         </div>
       </div>
@@ -2379,14 +2381,14 @@ function renderStep2(proj) {
               </span>
             </div>
             <p class="text-[11px] text-[#5A7184] mt-0.5">
-              Alamat penagihan dan pengiriman terisi otomatis dari master database sesuai Plant yang dipilih (<strong class="text-[#0284C7]">${currentPlant}</strong>).
+              Invoicing recipient and delivery destination are automatically populated from the master plant database for the selected plant (<strong class="text-[#0284C7]">${currentPlant}</strong>).
             </p>
           </div>
           <button 
             type="button" 
             onclick="window.TRSA.syncSiteLocationFromDatabase()" 
             class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold bg-[#E0F2FE] hover:bg-[#BAE6FD] text-[#0284C7] rounded-xl transition-all shadow-xs"
-            title="Sinkronkan ulang data alamat dan delivery port dari database plant"
+            title="Re-synchronize address details and delivery destination from plant database"
           >
             <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
             Re-sync Database
@@ -2453,7 +2455,7 @@ function renderStep2(proj) {
                     Admin Access (Editable)
                   </span>
                 ` : `
-                  <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-slate-200 text-slate-700 border border-slate-300" title="Hanya Admin / Project & Engineering Manager yang dapat mengedit klausul ini">
+                  <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-slate-200 text-slate-700 border border-slate-300" title="Restricted: Only Admin / Project & Engineering Manager can edit this clause">
                     <svg class="w-3 h-3 text-slate-500" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clip-rule="evenodd"/></svg>
                     Locked: Admin Only
                   </span>
@@ -2477,7 +2479,7 @@ function renderStep2(proj) {
               <span class="${isAdminUser ? 'text-amber-700' : 'text-slate-500'}">
                 ${isAdminUser 
                   ? `Logged in as <strong>${store.currentUser.name}</strong> (${store.currentUser.role}) — Authorized to modify legal customs clause.`
-                  : `Read-only for regular users. Hubungi Admin (Project & Engineering Manager: <strong>Moh Yusuf Alfian</strong>) untuk melakukan perubahan klausul kepabeanan.`
+                  : `Read-only for regular users. Contact System Administrator (Project & Engineering Manager: <strong>Moh Yusuf Alfian</strong>) to request modifications to customs clearance terms.`
                 }
               </span>
               ${!isAdminUser ? `
@@ -2485,7 +2487,7 @@ function renderStep2(proj) {
                   type="button" 
                   onclick="window.TRSA.switchUser('Moh Yusuf Alfian')" 
                   class="text-[10px] font-bold text-[#0284C7] hover:underline"
-                  title="Switch session ke Admin untuk demonstrasi hak akses edit"
+                  title="Switch user session to Admin for editing permissions"
                 >
                   Switch to Admin &rarr;
                 </button>
@@ -3074,7 +3076,7 @@ function renderStep6(proj) {
               }"></span>
               <span class="text-xs font-bold text-[#0B2447] uppercase tracking-wider">Vendor Procurement Origin</span>
             </div>
-            <p class="text-[11px] text-slate-500 mt-0.5">Pilihan asal vendor menentukan skema perpajakan (PPh 26 vs PPh 23), klausul pengiriman (CIF/CIP vs Franco), dan mata uang.</p>
+            <p class="text-[11px] text-slate-500 mt-0.5">Vendor sourcing origin dictates applicable taxation frameworks (PPh 26 withholding vs PPh 23 local), Incoterms (CIF/CIP vs DAP/Franco), and contract currency.</p>
           </div>
           <div class="inline-flex rounded-xl p-1 bg-white border border-slate-200 shadow-xs">
             ${['Foreign', 'Local', 'Mixed'].map(origin => `
@@ -3261,7 +3263,7 @@ function renderStudio(proj) {
             <table class="clean-form-table">
               <tbody>
                 <tr>
-                  <th style="width: 25%;">Plant Lokasi</th>
+                  <th style="width: 25%;">Plant Location</th>
                   <td style="width: 25%; font-weight: 600;">${getPlantCode(proj.generalInfo?.plantLocation || proj.documentInfo.plantLocation)} - ${proj.generalInfo?.plantLocation || proj.documentInfo.plantLocation || 'Semarang Plant'}</td>
                   <th style="width: 25%;">Country of Origin</th>
                   <td style="width: 25%; font-weight: 700; color: #0284C7;">${proj.generalInfo?.countryOfOrigin || 'Japan'}</td>
@@ -3269,13 +3271,13 @@ function renderStudio(proj) {
                 <tr>
                   <th>Equipment Type</th>
                   <td style="font-weight: 600;">${proj.generalInfo?.equipmentType || proj.generalInfo?.machineType || 'Frying System'}</td>
-                  <th>Nama Vendor</th>
+                  <th>Vendor / OEM</th>
                   <td style="font-weight: 700; color: #0B2447;">${proj.generalInfo?.vendorName || 'Heat and Control / Kiremko B.V.'}</td>
                 </tr>
                 <tr>
                   <th>Model / Line Tag</th>
                   <td class="font-mono text-slate-700">${proj.generalInfo?.modelNumber || 'SPF-600 Continuous'}</td>
-                  <th>Kapasitas Desain</th>
+                  <th>Design Capacity</th>
                   <td style="font-weight: 700; color: #059669;">${proj.generalInfo?.designCapacity || '600 kg/hour (Pellet Output)'}</td>
                 </tr>
                 <tr>
