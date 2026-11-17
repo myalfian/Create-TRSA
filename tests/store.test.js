@@ -19,7 +19,7 @@ globalThis.document = {
 import { test, describe } from 'node:test';
 import assert from 'node:assert';
 import { defaultTRSAProject } from '../src/data/defaultTRSA.js';
-import { TRSAStore, PLANT_DATABASE, getPlantDatabase, VENDOR_ORIGIN_CONFIG, getVendorOriginConfig, COUNTRY_ORIGIN_OPTIONS, EQUIPMENT_TYPE_OPTIONS, VENDOR_DATABASE, getVendorDetails, ensureGeneralInfo } from '../src/js/app.js';
+import { TRSAStore, PLANT_DATABASE, getPlantDatabase, VENDOR_ORIGIN_CONFIG, getVendorOriginConfig, COUNTRY_ORIGIN_OPTIONS, FOREIGN_COUNTRY_OPTIONS, EQUIPMENT_TYPE_OPTIONS, VENDOR_DATABASE, getVendorDetails, parseCountryOfOrigin, formatCountryOfOrigin, ensureGeneralInfo } from '../src/js/app.js';
 import { getAuditLogs } from '../src/js/auditService.js';
 
 describe('TRSA Store and Business Logic Tests', () => {
@@ -431,5 +431,51 @@ describe('TRSA Store and Business Logic Tests', () => {
     const blockedRemoval = store.removeEquipmentModel(0);
     assert.strictEqual(blockedRemoval, false, 'Cannot remove the last remaining equipment model');
     assert.strictEqual(proj.generalInfo.equipmentModels.length, 1);
+  });
+
+  test('Country of Origin Dropdown: Local, Foreign (Dropdown CoO), and Mixed (Indonesia & Foreign (Dropdown CoO))', () => {
+    globalThis.localStorage.clear();
+    const store = new TRSAStore();
+    const proj = store.getActiveProject();
+
+    // 1. Initial State parsing
+    const initial = parseCountryOfOrigin(proj.generalInfo.countryOfOrigin);
+    assert.strictEqual(initial.category, 'Foreign');
+    assert.strictEqual(initial.foreignCountry, 'Japan');
+
+    // 2. Select Local
+    store.updateCountryOfOrigin('Local');
+    assert.strictEqual(proj.generalInfo.countryOriginCategory, 'Local');
+    assert.strictEqual(proj.generalInfo.countryOfOrigin, 'Local (Indonesia)');
+    const localParsed = parseCountryOfOrigin(proj.generalInfo.countryOfOrigin);
+    assert.strictEqual(localParsed.category, 'Local');
+    assert.strictEqual(localParsed.fullDisplay, 'Local (Indonesia)');
+
+    // 3. Select Foreign with specific foreign CoO
+    store.updateCountryOfOrigin('Foreign', 'Germany');
+    assert.strictEqual(proj.generalInfo.countryOriginCategory, 'Foreign');
+    assert.strictEqual(proj.generalInfo.countryOriginForeign, 'Germany');
+    assert.strictEqual(proj.generalInfo.countryOfOrigin, 'Foreign (Germany)');
+    const foreignParsed = parseCountryOfOrigin(proj.generalInfo.countryOfOrigin);
+    assert.strictEqual(foreignParsed.category, 'Foreign');
+    assert.strictEqual(foreignParsed.foreignCountry, 'Germany');
+
+    // 4. Select Mixed (Indonesia & Foreign CoO)
+    store.updateCountryOfOrigin('Mixed', 'Netherlands');
+    assert.strictEqual(proj.generalInfo.countryOriginCategory, 'Mixed');
+    assert.strictEqual(proj.generalInfo.countryOriginForeign, 'Netherlands');
+    assert.strictEqual(proj.generalInfo.countryOfOrigin, 'Mixed (Indonesia & Netherlands)');
+    const mixedParsed = parseCountryOfOrigin(proj.generalInfo.countryOfOrigin);
+    assert.strictEqual(mixedParsed.category, 'Mixed');
+    assert.strictEqual(mixedParsed.foreignCountry, 'Netherlands');
+    assert.strictEqual(mixedParsed.fullDisplay, 'Mixed (Indonesia & Netherlands)');
+
+    // 5. Verify FOREIGN_COUNTRY_OPTIONS list contains key manufacturing countries
+    assert.ok(Array.isArray(FOREIGN_COUNTRY_OPTIONS));
+    assert.ok(FOREIGN_COUNTRY_OPTIONS.includes('Japan'));
+    assert.ok(FOREIGN_COUNTRY_OPTIONS.includes('Germany'));
+    assert.ok(FOREIGN_COUNTRY_OPTIONS.includes('Netherlands'));
+    assert.ok(FOREIGN_COUNTRY_OPTIONS.includes('Italy'));
+    assert.ok(FOREIGN_COUNTRY_OPTIONS.includes('United States'));
   });
 });

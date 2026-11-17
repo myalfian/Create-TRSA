@@ -21,6 +21,8 @@ export const defaultTRSAProject = {
   },
   generalInfo: {
     plantLocation: "Semarang Plant",
+    countryOriginCategory: "Foreign",
+    countryOriginForeign: "Japan",
     countryOfOrigin: "Japan",
     equipmentType: "Frying System",
     machineType: "Frying System",

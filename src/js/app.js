@@ -259,7 +259,7 @@ export function getVendorOriginConfig(origin = 'Foreign') {
   return VENDOR_ORIGIN_CONFIG[origin] || VENDOR_ORIGIN_CONFIG.Foreign;
 }
 
-export const COUNTRY_ORIGIN_OPTIONS = [
+export const FOREIGN_COUNTRY_OPTIONS = [
   'Japan',
   'Germany',
   'Italy',
@@ -269,15 +269,52 @@ export const COUNTRY_ORIGIN_OPTIONS = [
   'United Kingdom',
   'Switzerland',
   'Taiwan',
-  'Indonesia',
   'Australia',
   'France',
   'Sweden',
   'Spain',
   'South Korea',
   'Denmark',
+  'Other Foreign Country'
+];
+
+export const COUNTRY_ORIGIN_OPTIONS = [
+  'Local (Indonesia)',
+  'Foreign (Dropdown CoO)',
+  'Mixed (Indonesia & Foreign CoO)',
+  ...FOREIGN_COUNTRY_OPTIONS,
+  'Indonesia',
   'Other'
 ];
+
+export function parseCountryOfOrigin(coo = 'Japan') {
+  if (!coo || typeof coo !== 'string') {
+    return { category: 'Foreign', foreignCountry: 'Japan', fullDisplay: 'Foreign (Japan)' };
+  }
+  const trimmed = coo.trim();
+  if (trimmed === 'Indonesia' || trimmed === 'Local' || trimmed.startsWith('Local')) {
+    return { category: 'Local', foreignCountry: 'Indonesia', fullDisplay: 'Local (Indonesia)' };
+  }
+  if (trimmed.startsWith('Mixed') || trimmed.includes('&')) {
+    const match = trimmed.match(/&\s*([A-Za-z\s]+)\)?/);
+    const foreignCountry = match ? match[1].trim() : 'Japan';
+    return { category: 'Mixed', foreignCountry, fullDisplay: `Mixed (Indonesia & ${foreignCountry})` };
+  }
+  // Foreign
+  const match = trimmed.match(/Foreign\s*\(([A-Za-z\s]+)\)/i);
+  const foreignCountry = match ? match[1].trim() : trimmed;
+  return { category: 'Foreign', foreignCountry, fullDisplay: `Foreign (${foreignCountry})` };
+}
+
+export function formatCountryOfOrigin(category = 'Foreign', foreignCountry = 'Japan') {
+  if (category === 'Local') {
+    return 'Local (Indonesia)';
+  }
+  if (category === 'Mixed') {
+    return `Mixed (Indonesia & ${foreignCountry || 'Japan'})`;
+  }
+  return `Foreign (${foreignCountry || 'Japan'})`;
+}
 
 export const EQUIPMENT_TYPE_OPTIONS = [
   'Process Line',
@@ -443,6 +480,8 @@ export function ensureGeneralInfo(project) {
   if (!project.generalInfo) {
     project.generalInfo = {
       plantLocation: project.documentInfo?.plantLocation || 'Semarang Plant',
+      countryOriginCategory: 'Foreign',
+      countryOriginForeign: 'Japan',
       countryOfOrigin: 'Japan',
       equipmentType: 'Frying System',
       machineType: 'Frying System',
@@ -461,6 +500,13 @@ export function ensureGeneralInfo(project) {
   } else {
     if (!project.generalInfo.equipmentType) {
       project.generalInfo.equipmentType = project.generalInfo.machineType || 'Frying System';
+    }
+    const parsedCoo = parseCountryOfOrigin(project.generalInfo.countryOfOrigin || 'Japan');
+    if (!project.generalInfo.countryOriginCategory) {
+      project.generalInfo.countryOriginCategory = parsedCoo.category;
+    }
+    if (!project.generalInfo.countryOriginForeign) {
+      project.generalInfo.countryOriginForeign = parsedCoo.foreignCountry;
     }
     if (!Array.isArray(project.generalInfo.equipmentModels) || project.generalInfo.equipmentModels.length === 0) {
       project.generalInfo.equipmentModels = [
@@ -665,6 +711,18 @@ export class TRSAStore {
     ensureGeneralInfo(proj);
     Object.assign(proj.generalInfo, fields);
 
+    if (fields.countryOfOrigin) {
+      const parsed = parseCountryOfOrigin(fields.countryOfOrigin);
+      proj.generalInfo.countryOriginCategory = parsed.category;
+      proj.generalInfo.countryOriginForeign = parsed.foreignCountry;
+    } else if (fields.countryOriginCategory || fields.countryOriginForeign) {
+      const cat = fields.countryOriginCategory || proj.generalInfo.countryOriginCategory || 'Foreign';
+      const fCountry = fields.countryOriginForeign || proj.generalInfo.countryOriginForeign || 'Japan';
+      proj.generalInfo.countryOriginCategory = cat;
+      proj.generalInfo.countryOriginForeign = fCountry;
+      proj.generalInfo.countryOfOrigin = formatCountryOfOrigin(cat, fCountry);
+    }
+
     if (fields.equipmentModels && Array.isArray(fields.equipmentModels)) {
       proj.generalInfo.equipmentModels = fields.equipmentModels;
       proj.generalInfo.modelNumber = fields.equipmentModels.map(m => m.modelNumber).filter(Boolean).join(', ');
@@ -684,6 +742,29 @@ export class TRSAStore {
       this.saveProjects('UPDATE');
     }
     return proj.generalInfo;
+  }
+
+  updateCountryOfOrigin(category, foreignCountry = null, projectId = null) {
+    const proj = projectId ? this.projects.find(p => p.id === projectId) : this.getActiveProject();
+    if (!proj) return;
+    ensureGeneralInfo(proj);
+    const validCat = ['Local', 'Foreign', 'Mixed'].includes(category) ? category : 'Foreign';
+    const oldVal = proj.generalInfo.countryOfOrigin;
+
+    proj.generalInfo.countryOriginCategory = validCat;
+    if (foreignCountry) {
+      proj.generalInfo.countryOriginForeign = foreignCountry;
+    }
+    const targetForeign = proj.generalInfo.countryOriginForeign || 'Japan';
+    proj.generalInfo.countryOfOrigin = formatCountryOfOrigin(validCat, targetForeign);
+
+    this.saveProjects('UPDATE', [{
+      category: 'Country of Origin',
+      description: `Country of Origin updated to ${proj.generalInfo.countryOfOrigin}`,
+      from: oldVal,
+      to: proj.generalInfo.countryOfOrigin
+    }]);
+    render();
   }
 
   addEquipmentModel(projectId = null) {
@@ -2232,6 +2313,9 @@ function renderStep1(proj) {
   const currentVendor = proj.generalInfo?.vendorName || '';
   const selectedVendorDetails = getVendorDetails(currentVendor);
   const isCustomVendorActive = store.customVendorActive || (currentVendor && !selectedVendorDetails);
+  const cooParsed = parseCountryOfOrigin(proj.generalInfo?.countryOfOrigin || 'Japan');
+  const currentCooCategory = proj.generalInfo?.countryOriginCategory || cooParsed.category || 'Foreign';
+  const currentForeignCoo = proj.generalInfo?.countryOriginForeign || cooParsed.foreignCountry || 'Japan';
   const equipmentModels = proj.generalInfo?.equipmentModels || [
     {
       id: 'eq-1',
@@ -2325,7 +2409,7 @@ function renderStep1(proj) {
           </span>
         </div>
 
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           <!-- Plant Location -->
           <div>
             <label class="block text-xs font-semibold text-slate-700 mb-1">
@@ -2339,16 +2423,52 @@ function renderStep1(proj) {
             </select>
           </div>
 
-          <!-- Country of Origin (Dropdown) -->
+          <!-- Country of Origin Category Dropdown -->
           <div>
             <label class="block text-xs font-semibold text-slate-700 mb-1">
               Country of Origin <span class="text-red-500">*</span>
             </label>
-            <select id="gen-country-origin" class="corp-select font-bold text-[#0284C7]">
-              ${COUNTRY_ORIGIN_OPTIONS.map(c => `
-                <option value="${c}" ${(proj.generalInfo?.countryOfOrigin || 'Japan') === c ? 'selected' : ''}>${c}</option>
-              `).join('')}
+            <select 
+              id="gen-country-category" 
+              onchange="window.TRSA.onCountryCategoryChanged(this.value)" 
+              class="corp-select font-bold text-[#0284C7]"
+            >
+              <option value="Local" ${currentCooCategory === 'Local' ? 'selected' : ''}>Local</option>
+              <option value="Foreign" ${currentCooCategory === 'Foreign' ? 'selected' : ''}>Foreign (Dropdown CoO)</option>
+              <option value="Mixed" ${currentCooCategory === 'Mixed' ? 'selected' : ''}>Mixed (Indonesia & Foreign (Dropdown CoO))</option>
             </select>
+          </div>
+
+          <!-- Specific CoO Sub-Dropdown / Origin Details -->
+          <div>
+            <div class="flex items-center justify-between mb-1">
+              <label class="block text-xs font-semibold text-slate-700">
+                ${currentCooCategory === 'Local' ? 'Origin Details' : currentCooCategory === 'Mixed' ? 'Foreign Partner CoO' : 'Country of Origin (CoO)'} <span class="text-red-500">*</span>
+              </label>
+              <span class="inline-flex items-center px-1.5 py-0.2 rounded text-[9px] font-bold uppercase ${
+                currentCooCategory === 'Local' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' :
+                currentCooCategory === 'Mixed' ? 'bg-purple-50 text-purple-700 border border-purple-200' :
+                'bg-sky-50 text-[#0284C7] border border-sky-200'
+              }">
+                ${currentCooCategory}
+              </span>
+            </div>
+            ${currentCooCategory === 'Local' ? `
+              <div class="corp-input bg-slate-50 border border-slate-200 font-bold text-emerald-800 text-xs flex items-center justify-between cursor-default">
+                <span>Indonesia (Domestic)</span>
+                <span class="text-[10px] text-emerald-600 font-mono font-bold">ID / Local</span>
+              </div>
+            ` : `
+              <select 
+                id="gen-country-origin" 
+                onchange="window.TRSA.onForeignCountryChanged(this.value)" 
+                class="corp-select font-bold text-[#0B2447]"
+              >
+                ${FOREIGN_COUNTRY_OPTIONS.map(c => `
+                  <option value="${c}" ${currentForeignCoo === c ? 'selected' : ''}>${c}</option>
+                `).join('')}
+              </select>
+            `}
           </div>
 
           <!-- Equipment Type (Dropdown) -->
@@ -3628,7 +3748,7 @@ function renderStudio(proj) {
                   <th style="width: 25%;">Plant Location</th>
                   <td style="width: 25%; font-weight: 600;">${getPlantCode(proj.generalInfo?.plantLocation || proj.documentInfo.plantLocation)} - ${proj.generalInfo?.plantLocation || proj.documentInfo.plantLocation || 'Semarang Plant'}</td>
                   <th style="width: 25%;">Country of Origin</th>
-                  <td style="width: 25%; font-weight: 700; color: #0284C7;">${proj.generalInfo?.countryOfOrigin || 'Japan'}</td>
+                  <td style="width: 25%; font-weight: 700; color: #0284C7;">${parseCountryOfOrigin(proj.generalInfo?.countryOfOrigin || 'Japan').fullDisplay}</td>
                 </tr>
                 <tr>
                   <th>Equipment Type</th>
@@ -4408,7 +4528,15 @@ if (typeof window !== 'undefined') {
       p.generalInfo.vendorName = value;
       const vDetails = getVendorDetails(value);
       if (vDetails && vDetails.country) {
-        p.generalInfo.countryOfOrigin = vDetails.country;
+        if (vDetails.origin === 'Local') {
+          p.generalInfo.countryOriginCategory = 'Local';
+          p.generalInfo.countryOriginForeign = 'Indonesia';
+          p.generalInfo.countryOfOrigin = 'Local (Indonesia)';
+        } else {
+          p.generalInfo.countryOriginCategory = 'Foreign';
+          p.generalInfo.countryOriginForeign = vDetails.country;
+          p.generalInfo.countryOfOrigin = `Foreign (${vDetails.country})`;
+        }
       }
       store.saveProjects('UPDATE', [{
         category: 'Vendor Selection',
@@ -4419,9 +4547,20 @@ if (typeof window !== 'undefined') {
     }
     render();
   },
+  onCountryCategoryChanged(category) {
+    store.updateCountryOfOrigin(category);
+  },
+  onForeignCountryChanged(foreignCountry) {
+    const p = store.getActiveProject();
+    const cat = p?.generalInfo?.countryOriginCategory || 'Foreign';
+    store.updateCountryOfOrigin(cat, foreignCountry);
+  },
   VENDOR_DATABASE,
   getVendorDetails,
+  FOREIGN_COUNTRY_OPTIONS,
   COUNTRY_ORIGIN_OPTIONS,
+  parseCountryOfOrigin,
+  formatCountryOfOrigin,
   EQUIPMENT_TYPE_OPTIONS,
   deleteProject(id) {
     store.deleteProject(id);
