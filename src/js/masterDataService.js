@@ -339,6 +339,36 @@ export const DEFAULT_TEAM_MEMBERS = [
     status: 'Active',
     bio: 'Senior Project Engineer managing process equipment standardization, layout drawings, and cross-plant machinery specs.',
     password: DEFAULT_PASSCODE
+  },
+  {
+    employeeId: 'IFM-PUR-014',
+    name: 'Natania WS',
+    email: 'natania.ws@icbp.indofood.co.id',
+    role: ORG_ROLES.PURCHASING_PLANT,
+    jabatan: 'Purchasing Team PIC',
+    initials: 'NWS',
+    dept: 'PUR',
+    departmentName: 'Purchasing & Procurement',
+    plantCode: '1402',
+    phone: '+62 21 552-3456 ext. 3102',
+    status: 'Active',
+    bio: 'Cikokol Plant (1402) Purchasing PIC responsible for invoice reception, softcopy verification, and domestic/import procurement.',
+    password: DEFAULT_PASSCODE
+  },
+  {
+    employeeId: 'IFM-PUR-015',
+    name: 'Arief Setyawan',
+    email: 'arief.setyawan@icbp.indofood.co.id',
+    role: ORG_ROLES.PURCHASING_PLANT,
+    jabatan: 'Purchasing Team PIC',
+    initials: 'AS',
+    dept: 'PUR',
+    departmentName: 'Purchasing & Procurement',
+    plantCode: '1402',
+    phone: '+62 21 552-3456 ext. 3103',
+    status: 'Active',
+    bio: 'Cikokol Plant (1402) Purchasing PIC handling PO coordination, shipping documents compliance, and vendor delivery tracking.',
+    password: DEFAULT_PASSCODE
   }
 ];
 

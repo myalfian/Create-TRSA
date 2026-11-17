@@ -112,7 +112,11 @@ import {
   resolveContactsForPlant,
   buildLegalAndTaxProvisions,
   getShipmentTermsForMatrix,
-  auditProjectMatrixCompliance
+  auditProjectMatrixCompliance,
+  PROJECT_CONTACT_ROLES,
+  normalizeContactToProjectRole,
+  resolveProjectKeyContacts,
+  formatSiteAddressLines
 } from './trsaMatrixService.js';
 import {
   MATRIX_PLANT_CODES,
@@ -373,9 +377,9 @@ export const FOREIGN_COUNTRY_OPTIONS = [
 ];
 
 export const COUNTRY_ORIGIN_OPTIONS = [
-  'Local (Indonesia)',
-  'Foreign (Dropdown CoO)',
-  'Mixed (Indonesia & Foreign CoO)',
+  'Local',
+  'Foreign',
+  'Mixed',
   ...FOREIGN_COUNTRY_OPTIONS,
   'Indonesia',
   'Other'
@@ -383,11 +387,11 @@ export const COUNTRY_ORIGIN_OPTIONS = [
 
 export function parseCountryOfOrigin(coo = 'Japan') {
   if (!coo || typeof coo !== 'string') {
-    return { category: 'Foreign', foreignCountry: 'Japan', fullDisplay: 'Foreign (Japan)' };
+    return { category: 'Foreign', foreignCountry: 'Japan', fullDisplay: 'Japan' };
   }
   const trimmed = coo.trim();
   if (trimmed === 'Indonesia' || trimmed === 'Local' || trimmed.startsWith('Local')) {
-    return { category: 'Local', foreignCountry: 'Indonesia', fullDisplay: 'Local (Indonesia)' };
+    return { category: 'Local', foreignCountry: 'Indonesia', fullDisplay: 'Local' };
   }
   if (trimmed.startsWith('Mixed') || trimmed.includes('&')) {
     const match = trimmed.match(/&\s*([A-Za-z\s]+)\)?/);
@@ -657,6 +661,9 @@ export function ensureProjectMatrixDefaults(project) {
   }
 
   project.siteDescription = project.siteDescription || {};
+  if (!project.siteDescription.siteTitle) {
+    project.siteDescription.siteTitle = plantProfile.siteTitle;
+  }
   if (!project.siteDescription.invoiceRecipient) {
     project.siteDescription.invoiceRecipient = plantProfile.invoiceRecipient;
   }
@@ -668,6 +675,15 @@ export function ensureProjectMatrixDefaults(project) {
   }
   if (!Array.isArray(project.siteDescription.purchasingAttn) || project.siteDescription.purchasingAttn.length === 0) {
     project.siteDescription.purchasingAttn = JSON.parse(JSON.stringify(plantProfile.purchasingAttn));
+  } else if (
+    plantCode === '1402' &&
+    project.siteDescription.purchasingAttn.length === 3 &&
+    project.siteDescription.purchasingAttn[0]?.email === 'dewi.natalia@icbp.indofood.co.id'
+  ) {
+    project.siteDescription.purchasingAttn = JSON.parse(JSON.stringify(plantProfile.purchasingAttn));
+  }
+  if (plantCode === '1402' && project.siteDescription.siteTitle === 'PT Indofood Fortuna Makmur – Tangerang') {
+    project.siteDescription.siteTitle = plantProfile.siteTitle;
   }
   if (!project.siteDescription.customClearanceNote) {
     project.siteDescription.customClearanceNote = plantProfile.customClearanceNote;
@@ -685,6 +701,13 @@ export function ensureProjectMatrixDefaults(project) {
   }
   if (!Array.isArray(project.scopeOfSupply.controlSystemAccess) || project.scopeOfSupply.controlSystemAccess.length === 0) {
     project.scopeOfSupply.controlSystemAccess = JSON.parse(JSON.stringify(CONTROL_SYSTEM_ACCESS_RIGHTS));
+  } else {
+    const legacyPwdRule = project.scopeOfSupply.controlSystemAccess.find(
+      r => r && r.no === 2 && r.description === 'All PLC and HMI (OIT) Master Passwords must be formally provided to the Buyer PIC prior to Final Acceptance.'
+    );
+    if (legacyPwdRule) {
+      legacyPwdRule.description = CONTROL_SYSTEM_ACCESS_RIGHTS[1].description;
+    }
   }
 
   project.hygieneAndQuality = project.hygieneAndQuality || {};
@@ -1540,7 +1563,8 @@ export class TRSAStore {
       proj.siteDescription = {};
     }
 
-    // Auto-populate V. Site Location, Invoice Recipient & Submission Compliance from matrix
+    // Auto-populate V. Site Description & VI. Document Submission Compliance from matrix
+    proj.siteDescription.siteTitle = plantData.siteTitle;
     proj.siteDescription.invoiceRecipient = plantData.invoiceRecipient;
     proj.siteDescription.address = plantData.address;
     proj.siteDescription.deliveryPort = plantData.deliveryPort;
@@ -1657,6 +1681,74 @@ export class TRSAStore {
       to: proj.generalInfo.countryOfOrigin
     }]);
     render();
+  }
+
+  toggleProjectTeamMember(emailOrName, projectId = null) {
+    const proj = projectId ? this.projects.find(p => p.id === projectId) : this.getActiveProject();
+    if (!proj) return [];
+    const users = this.teamMembers || loadUsers();
+    const key = String(emailOrName || '').trim().toLowerCase();
+    const targetMember = users.find(
+      u => String(u.email || '').toLowerCase() === key || String(u.name || '').toLowerCase() === key
+    );
+    if (!targetMember || !PROJECT_CONTACT_ROLES.includes(targetMember.role)) {
+      return resolveProjectKeyContacts(proj, users);
+    }
+
+    if (!Array.isArray(proj.projectTeamContacts)) {
+      proj.projectTeamContacts = resolveProjectKeyContacts(proj, users).map(c => ({
+        id: c.id,
+        name: c.name,
+        projectRole: c.projectRole,
+        role: c.role,
+        jabatan: c.jabatan,
+        email: c.email,
+        plantCode: c.plantCode
+      }));
+    }
+
+    const existsIdx = proj.projectTeamContacts.findIndex(
+      c => (c.email && String(c.email).toLowerCase() === String(targetMember.email).toLowerCase()) ||
+           String(c.name || '').toLowerCase() === String(targetMember.name).toLowerCase()
+    );
+
+    const plantCode = resolvePlantCode(proj.documentInfo?.plantLocation || proj.generalInfo?.plantLocation || '1403');
+    if (existsIdx >= 0) {
+      proj.projectTeamContacts.splice(existsIdx, 1);
+    } else {
+      proj.projectTeamContacts.push({
+        id: `proj-team-${plantCode}-${Date.now()}`,
+        name: targetMember.name,
+        projectRole: targetMember.role,
+        role: `${targetMember.role}${targetMember.jabatan ? ` · ${targetMember.jabatan}` : ''}`,
+        jabatan: targetMember.jabatan || '',
+        email: targetMember.email,
+        plantCode: targetMember.plantCode || plantCode
+      });
+    }
+
+    const updatedList = resolveProjectKeyContacts(proj, users);
+    this.saveProjects('PROJECT_TEAM_UPDATE', [{
+      category: 'Key Contacts',
+      description: `${existsIdx >= 0 ? 'Removed' : 'Assigned'} ${targetMember.name} (${targetMember.role}) for IV. Key Contacts`,
+      from: existsIdx >= 0 ? targetMember.name : 'Unassigned',
+      to: existsIdx >= 0 ? 'Unassigned' : `${targetMember.name} (${targetMember.role})`
+    }]);
+    return updatedList;
+  }
+
+  resetProjectTeamContacts(projectId = null) {
+    const proj = projectId ? this.projects.find(p => p.id === projectId) : this.getActiveProject();
+    if (!proj) return [];
+    delete proj.projectTeamContacts;
+    const updatedList = resolveProjectKeyContacts(proj, this.teamMembers || loadUsers());
+    this.saveProjects('PROJECT_TEAM_RESET', [{
+      category: 'Key Contacts',
+      description: `Reset IV. Key Contacts to plant-matched execution team (${updatedList.length} contacts)`,
+      from: 'Custom Selection',
+      to: `Auto-matched (${updatedList.length} contacts)`
+    }]);
+    return updatedList;
   }
 
   addEquipmentModel(projectId = null) {
@@ -1796,6 +1888,7 @@ export class TRSAStore {
     syncPlantContacts(plantCode, proj);
 
     proj.siteDescription = proj.siteDescription || {};
+    proj.siteDescription.siteTitle = profile.siteTitle;
     proj.siteDescription.invoiceRecipient = profile.invoiceRecipient;
     proj.siteDescription.address = profile.address;
     proj.siteDescription.deliveryPort = profile.deliveryPort;
@@ -1956,6 +2049,7 @@ export class TRSAStore {
     newProj.generalInfo.plantLocation = plant;
     const plantData = getPlantDatabase(plant);
     if (!newProj.siteDescription) newProj.siteDescription = {};
+    newProj.siteDescription.siteTitle = plantData.siteTitle;
     newProj.siteDescription.invoiceRecipient = plantData.invoiceRecipient;
     newProj.siteDescription.address = plantData.address;
     newProj.siteDescription.deliveryPort = plantData.deliveryPort;
@@ -5410,10 +5504,11 @@ function renderComplianceMatrixView(proj) {
           </div>
 
           <div class="p-3 rounded-xl bg-slate-50 border border-slate-200 text-xs space-y-1">
-            <div class="font-bold text-[#0F172A]">Delivery Address (Clause V):</div>
+            <div class="font-bold text-[#0F172A]">Site Location (Clause V) &amp; Invoice Recipient (Clause VI):</div>
+            <div class="font-semibold text-slate-800">${escapeHtml(profile.siteTitle)}</div>
             <div class="text-slate-700">${escapeHtml(profile.address)}</div>
             <div class="pt-1 text-[11px] text-[#0369A1] font-semibold">Port: ${escapeHtml(profile.deliveryPort)}</div>
-            <div class="text-[11px] text-slate-600">Invoice To: <strong>${escapeHtml(profile.invoiceRecipient)}</strong></div>
+            <div class="text-[11px] text-slate-600">Attn Purchasing: <strong>${(profile.purchasingAttn || []).map(a => escapeHtml(a.name)).join(', ')}</strong></div>
           </div>
 
           <div class="space-y-3 text-xs">
@@ -6315,14 +6410,14 @@ function renderStep1(proj, validation = validateProject(proj)) {
           </div>
         </div>
 
-        <!-- Clauses VI & VII: Confidentiality & Mandatory Language Requirements -->
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
+        <!-- Clauses VII & VIII: Confidentiality & Mandatory Language Requirements -->
+        <div class="space-y-4 pt-2">
           <div>
-            <label class="block text-xs font-bold text-[#0B2447] mb-1">VI. Confidentiality Clause</label>
+            <label class="block text-xs font-bold text-[#0B2447] mb-1">VII. Confidentiality Clause</label>
             <textarea id="doc-confidentiality" rows="3" class="w-full text-xs p-2.5 bg-[#F4F8FC] border border-[#E0ECF6] rounded-xl focus:bg-white focus:border-[#0284C7] focus:outline-none">${escapeHtml(proj.projectOverview.confidentialityClause || CONFIDENTIALITY_STANDARD)}</textarea>
           </div>
           <div>
-            <label class="block text-xs font-bold text-[#0B2447] mb-1">VII. Language Requirements (Mandatory English)</label>
+            <label class="block text-xs font-bold text-[#0B2447] mb-1">VIII. Language Requirements (Mandatory English)</label>
             <textarea id="doc-language" rows="3" class="w-full text-xs p-2.5 bg-[#F4F8FC] border border-[#E0ECF6] rounded-xl focus:bg-white focus:border-[#0284C7] focus:outline-none">${escapeHtml(proj.projectOverview.languageRequirement || LANGUAGE_REQUIREMENT_STANDARD)}</textarea>
           </div>
         </div>
@@ -6338,14 +6433,24 @@ function renderStep2(proj, validation = validateProject(proj)) {
   const currentPlant = proj.documentInfo.plantLocation || 'Semarang Plant';
   const plantCode = resolvePlantCode(currentPlant);
   const plantData = getPlantDatabase(currentPlant);
-  const matrixContacts = resolveContactsForPlant(plantCode);
+  const teamMembers = store.teamMembers || loadUsers();
+  const activeProjectContacts = resolveProjectKeyContacts(proj, teamMembers, plantCode);
+  const selectedEmails = new Set(activeProjectContacts.map(c => String(c.email || c.name).toLowerCase()));
+  const roleCandidates = {
+    'PIC Project': teamMembers.filter(u => u.role === 'PIC Project'),
+    'Project & Engineering Team': teamMembers.filter(u => u.role === 'Project & Engineering Team'),
+    'Purchasing Plant': teamMembers.filter(u => u.role === 'Purchasing Plant')
+  };
+  const purchasingAttnList = Array.isArray(proj.siteDescription?.purchasingAttn) && proj.siteDescription.purchasingAttn.length > 0
+    ? proj.siteDescription.purchasingAttn
+    : (plantData.purchasingAttn || []);
 
   return `
     <div class="dropx-card p-6 bg-white border border-[#E0ECF6] space-y-6">
       <div class="border-b border-[#E0ECF6] pb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h2 class="text-base font-bold text-[#0B2447]">Key Contacts & Plant Location (Clauses IV &amp; V)</h2>
-          <p class="text-xs text-[#5A7184]">Authorized User/Engineering, Project, Purchasing PICs, delivery address, and document submission rules.</p>
+          <h2 class="text-base font-bold text-[#0B2447]">Key Contacts, Site Description &amp; Document Submission Compliance (Clauses IV, V &amp; VI)</h2>
+          <p class="text-xs text-[#5A7184]">Project-assigned PIC Project, Project &amp; Engineering Team, Purchasing Plant, site location, and invoice/document rules.</p>
         </div>
         <div class="flex flex-wrap items-center gap-2">
           <span class="text-[10px] font-bold uppercase tracking-wider text-slate-500">Plant Location:</span>
@@ -6370,63 +6475,135 @@ function renderStep2(proj, validation = validateProject(proj)) {
         </div>
       </div>
 
-      <!-- Contacts Table -->
-      <div>
-        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-2.5">
-          <label class="text-xs font-bold text-[#0B2447] uppercase tracking-wider">IV. Key Contacts Matrix (Plant ${plantCode} &mdash; ${proj.keyContacts.length} Contacts) <span class="text-red-500">*</span></label>
-          <div class="flex flex-wrap items-center gap-1.5">
-            <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-700 border border-slate-200">
-              Engineering PICs: ${matrixContacts.userEngineeringPics.length}
-            </span>
-            <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-sky-50 text-[#0284C7] border border-sky-200">
-              Project PICs: ${matrixContacts.projectTeamPics.length}
-            </span>
-            <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
-              Purchasing PICs: ${matrixContacts.purchasingTeamPics.length}
-            </span>
-            <button type="button" onclick="window.TRSA.addContactRow()" class="text-xs font-bold text-[#0284C7] hover:text-[#0369A1] ml-1">+ Add Contact</button>
+      <!-- IV. Key Contacts (Project Execution Team Only: PIC Project, Project & Engineering Team, Purchasing Plant) -->
+      <div class="space-y-4">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+          <div>
+            <label class="text-xs font-bold text-[#0B2447] uppercase tracking-wider">
+              IV. Key Contacts &mdash; Project Team (${activeProjectContacts.length} Displayed in Document) <span class="text-red-500">*</span>
+            </label>
+            <p class="text-[11px] text-[#5A7184] mt-0.5">
+              Hanya menampilkan personil yang mengerjakan project ini: <strong>PIC Project</strong>, <strong>Project &amp; Engineering Team</strong>, dan <strong>Purchasing Plant</strong>.
+            </p>
+          </div>
+          <div class="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onclick="window.TRSA.resetProjectTeamContacts()"
+              class="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-[11px] font-bold transition-all"
+            >
+              Auto-Match Plant ${plantCode} Team
+            </button>
+            <button type="button" onclick="window.TRSA.addContactRow()" class="text-xs font-bold text-[#0284C7] hover:text-[#0369A1]">+ Add Custom Contact</button>
           </div>
         </div>
+
+        <!-- Role-Grouped Interactive Selector for Active Project -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-3">
+          ${PROJECT_CONTACT_ROLES.map(roleName => {
+            const candidates = roleCandidates[roleName] || [];
+            const badgeStyle = roleName === 'PIC Project'
+              ? 'bg-sky-50 text-[#0284C7] border-sky-200'
+              : roleName === 'Project & Engineering Team'
+                ? 'bg-indigo-50 text-indigo-700 border-indigo-200'
+                : 'bg-emerald-50 text-emerald-700 border-emerald-200';
+            const activeInRole = activeProjectContacts.filter(c => c.projectRole === roleName).length;
+            return `
+              <div class="p-3.5 rounded-2xl border border-[#E0ECF6] bg-[#F8FBFE] space-y-2.5">
+                <div class="flex items-center justify-between gap-2 border-b border-[#E0ECF6] pb-2">
+                  <span class="px-2 py-0.5 rounded-md text-[10px] font-bold border ${badgeStyle}">${escapeHtml(roleName)}</span>
+                  <span class="text-[10px] font-mono font-bold text-slate-500">${activeInRole} Selected</span>
+                </div>
+                <div class="space-y-1.5 max-h-44 overflow-y-auto pr-1">
+                  ${candidates.map(u => {
+                    const isSelected = selectedEmails.has(String(u.email || u.name).toLowerCase());
+                    return `
+                      <label class="flex items-start gap-2 p-2 rounded-xl border text-xs cursor-pointer transition-all ${
+                        isSelected ? 'bg-white border-[#0284C7] shadow-2xs' : 'bg-white/60 border-slate-200 opacity-75 hover:opacity-100'
+                      }">
+                        <input
+                          type="checkbox"
+                          ${isSelected ? 'checked' : ''}
+                          onchange="window.TRSA.toggleProjectTeamMember('${escapeHtml(u.email || u.name)}')"
+                          class="mt-0.5 rounded border-slate-300 text-[#0284C7] focus:ring-[#0284C7]"
+                        />
+                        <div class="min-w-0 flex-1">
+                          <div class="font-bold text-[#0B2447] truncate">${escapeHtml(u.name)}</div>
+                          <div class="text-[10px] text-slate-500 truncate">${escapeHtml(u.jabatan || u.role)} &bull; Plant ${escapeHtml(u.plantCode || 'All')}</div>
+                        </div>
+                      </label>
+                    `;
+                  }).join('')}
+                </div>
+              </div>
+            `;
+          }).join('')}
+        </div>
+
+        <!-- Active Project IV. Key Contacts Preview Table -->
+        <div class="p-3.5 rounded-2xl border border-sky-200 bg-sky-50/40 space-y-2">
+          <div class="text-[11px] font-bold text-[#0369A1] uppercase tracking-wider">
+            Preview Output di Dokumen (IV. Key Contacts &mdash; ${activeProjectContacts.length} Contacts)
+          </div>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs">
+            ${activeProjectContacts.map(c => `
+              <div class="p-2.5 rounded-xl bg-white border border-sky-100 flex items-center justify-between gap-2">
+                <div class="min-w-0">
+                  <div class="font-bold text-[#0B2447] truncate">${escapeHtml(c.name)}</div>
+                  <div class="text-[11px] text-[#5A7184] truncate">${escapeHtml(c.role)}</div>
+                </div>
+                <div class="font-mono text-[10px] text-[#0284C7] shrink-0">${escapeHtml(c.email)}</div>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+
         ${renderErrorMsg('contact.list', validation)}
 
-        <div class="space-y-3" id="contact-list-container">
-          ${proj.keyContacts.map((c, i) => `
-            <div class="p-3.5 border border-[#E0ECF6] rounded-2xl bg-[#F8FBFE] flex flex-col md:flex-row gap-3 items-start md:items-center justify-between">
-              <div class="flex-1 grid grid-cols-1 md:grid-cols-3 gap-2 w-full">
-                <div>
-                  <input type="text" placeholder="Name *" value="${escapeHtml(c.name)}" data-contact-idx="${i}" data-field="name" data-validation-key="contact.${i}.name" class="w-full p-2 border border-[#E0ECF6] rounded-xl text-xs font-bold text-[#0B2447] bg-white ${errorClass(`contact.${i}.name`, validation)}" />
-                  ${renderErrorMsg(`contact.${i}.name`, validation)}
+        <!-- Underlying Custom / Matrix Contact Rows -->
+        <details class="rounded-2xl border border-[#E0ECF6] bg-[#F8FBFE] p-3">
+          <summary class="text-xs font-bold text-[#0B2447] cursor-pointer select-none">
+            Edit Raw &amp; Custom Contact Entries (${proj.keyContacts.length} Records)
+          </summary>
+          <div class="space-y-3 mt-3" id="contact-list-container">
+            ${proj.keyContacts.map((c, i) => `
+              <div class="p-3 border border-[#E0ECF6] rounded-xl bg-white flex flex-col md:flex-row gap-3 items-start md:items-center justify-between">
+                <div class="flex-1 grid grid-cols-1 md:grid-cols-3 gap-2 w-full">
+                  <div>
+                    <input type="text" placeholder="Name *" value="${escapeHtml(c.name)}" data-contact-idx="${i}" data-field="name" data-validation-key="contact.${i}.name" class="w-full p-2 border border-[#E0ECF6] rounded-xl text-xs font-bold text-[#0B2447] bg-white ${errorClass(`contact.${i}.name`, validation)}" />
+                    ${renderErrorMsg(`contact.${i}.name`, validation)}
+                  </div>
+                  <div>
+                    <input type="text" placeholder="Responsibility / Role *" value="${escapeHtml(c.role)}" data-contact-idx="${i}" data-field="role" data-validation-key="contact.${i}.role" class="w-full p-2 border border-[#E0ECF6] rounded-xl text-xs bg-white text-[#5A7184] ${errorClass(`contact.${i}.role`, validation)}" />
+                    ${renderErrorMsg(`contact.${i}.role`, validation)}
+                  </div>
+                  <div>
+                    <input type="email" placeholder="Corporate Email *" value="${escapeHtml(c.email)}" data-contact-idx="${i}" data-field="email" data-validation-key="contact.${i}.email" class="w-full p-2 border border-[#E0ECF6] rounded-xl text-xs font-mono text-[#0284C7] bg-white ${errorClass(`contact.${i}.email`, validation)}" />
+                    ${renderErrorMsg(`contact.${i}.email`, validation)}
+                  </div>
                 </div>
-                <div>
-                  <input type="text" placeholder="Responsibility / Role *" value="${escapeHtml(c.role)}" data-contact-idx="${i}" data-field="role" data-validation-key="contact.${i}.role" class="w-full p-2 border border-[#E0ECF6] rounded-xl text-xs bg-white text-[#5A7184] ${errorClass(`contact.${i}.role`, validation)}" />
-                  ${renderErrorMsg(`contact.${i}.role`, validation)}
-                </div>
-                <div>
-                  <input type="email" placeholder="Corporate Email *" value="${escapeHtml(c.email)}" data-contact-idx="${i}" data-field="email" data-validation-key="contact.${i}.email" class="w-full p-2 border border-[#E0ECF6] rounded-xl text-xs font-mono text-[#0284C7] bg-white ${errorClass(`contact.${i}.email`, validation)}" />
-                  ${renderErrorMsg(`contact.${i}.email`, validation)}
+                <div class="flex items-center gap-2">
+                  <button type="button" onclick="window.TRSA.removeContactRow(${i})" class="text-red-500 font-bold px-2.5 py-1 text-xs hover:bg-red-50 rounded-lg">Remove</button>
                 </div>
               </div>
-              <div class="flex items-center gap-2">
-                <button type="button" onclick="window.TRSA.removeContactRow(${i})" class="text-red-500 font-bold px-2.5 py-1 text-xs hover:bg-red-50 rounded-lg">Remove</button>
-              </div>
-            </div>
-          `).join('')}
-        </div>
+            `).join('')}
+          </div>
+        </details>
       </div>
 
-      <!-- Site Description & Invoicing (Auto-populated from Master Plant Database) -->
+      <!-- V. Site Description (Site Location) -->
       <div class="border-t border-[#E0ECF6] pt-5 space-y-4">
         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-1">
           <div>
             <div class="flex items-center gap-2">
               <span class="w-2.5 h-2.5 rounded-full bg-[#0284C7] animate-pulse"></span>
-              <h3 class="text-xs font-bold text-[#0B2447] uppercase tracking-wider">IV. Site Location & Invoicing Address</h3>
+              <h3 class="text-xs font-bold text-[#0B2447] uppercase tracking-wider">V. Site Description (Site Location)</h3>
               <span class="text-[10px] bg-sky-50 text-[#0284C7] border border-sky-200 px-2 py-0.5 rounded-full font-bold">
                 Auto from Plant Database
               </span>
             </div>
             <p class="text-[11px] text-[#5A7184] mt-0.5">
-              Invoicing recipient and delivery destination are automatically populated from the master plant database for the selected plant (<strong class="text-[#0284C7]">${currentPlant}</strong>).
+              Site Location entity and plant address for <strong class="text-[#0284C7]">${escapeHtml(currentPlant)}</strong> (${escapeHtml(plantCode)}).
             </p>
           </div>
           <button 
@@ -6443,19 +6620,17 @@ function renderStep2(proj, validation = validateProject(proj)) {
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <div class="flex items-center justify-between mb-1">
-              <label class="block text-xs font-bold text-[#0B2447]">Company Invoicing Name <span class="text-red-500">*</span></label>
+              <label class="block text-xs font-bold text-[#0B2447]">Site Location Entity Title <span class="text-red-500">*</span></label>
               <span class="text-[10px] text-emerald-600 font-semibold flex items-center gap-1">
                 <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> Auto-filled
               </span>
             </div>
             <input 
               type="text" 
-              id="site-recipient" 
-              data-validation-key="siteDescription.invoiceRecipient"
-              value="${escapeHtml(proj.siteDescription.invoiceRecipient || plantData.invoiceRecipient)}" 
-              class="w-full text-xs p-2.5 bg-[#F8FBFE] border border-sky-200 rounded-xl font-bold text-slate-800 focus:bg-white focus:border-[#0284C7] ${errorClass('siteDescription.invoiceRecipient', validation)}" 
+              id="site-title" 
+              value="${escapeHtml(proj.siteDescription.siteTitle || plantData.siteTitle)}" 
+              class="w-full text-xs p-2.5 bg-[#F8FBFE] border border-sky-200 rounded-xl font-bold text-slate-800 focus:bg-white focus:border-[#0284C7]" 
             />
-            ${renderErrorMsg('siteDescription.invoiceRecipient', validation)}
           </div>
           <div>
             <div class="flex items-center justify-between mb-1">
@@ -6475,7 +6650,7 @@ function renderStep2(proj, validation = validateProject(proj)) {
           </div>
           <div class="md:col-span-2">
             <div class="flex items-center justify-between mb-1">
-              <label class="block text-xs font-bold text-[#0B2447]">Company Address / Plant Location <span class="text-red-500">*</span></label>
+              <label class="block text-xs font-bold text-[#0B2447]">Site Location Address <span class="text-red-500">*</span></label>
               <span class="text-[10px] text-emerald-600 font-semibold flex items-center gap-1">
                 <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> Database Synced
               </span>
@@ -6528,6 +6703,44 @@ function renderStep2(proj, validation = validateProject(proj)) {
               </div>
             ` : ''}
           </div>
+        </div>
+      </div>
+
+      <!-- VI. Document Submission Compliance -->
+      <div class="border-t border-[#E0ECF6] pt-5 space-y-4">
+        <div>
+          <h3 class="text-xs font-bold text-[#0B2447] uppercase tracking-wider">VI. Document Submission Compliance</h3>
+          <p class="text-[11px] text-[#5A7184] mt-0.5">
+            Invoice issuance address, designated Purchasing Department recipients, and softcopy-before-hardcopy rules.
+          </p>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <div class="flex items-center justify-between mb-1">
+              <label class="block text-xs font-bold text-[#0B2447]">All Invoices Issued To (Header) <span class="text-red-500">*</span></label>
+              <span class="text-[10px] text-emerald-600 font-semibold flex items-center gap-1">
+                <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> Auto-filled
+              </span>
+            </div>
+            <input 
+              type="text" 
+              id="site-recipient" 
+              data-validation-key="siteDescription.invoiceRecipient"
+              value="${escapeHtml(proj.siteDescription.invoiceRecipient || plantData.invoiceRecipient)}" 
+              class="w-full text-xs p-2.5 bg-[#F8FBFE] border border-sky-200 rounded-xl font-bold text-slate-800 focus:bg-white focus:border-[#0284C7] ${errorClass('siteDescription.invoiceRecipient', validation)}" 
+            />
+            ${renderErrorMsg('siteDescription.invoiceRecipient', validation)}
+          </div>
+
+          <div class="p-3 rounded-xl bg-[#F8FBFE] border border-sky-200 text-xs">
+            <div class="font-bold text-[#0284C7] mb-1">Attn: Purchasing Department (Plant ${escapeHtml(plantCode)})</div>
+            <div class="space-y-0.5 text-[11px] text-slate-700">
+              ${purchasingAttnList.map(a => `
+                <div>${escapeHtml(a.name)} (<span class="font-mono text-[#0284C7]">${escapeHtml(a.email)}</span>)</div>
+              `).join('')}
+            </div>
+          </div>
 
           <!-- Custom Clearance & Shipping Clause: RBAC Admin Protection -->
           <div class="md:col-span-2 p-4 rounded-2xl border ${isAdminUser ? 'border-amber-200 bg-amber-50/30' : 'border-slate-200 bg-slate-50'}">
@@ -6535,7 +6748,7 @@ function renderStep2(proj, validation = validateProject(proj)) {
               <div class="flex items-center gap-2">
                 <svg class="w-4 h-4 ${isAdminUser ? 'text-amber-600' : 'text-slate-400'}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
                 <label class="text-xs font-bold text-[#0B2447]">
-                  Custom Clearance & Shipping Clause
+                  Custom Clearance &amp; Shipping Clause
                 </label>
               </div>
               <div>
@@ -6585,10 +6798,10 @@ function renderStep2(proj, validation = validateProject(proj)) {
             </div>
           </div>
 
-          <!-- Clause V: Document Submission & Compliance -->
+          <!-- Clause VI: Document Submission Compliance -->
           <div class="md:col-span-2">
             <label class="block text-xs font-bold text-[#0B2447] mb-1">
-              V. Document Submission &amp; Compliance (Softcopy Draft Approval Prior to Hardcopy)
+              VI. Document Submission Compliance Text (Softcopy Draft Approval Prior to Hardcopy)
             </label>
             <textarea
               id="site-doc-submission"
@@ -6619,7 +6832,7 @@ function renderStep3(proj, validation = validateProject(proj)) {
           <div class="flex items-center gap-2">
             <span class="w-2.5 h-2.5 rounded-full bg-[#0284C7] animate-pulse"></span>
             <span class="text-[10px] font-mono px-2.5 py-0.5 bg-[#E0F2FE] text-[#0284C7] rounded-full font-bold uppercase">
-              Step 3 &bull; Section VII
+              Step 3 &bull; Section IX
             </span>
             <span class="text-xs text-[#5A7184] font-medium">Interactive Technical Specification Canvas</span>
           </div>
@@ -7057,7 +7270,7 @@ function renderStep4(proj, validation = validateProject(proj)) {
     <div class="dropx-card p-6 bg-white border border-[#E0ECF6] space-y-6">
       <div class="border-b border-[#E0ECF6] pb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
         <div>
-          <h2 class="text-base font-bold text-[#0B2447]">IX. Project Scope of Supply (Equipment, Services, Ancillaries &amp; Automation Access)</h2>
+          <h2 class="text-base font-bold text-[#0B2447]">X. Project Scope of Supply (Equipment, Services, Ancillaries &amp; Automation Access)</h2>
           <p class="text-xs text-[#5A7184]">Comprehensive machinery, training services, logistics, and unlocked PLC/HMI code obligations conforming to IFM Matrix.</p>
         </div>
         <button type="button" onclick="window.TRSA.setView('matrix')" class="px-3 py-1.5 rounded-xl bg-sky-50 text-[#0284C7] border border-sky-200 text-xs font-bold hover:bg-sky-100 shrink-0">
@@ -7069,7 +7282,7 @@ function renderStep4(proj, validation = validateProject(proj)) {
         <!-- A. Fryer System -->
         <div>
           <div class="flex items-center justify-between mb-3 bg-[#FF7A00] text-white px-4 py-2.5 rounded-2xl shadow-md shadow-orange-500/20">
-            <div class="font-black text-xs uppercase tracking-wide">IX.A1) Fryer System Scope (${proj.scopeOfSupply.fryer.length} Units)</div>
+            <div class="font-black text-xs uppercase tracking-wide">X.A1) Fryer System Scope (${proj.scopeOfSupply.fryer.length} Units)</div>
             <button type="button" onclick="window.TRSA.addScopeItem('fryer')" class="text-xs bg-white text-[#EA580C] font-bold px-3 py-1 rounded-xl hover:bg-orange-50 transition-all">+ Add Module</button>
           </div>
           ${renderErrorMsg('scope.fryer.list', validation)}
@@ -7104,7 +7317,7 @@ function renderStep4(proj, validation = validateProject(proj)) {
         <!-- A2. Seasoning System -->
         <div>
           <div class="flex items-center justify-between mb-3 bg-[#0284C7] text-white px-4 py-2.5 rounded-2xl shadow-md shadow-sky-500/20">
-            <div class="font-black text-xs uppercase tracking-wide">IX.A2) Seasoning System Scope (${proj.scopeOfSupply.seasoning.length} Units)</div>
+            <div class="font-black text-xs uppercase tracking-wide">X.A2) Seasoning System Scope (${proj.scopeOfSupply.seasoning.length} Units)</div>
             <button type="button" onclick="window.TRSA.addScopeItem('seasoning')" class="text-xs bg-white text-[#0369A1] font-bold px-3 py-1 rounded-xl hover:bg-sky-50 transition-all">+ Add Module</button>
           </div>
           ${renderErrorMsg('scope.seasoning.list', validation)}
@@ -7136,10 +7349,10 @@ function renderStep4(proj, validation = validateProject(proj)) {
           </div>
         </div>
 
-        <!-- IX.B Services Scope, IX.C Ancillaries & Logistics, IX.E Control System Access Rights -->
+        <!-- X.B Services Scope, X.C Ancillaries & Logistics, X.E Control System Access Rights -->
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 border-t border-[#E0ECF6] pt-5">
           <div class="p-4 rounded-2xl border border-sky-200 bg-sky-50/40 space-y-2.5">
-            <div class="text-xs font-bold text-[#0369A1] uppercase tracking-wider">IX.B Services Scope (${servicesScope.length})</div>
+            <div class="text-xs font-bold text-[#0369A1] uppercase tracking-wider">X.B Services Scope (${servicesScope.length})</div>
             <div class="space-y-2 text-xs">
               ${servicesScope.map((srv, idx) => `
                 <div class="p-2.5 rounded-xl bg-white border border-sky-100">
@@ -7151,7 +7364,7 @@ function renderStep4(proj, validation = validateProject(proj)) {
           </div>
 
           <div class="p-4 rounded-2xl border border-slate-200 bg-slate-50/70 space-y-2.5">
-            <div class="text-xs font-bold text-[#0B2447] uppercase tracking-wider">IX.C Ancillaries &amp; Logistics (${ancillaries.length})</div>
+            <div class="text-xs font-bold text-[#0B2447] uppercase tracking-wider">X.C Ancillaries &amp; Logistics (${ancillaries.length})</div>
             <ul class="space-y-2 text-[11px] text-slate-700">
               ${ancillaries.map((anc, idx) => `
                 <li class="p-2.5 rounded-xl bg-white border border-slate-200/80 flex items-start gap-2">
@@ -7163,12 +7376,11 @@ function renderStep4(proj, validation = validateProject(proj)) {
           </div>
 
           <div class="p-4 rounded-2xl border border-amber-200 bg-amber-50/40 space-y-2.5">
-            <div class="text-xs font-bold text-amber-800 uppercase tracking-wider">IX.E Control System &amp; Password Access</div>
+            <div class="text-xs font-bold text-amber-800 uppercase tracking-wider">X.E) Control System, Software &amp; Access Rights</div>
             <div class="space-y-2 text-xs">
               ${controlAccess.map(rule => `
                 <div class="p-2.5 rounded-xl bg-white border border-amber-200/70">
-                  <div class="font-bold text-[#0B2447]">${rule.no}. ${escapeHtml(rule.title)}</div>
-                  <div class="text-[11px] text-slate-700 mt-0.5">${escapeHtml(rule.description)}</div>
+                  <div class="text-[11px] text-slate-700 leading-relaxed"><strong class="text-[#0B2447]">${rule.no}.</strong> ${escapeHtml(rule.description)}</div>
                 </div>
               `).join('')}
             </div>
@@ -7190,7 +7402,7 @@ function renderStep5(proj, validation = validateProject(proj)) {
     <div class="dropx-card p-6 bg-white border border-[#E0ECF6] space-y-6">
       <div class="border-b border-[#E0ECF6] pb-4">
         <h2 class="text-base font-bold text-[#0B2447]">Hygienic Design (12 Rules), Performance Protocol, Final Acceptance &amp; Remedies</h2>
-        <p class="text-xs text-[#5A7184]">Clauses IX.D, X, XI (Training Attendance + Snag List), and XII (3-Month Rectification &amp; 100% Refund).</p>
+        <p class="text-xs text-[#5A7184]">Clauses X.D, XI, XII (Training Attendance + Snag List), and XIII (3-Month Rectification &amp; 100% Refund).</p>
       </div>
 
       <!-- Hygiene Requirements -->
@@ -7209,10 +7421,10 @@ function renderStep5(proj, validation = validateProject(proj)) {
           </div>
         </div>
 
-        <!-- Clause IX.D: 12 General Technical & Hygienic Requirements -->
+        <!-- Clause X.D: 12 General Technical & Hygienic Requirements -->
         <div class="pt-2">
           <div class="flex items-center justify-between mb-2">
-            <h4 class="text-xs font-bold text-[#0B2447] uppercase tracking-wider">IX.D General Technical &amp; Hygienic Requirements (${tech12.length} Mandatory Rules)</h4>
+            <h4 class="text-xs font-bold text-[#0B2447] uppercase tracking-wider">X.D) General Technical &amp; Hygienic Requirements</h4>
             <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">EHEDG / 3-A / IE3 / IP65</span>
           </div>
           <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2.5 text-xs">
@@ -7228,7 +7440,7 @@ function renderStep5(proj, validation = validateProject(proj)) {
 
       <!-- Performance Test Matrix -->
       <div class="border-t border-[#E0ECF6] pt-5">
-        <h3 class="text-xs font-bold text-[#0B2447] uppercase tracking-wider mb-2">X. Target Performance Test Protocols</h3>
+        <h3 class="text-xs font-bold text-[#0B2447] uppercase tracking-wider mb-2">XI. Target Performance Test Protocols</h3>
         <div class="space-y-3">
           ${proj.performanceAcceptance.tests.map((test) => `
             <div class="p-3.5 border border-[#E0ECF6] rounded-2xl bg-[#F8FBFE]">
@@ -7251,9 +7463,9 @@ function renderStep5(proj, validation = validateProject(proj)) {
         </div>
       </div>
 
-      <!-- Clause XI: Final Acceptance (Training Attendance Sheets & Snag List) -->
+      <!-- Clause XII: Final Acceptance (Training Attendance Sheets & Snag List) -->
       <div class="border-t border-[#E0ECF6] pt-5 space-y-3">
-        <h3 class="text-xs font-bold text-[#0B2447] uppercase tracking-wider">XI. Final Acceptance Criteria (${facList.length} Rules)</h3>
+        <h3 class="text-xs font-bold text-[#0B2447] uppercase tracking-wider">XII. Final Acceptance Criteria (${facList.length} Rules)</h3>
         <div class="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
           ${facList.map(item => `
             <div class="p-3.5 rounded-2xl border border-emerald-200 bg-emerald-50/40">
@@ -7264,9 +7476,9 @@ function renderStep5(proj, validation = validateProject(proj)) {
         </div>
       </div>
 
-      <!-- Clause XII: Remedies & Consequences -->
+      <!-- Clause XIII: Remedies & Consequences -->
       <div class="border-t border-[#E0ECF6] pt-5 space-y-3">
-        <h3 class="text-xs font-bold text-red-800 uppercase tracking-wider">XII. Remedies &amp; Consequences If Target is Not Reached</h3>
+        <h3 class="text-xs font-bold text-red-800 uppercase tracking-wider">XIII. Remedies &amp; Consequences If Target is Not Reached</h3>
         <div class="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
           ${remedies.map(rem => `
             <div class="p-4 rounded-2xl border border-red-200 bg-red-50/60 text-red-950">
@@ -7296,7 +7508,7 @@ function renderStep6(proj, validation = validateProject(proj)) {
     <div class="dropx-card p-6 bg-white border border-[#E0ECF6] space-y-6">
       <div class="border-b border-[#E0ECF6] pb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
         <div>
-          <h2 class="text-base font-bold text-[#0B2447]">Commercial Terms, Shipment, Tax Laws &amp; Documentation (Clauses XIII–XIX)</h2>
+          <h2 class="text-base font-bold text-[#0B2447]">Commercial Terms, Shipment, Tax Laws &amp; Documentation (Clauses XIV–XX)</h2>
           <p class="text-xs text-[#5A7184]">Payment schedules, SWIFT APBG, 150-day Undertaking Letter, Plant ${activeCode} tax rules, ${proj.requiredDocumentation.length} deliverables &amp; ${appendices.length} appendices.</p>
         </div>
         <button type="button" onclick="window.TRSA.openPdfModal()" class="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-xs font-bold text-slate-700 shrink-0">
@@ -7316,7 +7528,7 @@ function renderStep6(proj, validation = validateProject(proj)) {
               }"></span>
               <span class="text-xs font-bold text-[#0B2447] uppercase tracking-wider">Vendor Procurement Origin (Plant ${activeCode})</span>
             </div>
-            <p class="text-[11px] text-slate-500 mt-0.5">Controls Clause XIV Incoterms and Clause XVI tax rules (Local PPN/PPh/KLU/PP 44/2022 vs Plant 1411 Foreign Import Duty/PPh 26/PMK 35/2019).</p>
+            <p class="text-[11px] text-slate-500 mt-0.5">Controls Clause XV Incoterms and Clause XVII tax rules (Local PPN/PPh/KLU/PP 44/2022 vs Plant 1411 Foreign Import Duty/PPh 26/PMK 35/2019).</p>
           </div>
           <div class="inline-flex rounded-xl p-1 bg-white border border-slate-200 shadow-xs">
             ${['Foreign', 'Local', 'Mixed'].map(origin => `
@@ -7338,7 +7550,7 @@ function renderStep6(proj, validation = validateProject(proj)) {
 
       <!-- Payment Option Selector -->
       <div class="space-y-4">
-        <label class="block text-xs font-bold text-[#0B2447] uppercase tracking-wider">XIII. Term of Payment (Equipment Supply &amp; Engineering Services)</label>
+        <label class="block text-xs font-bold text-[#0B2447] uppercase tracking-wider">XIV. Term of Payment (Equipment Supply &amp; Engineering Services)</label>
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
           <!-- Matrix Standard -->
           <div class="p-4 rounded-2xl border-2 transition-all cursor-pointer ${
@@ -7402,10 +7614,10 @@ function renderStep6(proj, validation = validateProject(proj)) {
         </div>
       </div>
 
-      <!-- XIV Shipment & XV Warranty -->
+      <!-- XV Shipment & XVI Warranty -->
       <div class="border-t border-[#E0ECF6] pt-5 space-y-3">
         <div class="flex items-center justify-between">
-          <h3 class="text-xs font-bold text-[#0B2447] uppercase tracking-wider">XIV. Shipment, Delivery &amp; XV. Warranty</h3>
+          <h3 class="text-xs font-bold text-[#0B2447] uppercase tracking-wider">XV. Shipment, Delivery &amp; XVI. Warranty</h3>
           <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-700">${escapeHtml(activeOrigin)} Mode</span>
         </div>
         <div class="p-3 rounded-xl bg-[#F4F8FC] border border-[#D6E6F2] text-xs text-slate-700">
@@ -7419,16 +7631,16 @@ function renderStep6(proj, validation = validateProject(proj)) {
             </div>
           `).join('')}
           <div class="p-3 rounded-xl border border-sky-200 bg-sky-50/50">
-            <div class="font-bold text-[#0369A1]">XV. Warranty Standard</div>
+            <div class="font-bold text-[#0369A1]">XVI. Warranty Standard</div>
             <div class="text-[11px] text-slate-700 mt-0.5">${escapeHtml(proj.commercialTerms.warranty || WARRANTY_STANDARD)}</div>
           </div>
         </div>
       </div>
 
-      <!-- XVI Administrative, Tax & Regulatory Provisions -->
+      <!-- XVII Administrative, Tax & Regulatory Provisions -->
       <div class="border-t border-[#E0ECF6] pt-5 space-y-2.5">
         <div class="flex items-center justify-between">
-          <h3 class="text-xs font-bold text-[#0B2447] uppercase tracking-wider">XVI. Administrative, Tax &amp; Regulatory Provisions (Plant ${activeCode} &times; ${activeOrigin})</h3>
+          <h3 class="text-xs font-bold text-[#0B2447] uppercase tracking-wider">XVII. Administrative, Tax &amp; Regulatory Provisions (Plant ${activeCode} &times; ${activeOrigin})</h3>
           <span class="text-[11px] font-mono text-[#0284C7] font-bold">${(proj.legalAndTaxProvisions || []).length} Active Clauses</span>
         </div>
         <div class="grid grid-cols-1 md:grid-cols-2 gap-2.5 text-xs">
@@ -7444,7 +7656,7 @@ function renderStep6(proj, validation = validateProject(proj)) {
       <!-- 13 Required Documents Checklist -->
       <div class="border-t border-[#E0ECF6] pt-5">
         <div class="flex items-center justify-between mb-3">
-          <label class="text-xs font-bold text-[#0B2447] uppercase tracking-wider">XVII. Required Seller Documentation (${proj.requiredDocumentation.length} Mandatory Deliverables)</label>
+          <label class="text-xs font-bold text-[#0B2447] uppercase tracking-wider">XVIII. Required Seller Documentation (${proj.requiredDocumentation.length} Mandatory Deliverables)</label>
         </div>
         <div class="grid grid-cols-1 md:grid-cols-2 gap-2.5">
           ${proj.requiredDocumentation.map((doc, i) => `
@@ -7459,10 +7671,10 @@ function renderStep6(proj, validation = validateProject(proj)) {
         </div>
       </div>
 
-      <!-- XIX Reference Appendices Checklist -->
+      <!-- XX Reference Appendices Checklist -->
       <div class="border-t border-[#E0ECF6] pt-5">
         <div class="flex items-center justify-between mb-3">
-          <label class="text-xs font-bold text-[#0B2447] uppercase tracking-wider">XIX. Attachments / Reference Appendices (${appendices.length} Binding Appendices)</label>
+          <label class="text-xs font-bold text-[#0B2447] uppercase tracking-wider">XX. Attachments / Reference Appendices (${appendices.length} Binding Appendices)</label>
         </div>
         <div class="grid grid-cols-1 md:grid-cols-2 gap-2.5">
           ${appendices.map((app, i) => `
@@ -7477,9 +7689,9 @@ function renderStep6(proj, validation = validateProject(proj)) {
         </div>
       </div>
 
-      <!-- Official Signatures Block (Clause XVIII) -->
+      <!-- Official Signatures Block (Clause XIX) -->
       <div class="border-t border-[#E0ECF6] pt-5">
-        <h3 class="text-xs font-bold text-[#0B2447] uppercase tracking-wider mb-3">XVIII. Acknowledged &amp; Approved By (Formal Sign-Off Parties)</h3>
+        <h3 class="text-xs font-bold text-[#0B2447] uppercase tracking-wider mb-3">XIX. Acknowledged &amp; Approved By (Formal Sign-Off Parties)</h3>
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
           <div class="p-4 border border-[#E0ECF6] rounded-2xl bg-[#F8FBFE] space-y-2">
             <div class="font-bold text-[#0B2447] uppercase">The Seller / OEM Supplier</div>
@@ -7529,6 +7741,14 @@ function renderStudio(proj) {
   ensureProjectMatrixDefaults(proj);
   const watermark = store.watermark;
   const activeCode = resolvePlantCode(proj.documentInfo?.plantLocation || 'Semarang Plant');
+  const activePlantProfile = getPlantDatabase(activeCode) || PLANT_MATRIX_PROFILES[activeCode] || PLANT_MATRIX_PROFILES['1403'];
+  const activeSiteTitle = proj.siteDescription?.siteTitle || activePlantProfile.siteTitle || 'PT Indofood Fortuna Makmur';
+  const activeAddressRaw = proj.siteDescription?.address || activePlantProfile.address || '';
+  const siteAddressLines = formatSiteAddressLines(activePlantProfile, activeAddressRaw);
+  const purchasingAttnList = Array.isArray(proj.siteDescription?.purchasingAttn) && proj.siteDescription.purchasingAttn.length > 0
+    ? proj.siteDescription.purchasingAttn
+    : (activePlantProfile.purchasingAttn || []);
+  const studioKeyContacts = resolveProjectKeyContacts(proj, store.teamMembers || loadUsers(), activeCode);
   const activeOrigin = normalizeOriginMode(proj.documentInfo?.vendorOrigin || 'Foreign');
   const tech12 = proj.hygieneAndQuality?.generalTechnicalHygienic12 || TECHNICAL_HYGIENIC_REQUIREMENTS_12;
   const servicesScope = proj.scopeOfSupply?.servicesScope || SERVICES_SCOPE_STANDARD;
@@ -7582,7 +7802,6 @@ function renderStudio(proj) {
           <!-- Document Header -->
           <div class="text-center pb-6 border-b-2 border-[#0B2447] mb-6">
             <div class="text-xs font-black tracking-widest text-[#0284C7] uppercase mb-1">Tender Requirements and Specification Agreement</div>
-            <h1 class="text-xl font-black text-[#0B2447] uppercase tracking-tight">${proj.documentInfo.title}</h1>
             ${proj.documentInfo.subTitle ? `<div class="text-sm font-semibold text-[#16365C] mt-1">${proj.documentInfo.subTitle}</div>` : ''}
             <div class="mt-2 flex items-center justify-center gap-2 flex-wrap">
               <span class="px-3 py-1 bg-[#F0F9FF] border border-[#BAE6FD] font-mono text-xs font-bold text-[#0369A1] rounded">
@@ -7696,21 +7915,21 @@ function renderStudio(proj) {
           <!-- Section IV: Key Contacts -->
           <div class="mb-6">
             <h2 class="text-xs font-bold text-[#0B2447] uppercase tracking-wider mb-2">IV. Key Contacts</h2>
-            <p class="text-[11px] text-[#5A7184] mb-2">All correspondence pertaining to this project with <span class="ifm-company-brand" style="color: rgb(0, 168, 232); font-weight: 700;">PT. Indofood Fortuna Makmur</span> shall be directed through the following individuals:</p>
+            <p class="text-[11px] text-[#5A7184] mb-2">All correspondence pertaining to this project with <span class="ifm-company-brand" style="color: rgb(0, 168, 232); font-weight: 700;">PT. Indofood Fortuna Makmur</span> shall be directed through the assigned project team below (<strong>PIC Project</strong>, <strong>Project &amp; Engineering Team</strong>, and <strong>Purchasing Plant</strong>):</p>
             <table class="clean-form-table table-header-orange">
               <thead>
                 <tr>
-                  <th style="width: 30%;">Name / Responsibility</th>
+                  <th style="width: 30%;">Name / Project Role</th>
                   <th style="width: 45%;">Company / Address</th>
                   <th style="width: 25%;">Email</th>
                 </tr>
               </thead>
               <tbody>
-                ${proj.keyContacts.map(c => `
+                ${studioKeyContacts.map(c => `
                   <tr>
-                    <td class="font-bold text-[#0B2447]">${c.name}<div class="text-[11px] font-normal text-[#5A7184]">${c.role}</div></td>
-                    <td class="text-[11px] text-slate-600">${c.companyAddress}</td>
-                    <td class="font-mono text-[11px] text-[#0284C7] font-semibold">${c.email}</td>
+                    <td class="font-bold text-[#0B2447]">${escapeHtml(c.name)}<div class="text-[11px] font-normal text-[#5A7184]">${escapeHtml(c.role)}</div></td>
+                    <td class="text-[11px] text-slate-600">${escapeHtml(c.companyAddress)}</td>
+                    <td class="font-mono text-[11px] text-[#0284C7] font-semibold">${escapeHtml(c.email)}</td>
                   </tr>
                 `).join('')}
               </tbody>
@@ -7719,40 +7938,53 @@ function renderStudio(proj) {
 
           <!-- Section V: Site Description -->
           <div class="mb-6">
-            <h2 class="text-xs font-bold text-[#0B2447] uppercase tracking-wider mb-2">V. Site Description &amp; Document Submission Compliance</h2>
-            <div class="text-xs text-slate-700 space-y-1.5 bg-[#F4F8FC] p-3 border border-[#D6E6F2] rounded">
-              <div class="font-bold text-[#0B2447]">Company Address / Site Location (Plant ${activeCode} &mdash; All Invoices Issued To):</div>
-              <div class="font-bold">${escapeHtml(proj.siteDescription.invoiceRecipient)}</div>
-              <div>${escapeHtml(proj.siteDescription.address)}</div>
-              <div class="pt-1 text-[11px]">
-                <strong class="text-[#0284C7]">Attention to Purchasing Department:</strong>
-                ${(proj.siteDescription.purchasingAttn || []).map(a => `${escapeHtml(a.name)} (${escapeHtml(a.email)})`).join('; ')}
+            <h2 class="text-xs font-bold text-[#0B2447] uppercase tracking-wider mb-2">V. Site Description</h2>
+            <div class="text-xs text-slate-700 space-y-0.5 bg-[#F4F8FC] p-3.5 border border-[#D6E6F2] rounded leading-relaxed">
+              <div class="font-bold text-[#0B2447]">Site Location :</div>
+              <div class="font-bold text-[#0F172A]">${escapeHtml(activeSiteTitle)}</div>
+              ${siteAddressLines.map(line => `<div>${escapeHtml(line)}</div>`).join('')}
+            </div>
+          </div>
+
+          <!-- Section VI: Document Submission Compliance -->
+          <div class="mb-6">
+            <h2 class="text-xs font-bold text-[#0B2447] uppercase tracking-wider mb-2">VI. Document Submission Compliance</h2>
+            <div class="text-xs text-slate-700 space-y-3 bg-[#F4F8FC] p-3.5 border border-[#D6E6F2] rounded leading-relaxed">
+              <div class="space-y-0.5">
+                <div class="font-bold text-[#0B2447]">All Invoices Issued To:</div>
+                <div class="font-bold text-[#0F172A]">${escapeHtml(activeSiteTitle)}</div>
+                ${siteAddressLines.map(line => `<div>${escapeHtml(line)}</div>`).join('')}
               </div>
-              <div class="pt-1.5 border-t border-[#D6E6F2] text-[11px] leading-relaxed">
-                <strong class="text-[#0B2447]">Document Submission &amp; Compliance:</strong>
+              <div class="space-y-0.5">
+                <div class="font-bold text-[#0284C7]">Attn: Purchasing Department:</div>
+                ${purchasingAttnList.map(a => `
+                  <div>${escapeHtml(a.name)} (<span class="font-mono text-[#0284C7]">${escapeHtml(a.email)}</span>)</div>
+                `).join('')}
+              </div>
+              <div class="pt-2 border-t border-[#D6E6F2] text-[11px] leading-relaxed text-slate-700 text-justify">
                 ${escapeHtml(proj.siteDescription.documentSubmissionCompliance || DOCUMENT_SUBMISSION_COMPLIANCE)}
               </div>
             </div>
           </div>
 
-          <!-- Section VI & VII: Confidentiality & Language Requirements -->
-          <div class="mb-6 grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <h2 class="text-xs font-bold text-[#0B2447] uppercase tracking-wider mb-1">VI. Confidentiality</h2>
-              <p class="text-[11px] text-slate-600 leading-relaxed text-justify">${escapeHtml(proj.projectOverview.confidentialityClause || CONFIDENTIALITY_STANDARD)}</p>
-            </div>
-            <div>
-              <h2 class="text-xs font-bold text-[#0B2447] uppercase tracking-wider mb-1">VII. Language Requirements</h2>
-              <p class="text-[11px] text-slate-600 leading-relaxed text-justify">${escapeHtml(proj.projectOverview.languageRequirement || LANGUAGE_REQUIREMENT_STANDARD)}</p>
-            </div>
+          <!-- Section VII: Confidentiality -->
+          <div class="mb-6">
+            <h2 class="text-xs font-bold text-[#0B2447] uppercase tracking-wider mb-1">VII. Confidentiality</h2>
+            <p class="text-[11px] text-slate-600 leading-relaxed text-justify">${escapeHtml(proj.projectOverview.confidentialityClause || CONFIDENTIALITY_STANDARD)}</p>
+          </div>
+
+          <!-- Section VIII: Language Requirements -->
+          <div class="mb-6">
+            <h2 class="text-xs font-bold text-[#0B2447] uppercase tracking-wider mb-1">VIII. Language Requirements</h2>
+            <p class="text-[11px] text-slate-600 leading-relaxed text-justify">${escapeHtml(proj.projectOverview.languageRequirement || LANGUAGE_REQUIREMENT_STANDARD)}</p>
           </div>
 
           <!-- Page Break For Clean Business Form Print Standard -->
           <div class="page-break my-6"></div>
 
-          <!-- Section VIII: Product Specifications -->
+          <!-- Section IX: Product Specifications -->
           <div class="mb-6">
-            <h2 class="text-xs font-bold text-[#0B2447] uppercase tracking-wider mb-2">VIII. Product Specifications</h2>
+            <h2 class="text-xs font-bold text-[#0B2447] uppercase tracking-wider mb-2">IX. Product Specifications</h2>
             
             ${proj.productSpecifications.map(p => `
               <div class="mb-4">
@@ -7851,13 +8083,13 @@ function renderStudio(proj) {
             </table>
           </div>
 
-          <!-- Section IX: Scope of Supply -->
+          <!-- Section X: Scope of Supply -->
           <div class="page-break my-6"></div>
 
           <div class="mb-6">
-            <h2 class="text-xs font-bold text-[#0B2447] uppercase tracking-wider mb-2">IX. Scope of Supply</h2>
+            <h2 class="text-xs font-bold text-[#0B2447] uppercase tracking-wider mb-2">X. Scope of Supply</h2>
             
-            <div class="font-bold text-xs text-[#FF7A00] mb-2 uppercase tracking-wide">IX.A1) Equipment Scope &mdash; Fryer System</div>
+            <div class="font-bold text-xs text-[#FF7A00] mb-2 uppercase tracking-wide">X.A1) Equipment Scope &mdash; Fryer System</div>
             <div class="space-y-3 mb-5">
               ${proj.scopeOfSupply.fryer.map(item => `
                 <div class="text-xs">
@@ -7869,7 +8101,7 @@ function renderStudio(proj) {
               `).join('')}
             </div>
 
-            <div class="font-bold text-xs text-[#0284C7] mb-2 uppercase tracking-wide">IX.A2) Equipment Scope &mdash; Seasoning System</div>
+            <div class="font-bold text-xs text-[#0284C7] mb-2 uppercase tracking-wide">X.A2) Equipment Scope &mdash; Seasoning System</div>
             <div class="space-y-3 mb-5">
               ${proj.scopeOfSupply.seasoning.map(item => `
                 <div class="text-xs">
@@ -7881,17 +8113,17 @@ function renderStudio(proj) {
               `).join('')}
             </div>
 
-            <div class="font-bold text-xs text-[#0B2447] mb-1.5 uppercase tracking-wide">IX.B) Services Scope (Training &amp; System Identification)</div>
+            <div class="font-bold text-xs text-[#0B2447] mb-1.5 uppercase tracking-wide">X.B) Services Scope (Training &amp; System Identification)</div>
             <ul class="list-disc pl-6 text-[11px] text-slate-700 space-y-1 mb-4">
               ${servicesScope.map(srv => `<li><strong>${escapeHtml(srv.title)}:</strong> ${escapeHtml(srv.description)}</li>`).join('')}
             </ul>
 
-            <div class="font-bold text-xs text-[#0B2447] mb-1.5 uppercase tracking-wide">IX.C) Ancillaries &amp; Logistics</div>
+            <div class="font-bold text-xs text-[#0B2447] mb-1.5 uppercase tracking-wide">X.C) Ancillaries &amp; Logistics</div>
             <ul class="list-disc pl-6 text-[11px] text-slate-700 space-y-1 mb-4">
               ${ancillaries.map(anc => `<li>${escapeHtml(anc)}</li>`).join('')}
             </ul>
 
-            <div class="font-bold text-xs text-[#0B2447] mb-1.5 uppercase tracking-wide">IX.D) General Technical &amp; Hygienic Requirements (12 Rules)</div>
+            <div class="font-bold text-xs text-[#0B2447] mb-1.5 uppercase tracking-wide">X.D) General Technical &amp; Hygienic Requirements</div>
             <table class="clean-form-table mb-4">
               <thead>
                 <tr>
@@ -7911,17 +8143,17 @@ function renderStudio(proj) {
               </tbody>
             </table>
 
-            <div class="font-bold text-xs text-[#0B2447] mb-1.5 uppercase tracking-wide">IX.E) Control System, Software &amp; Access Rights</div>
+            <div class="font-bold text-xs text-[#0B2447] mb-1.5 uppercase tracking-wide">X.E) Control System, Software &amp; Access Rights</div>
             <div class="p-3 bg-amber-50/70 border border-amber-200 rounded text-[11px] text-slate-800 space-y-1">
-              ${controlAccess.map(r => `<div><strong>${r.no}. ${escapeHtml(r.title)}:</strong> ${escapeHtml(r.description)}</div>`).join('')}
+              ${controlAccess.map(r => `<div><strong>${r.no}.</strong> ${escapeHtml(r.description)}</div>`).join('')}
             </div>
           </div>
 
-          <!-- Section X: Target Performance Test -->
+          <!-- Section XI: Target Performance Test -->
           <div class="page-break my-6"></div>
 
           <div class="mb-6">
-            <h2 class="text-xs font-bold text-[#0B2447] uppercase tracking-wider mb-2">X. Target Performance Test</h2>
+            <h2 class="text-xs font-bold text-[#0B2447] uppercase tracking-wider mb-2">XI. Target Performance Test</h2>
             <table class="clean-form-table">
               <thead>
                 <tr>
@@ -7948,25 +8180,25 @@ function renderStudio(proj) {
             </div>
           </div>
 
-          <!-- Section XI: Final Acceptance -->
+          <!-- Section XII: Final Acceptance -->
           <div class="mb-6">
-            <h2 class="text-xs font-bold text-[#0B2447] uppercase tracking-wider mb-2">XI. Final Acceptance</h2>
+            <h2 class="text-xs font-bold text-[#0B2447] uppercase tracking-wider mb-2">XII. Final Acceptance</h2>
             <div class="p-3 bg-emerald-50 border border-emerald-200 text-xs text-emerald-950 rounded leading-relaxed space-y-1.5">
               ${facChecklist.map(item => `<div><strong>${item.no}. ${escapeHtml(item.title)}:</strong> ${escapeHtml(item.description)}</div>`).join('')}
             </div>
           </div>
 
-          <!-- Section XII: Remedies & Consequences If Target is Not Reached -->
+          <!-- Section XIII: Remedies & Consequences If Target is Not Reached -->
           <div class="mb-6">
-            <h2 class="text-xs font-bold text-[#0B2447] uppercase tracking-wider mb-2">XII. Remedies &amp; Consequences If Target is Not Reached</h2>
+            <h2 class="text-xs font-bold text-[#0B2447] uppercase tracking-wider mb-2">XIII. Remedies &amp; Consequences If Target is Not Reached</h2>
             <div class="p-3 bg-red-50 border border-red-200 text-xs text-red-950 rounded leading-relaxed space-y-1.5">
               ${remediesList.map(rem => `<div><strong>${rem.no}. ${escapeHtml(rem.title)}:</strong> ${escapeHtml(rem.description)}</div>`).join('')}
             </div>
           </div>
 
-          <!-- Section XIII: Term of Payment -->
+          <!-- Section XIV: Term of Payment -->
           <div class="mb-6">
-            <h2 class="text-xs font-bold text-[#0B2447] uppercase tracking-wider mb-2">XIII. Term of Payment (Selected: ${escapeHtml(proj.commercialTerms.selectedPaymentOption || 'Matrix Standard')})</h2>
+            <h2 class="text-xs font-bold text-[#0B2447] uppercase tracking-wider mb-2">XIV. Term of Payment (Selected: ${escapeHtml(proj.commercialTerms.selectedPaymentOption || 'Matrix Standard')})</h2>
             <table class="clean-form-table table-header-orange mb-2">
               <thead>
                 <tr>
@@ -8011,9 +8243,9 @@ function renderStudio(proj) {
             </div>
           </div>
 
-          <!-- Section XIV: Shipment and Delivery -->
+          <!-- Section XV: Shipment and Delivery -->
           <div class="mb-6">
-            <h2 class="text-xs font-bold text-[#0B2447] uppercase tracking-wider mb-2">XIV. Shipment and Delivery</h2>
+            <h2 class="text-xs font-bold text-[#0B2447] uppercase tracking-wider mb-2">XV. Shipment and Delivery</h2>
             <div class="p-3 bg-[#F4F8FC] border border-[#D6E6F2] text-xs text-slate-700 rounded leading-relaxed space-y-1.5">
               <div><strong>Applicable Basis:</strong> ${escapeHtml(proj.commercialTerms.shipmentTerms)}</div>
               ${shipmentItems.map(item => `
@@ -8022,17 +8254,17 @@ function renderStudio(proj) {
             </div>
           </div>
 
-          <!-- Section XV: Warranty -->
+          <!-- Section XVI: Warranty -->
           <div class="mb-6">
-            <h2 class="text-xs font-bold text-[#0B2447] uppercase tracking-wider mb-2">XV. Warranty</h2>
+            <h2 class="text-xs font-bold text-[#0B2447] uppercase tracking-wider mb-2">XVI. Warranty</h2>
             <div class="p-3 bg-[#F0F9FF] border border-[#BAE6FD] text-xs text-[#0369A1] rounded leading-relaxed font-medium">
               ${escapeHtml(proj.commercialTerms.warranty || WARRANTY_STANDARD)}
             </div>
           </div>
 
-          <!-- Section XVI: Administrative, Tax & Regulatory Provisions -->
+          <!-- Section XVII: Administrative, Tax & Regulatory Provisions -->
           <div class="mb-6">
-            <h2 class="text-xs font-bold text-[#0B2447] uppercase tracking-wider mb-2">XVI. Administrative, Tax &amp; Regulatory Provisions</h2>
+            <h2 class="text-xs font-bold text-[#0B2447] uppercase tracking-wider mb-2">XVII. Administrative, Tax &amp; Regulatory Provisions</h2>
             <div class="space-y-2 text-xs text-slate-700">
               ${(proj.legalAndTaxProvisions || []).map(p => `
                 <div class="p-2.5 bg-slate-50 border border-slate-200 rounded">
@@ -8042,9 +8274,9 @@ function renderStudio(proj) {
             </div>
           </div>
 
-          <!-- Section XVII: Required Documentation -->
+          <!-- Section XVIII: Required Documentation -->
           <div class="mb-6">
-            <h2 class="text-xs font-bold text-[#0B2447] uppercase tracking-wider mb-2">XVII. Required Documentation (${proj.requiredDocumentation.length} Items)</h2>
+            <h2 class="text-xs font-bold text-[#0B2447] uppercase tracking-wider mb-2">XVIII. Required Documentation (${proj.requiredDocumentation.length} Items)</h2>
             <div class="grid grid-cols-2 gap-x-4 gap-y-1 text-[11px] text-slate-700">
               ${proj.requiredDocumentation.map(d => `
                 <div class="flex items-start gap-1.5">
@@ -8055,9 +8287,9 @@ function renderStudio(proj) {
             </div>
           </div>
 
-          <!-- Section XVIII: Acknowledged and Approved by -->
+          <!-- Section XIX: Acknowledged and Approved by -->
           <div class="mt-8 pt-6 border-t-2 border-[#0B2447] mb-6">
-            <h2 class="text-xs font-bold text-[#0B2447] uppercase tracking-wider mb-6">XVIII. Acknowledged and Approved by,</h2>
+            <h2 class="text-xs font-bold text-[#0B2447] uppercase tracking-wider mb-6">XIX. Acknowledged and Approved by,</h2>
             
             <div class="grid grid-cols-2 gap-8 text-xs">
               <!-- Seller Endorsement -->
@@ -8085,9 +8317,9 @@ function renderStudio(proj) {
             </div>
           </div>
 
-          <!-- Section XIX: Attachments / Appendices -->
+          <!-- Section XX: Attachments / Appendices -->
           <div class="mb-2">
-            <h2 class="text-xs font-bold text-[#0B2447] uppercase tracking-wider mb-2">XIX. Attachments / Reference Appendices</h2>
+            <h2 class="text-xs font-bold text-[#0B2447] uppercase tracking-wider mb-2">XX. Attachments / Reference Appendices</h2>
             <table class="clean-form-table">
               <thead>
                 <tr>
@@ -9686,6 +9918,12 @@ function attachEventHandlers(activeProject) {
   });
 
   // Step 2: Site Location and Invoicing Inputs
+  const siteTitleInput = document.getElementById('site-title');
+  if (siteTitleInput) {
+    siteTitleInput.addEventListener('input', (e) => {
+      activeProject.siteDescription.siteTitle = e.target.value;
+    });
+  }
   const siteRecipient = document.getElementById('site-recipient');
   if (siteRecipient) {
     siteRecipient.addEventListener('input', (e) => {
@@ -10191,13 +10429,22 @@ if (typeof window !== 'undefined') {
     }
     render();
   },
+  toggleProjectTeamMember(emailOrName) {
+    store.toggleProjectTeamMember(emailOrName);
+    render();
+  },
+  resetProjectTeamContacts() {
+    store.resetProjectTeamContacts();
+    render();
+  },
   addContactRow() {
     const p = store.getActiveProject();
     p.keyContacts.push({
       id: 'c-' + Date.now(),
-      name: 'New Officer',
-      role: 'Project Member',
-      companyAddress: 'PT. Indofood Fortuna Makmur',
+      name: 'New Project PIC',
+      projectRole: 'PIC Project',
+      role: 'PIC Project',
+      companyAddress: p.siteDescription?.address || 'PT. Indofood Fortuna Makmur',
       email: 'officer@icbp.indofood.co.id',
       isPrimary: false
     });

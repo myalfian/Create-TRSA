@@ -459,7 +459,7 @@ describe('TRSA Store and Business Logic Tests', () => {
     assert.strictEqual(proj.generalInfo.countryOfOrigin, 'Local (Indonesia)');
     const localParsed = parseCountryOfOrigin(proj.generalInfo.countryOfOrigin);
     assert.strictEqual(localParsed.category, 'Local');
-    assert.strictEqual(localParsed.fullDisplay, 'Local (Indonesia)');
+    assert.strictEqual(localParsed.fullDisplay, 'Local');
 
     // 3. Select Foreign with specific foreign CoO
     store.updateCountryOfOrigin('Foreign', 'Germany');

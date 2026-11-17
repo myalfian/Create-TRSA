@@ -21,13 +21,18 @@ import { defaultTRSAProject } from '../src/data/defaultTRSA.js';
 import {
   USER_ENGINEERING_PICS,
   PLANT_MATRIX_PROFILES,
+  DOCUMENT_SUBMISSION_COMPLIANCE,
   TRSA_COMPLIANCE_MATRIX,
   resolvePlantCode,
   isClauseApplicable,
   resolveContactsForPlant,
   buildLegalAndTaxProvisions,
-  auditProjectMatrixCompliance
+  auditProjectMatrixCompliance,
+  PROJECT_CONTACT_ROLES,
+  resolveProjectKeyContacts,
+  formatSiteAddressLines
 } from '../src/js/trsaMatrixService.js';
+import { DEFAULT_TEAM_MEMBERS } from '../src/js/masterDataService.js';
 import { TRSAStore } from '../src/js/app.js';
 
 describe('IFM 19-Clause TRSA Compliance Matrix & Deep Audit Tests', () => {
@@ -41,9 +46,13 @@ describe('IFM 19-Clause TRSA Compliance Matrix & Deep Audit Tests', () => {
     assert.strictEqual(resolvePlantCode('Cikupa Plant'), '1405');
     assert.strictEqual(resolvePlantCode('Agro Plant'), '1411');
 
-    // Verify 1402 Cikokol contacts (4 Eng + 2 Proj + 3 Pur = 9)
+    // Verify 1402 Cikokol profile, address, and Purchasing Attn
     const p1402 = resolveContactsForPlant('1402');
     assert.strictEqual(p1402.contacts.length, 9);
+    assert.strictEqual(p1402.profile.siteTitle, 'PT Indofood Fortuna Makmur – Cikokol');
+    assert.strictEqual(p1402.purchasingAttn.length, 2);
+    assert.strictEqual(p1402.purchasingAttn[0].email, 'natania.ws@icbp.indofood.co.id');
+    assert.strictEqual(p1402.purchasingAttn[1].email, 'arief.setyawan@icbp.indofood.co.id');
     assert.ok(p1402.contacts.some(c => c.email === 'angga.wicaksono@icbp.indofood.co.id'));
     assert.ok(p1402.contacts.some(c => c.email === 'natania.ws@icbp.indofood.co.id'));
     assert.ok(p1402.contacts.some(c => c.email === 'arief.setyawan@icbp.indofood.co.id'));
@@ -120,5 +129,65 @@ describe('IFM 19-Clause TRSA Compliance Matrix & Deep Audit Tests', () => {
     const alignedAudit = store.alignProjectWithMatrix();
     assert.strictEqual(alignedAudit.complianceScore, 100);
     assert.strictEqual(alignedAudit.discrepancies.length, 0);
+  });
+
+  test('IV. Key Contacts shows only project-assigned PIC Project, Project & Engineering Team, and Purchasing Plant', () => {
+    globalThis.localStorage.clear();
+    const store = new TRSAStore();
+    const proj1403 = store.getActiveProject();
+
+    // Default project is Plant 1403 originated by Refin A Putra
+    const resolved1403 = resolveProjectKeyContacts(proj1403, DEFAULT_TEAM_MEMBERS);
+    assert.ok(resolved1403.length >= 3);
+    assert.ok(resolved1403.every(c => PROJECT_CONTACT_ROLES.includes(c.projectRole)), 'Every displayed contact must belong to the 3 project execution roles');
+    assert.ok(!resolved1403.some(c => c.name === 'Moh Yusuf Alfian'), 'Super Admin should not appear in IV. Key Contacts');
+    assert.ok(resolved1403.some(c => c.name === 'Ayodya Maulana Gunoro' && c.projectRole === 'PIC Project'));
+    assert.ok(resolved1403.some(c => c.name === 'Refin A Putra' && c.projectRole === 'Project & Engineering Team'));
+    assert.ok(resolved1403.some(c => c.name === 'Natalia Happy' && c.projectRole === 'Purchasing Plant'));
+
+    // Switch plant to Cikokol (1402) and confirm Key Contacts + Site Description + VI. Document Submission Compliance
+    store.updatePlantLocation('Cikokol Plant');
+    const resolved1402 = resolveProjectKeyContacts(proj1403, DEFAULT_TEAM_MEMBERS);
+    assert.ok(resolved1402.some(c => c.name === 'Angga Dwiki Wicaksono' && c.projectRole === 'PIC Project'));
+    assert.ok(resolved1402.some(c => c.name === 'Murdani' && c.projectRole === 'Project & Engineering Team'));
+    assert.ok(resolved1402.some(c => c.name === 'Natania WS' && c.projectRole === 'Purchasing Plant'));
+    assert.ok(resolved1402.some(c => c.name === 'Arief Setyawan' && c.projectRole === 'Purchasing Plant'));
+    assert.ok(!resolved1402.some(c => c.name === 'Ayodya Maulana Gunoro'), 'Semarang PIC must not appear when working on Cikokol Plant');
+
+    // Toggle a specific team member for this project & verify custom persistence + reset
+    store.toggleProjectTeamMember('mohammad.faiz@icbp.indofood.co.id');
+    const customResolved = resolveProjectKeyContacts(proj1403, DEFAULT_TEAM_MEMBERS);
+    assert.ok(customResolved.some(c => c.name === 'Mohammad Faiz' && c.projectRole === 'PIC Project'));
+
+    store.resetProjectTeamContacts();
+    const afterReset = resolveProjectKeyContacts(proj1403, DEFAULT_TEAM_MEMBERS);
+    assert.ok(!afterReset.some(c => c.name === 'Mohammad Faiz'));
+  });
+
+  test('V. Site Description & VI. Document Submission Compliance content and Matrix numbering (V, VI, VII–XX)', () => {
+    const profile1402 = PLANT_MATRIX_PROFILES['1402'];
+    assert.strictEqual(profile1402.siteTitle, 'PT Indofood Fortuna Makmur – Cikokol');
+    const lines = formatSiteAddressLines(profile1402, profile1402.address);
+    assert.deepStrictEqual(lines, [
+      'Jl. Wisma Damatex, RT.001/RW.001, Cikokol,',
+      'Kec. Tangerang, Kota Tangerang, Banten 15117, Indonesia'
+    ]);
+
+    assert.strictEqual(profile1402.purchasingAttn.length, 2);
+    assert.strictEqual(`${profile1402.purchasingAttn[0].name} (${profile1402.purchasingAttn[0].email})`, 'Natania WS (natania.ws@icbp.indofood.co.id)');
+    assert.strictEqual(`${profile1402.purchasingAttn[1].name} (${profile1402.purchasingAttn[1].email})`, 'Arief Setyawan (arief.setyawan@icbp.indofood.co.id)');
+    assert.ok(DOCUMENT_SUBMISSION_COMPLIANCE.includes('submitted directly to the designated Purchasing recipients above'));
+    assert.ok(DOCUMENT_SUBMISSION_COMPLIANCE.includes('softcopy drafts for IFM review and approval prior to dispatching original hardcopies'));
+
+    const vSite = TRSA_COMPLIANCE_MATRIX.find(r => r.id === 'V.site');
+    const viInv = TRSA_COMPLIANCE_MATRIX.find(r => r.id === 'V.invoice');
+    const viSub = TRSA_COMPLIANCE_MATRIX.find(r => r.id === 'V.submission');
+    const viiConf = TRSA_COMPLIANCE_MATRIX.find(r => r.id === 'VI');
+    const xxApp = TRSA_COMPLIANCE_MATRIX.find(r => r.id === 'XIX');
+    assert.strictEqual(vSite.itemNo, 'V');
+    assert.strictEqual(viInv.itemNo, 'VI');
+    assert.strictEqual(viSub.itemNo, 'VI');
+    assert.strictEqual(viiConf.itemNo, 'VII');
+    assert.strictEqual(xxApp.itemNo, 'XX');
   });
 });

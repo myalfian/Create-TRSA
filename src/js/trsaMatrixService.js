@@ -17,7 +17,7 @@ export const PLANT_MATRIX_PROFILES = {
   '1402': {
     code: '1402',
     plantName: 'Cikokol Plant',
-    siteTitle: 'PT Indofood Fortuna Makmur – Tangerang',
+    siteTitle: 'PT Indofood Fortuna Makmur – Cikokol',
     companyName: 'PT. Indofood Fortuna Makmur',
     invoiceRecipient: 'PT Indofood Fortuna Makmur – Attn: Purchasing Department',
     address: 'Jl. Wisma Damatex, RT.001/RW.001, Cikokol, Kec. Tangerang, Kota Tangerang, Banten 15117, Indonesia',
@@ -48,7 +48,6 @@ export const PLANT_MATRIX_PROFILES = {
       { name: 'Arief Setyawan', email: 'arief.setyawan@icbp.indofood.co.id', role: 'Purchasing Team PIC', dept: 'PUR' }
     ],
     purchasingAttn: [
-      { name: 'Dewi Natalia', email: 'dewi.natalia@icbp.indofood.co.id' },
       { name: 'Natania WS', email: 'natania.ws@icbp.indofood.co.id' },
       { name: 'Arief Setyawan', email: 'arief.setyawan@icbp.indofood.co.id' }
     ],
@@ -276,7 +275,7 @@ export const CONTROL_SYSTEM_ACCESS_RIGHTS = [
   {
     no: 2,
     title: 'Master Password Handover',
-    description: 'All PLC and HMI (OIT) Master Passwords must be formally provided to the Buyer PIC prior to Final Acceptance.'
+    description: 'All PLC and HMI (OIT) Master Passwords (for software & Hardware) must be formally provided to the Buyer PIC prior to Final Acceptance.'
   }
 ];
 
@@ -461,33 +460,33 @@ export const TRSA_COMPLIANCE_MATRIX = [
   {
     id: 'V.site',
     itemNo: 'V',
-    clauseTitle: 'Site Description & Delivery Address',
-    category: 'Site & Billing',
-    summary: 'Authorized delivery address for 1405 (Cikupa), 1402/1411 (Tangerang - Jl. Wisma Damatex), and 1403 (Semarang - Jl. Tambak Aji IV No. 10).',
+    clauseTitle: 'Site Description (Site Location)',
+    category: 'Site & Location',
+    summary: 'Authorized delivery site location for 1402 (Cikokol - Jl. Wisma Damatex), 1403 (Semarang - Jl. Tambak Aji IV No. 10), 1405 (Cikupa), and 1411 (Agro).',
     plants: ['1402', '1403', '1405', '1411'],
     origins: ['Local', 'Foreign']
   },
   {
     id: 'V.invoice',
-    itemNo: 'V',
-    clauseTitle: 'Invoice & Original Document Recipient',
-    category: 'Site & Billing',
-    summary: 'All invoices & shipping documents issued to PT Indofood Fortuna Makmur – Attn: Purchasing Department with plant-specific recipients.',
+    itemNo: 'VI',
+    clauseTitle: 'Document Submission Compliance — Invoice Recipient',
+    category: 'Billing & Submission',
+    summary: 'All invoices issued to plant-specific PT Indofood Fortuna Makmur site address Attn: Purchasing Department with designated plant Purchasing recipients.',
     plants: ['1402', '1403', '1405', '1411'],
     origins: ['Local', 'Foreign']
   },
   {
     id: 'V.submission',
-    itemNo: 'V',
-    clauseTitle: 'Document Submission & Compliance',
-    category: 'Site & Billing',
+    itemNo: 'VI',
+    clauseTitle: 'Document Submission Compliance — Softcopy & Hardcopy Rules',
+    category: 'Billing & Submission',
     summary: DOCUMENT_SUBMISSION_COMPLIANCE,
     plants: ['1402', '1403', '1405', '1411'],
     origins: ['Local', 'Foreign']
   },
   {
     id: 'VI',
-    itemNo: 'VI',
+    itemNo: 'VII',
     clauseTitle: 'Confidentiality',
     category: 'Governance',
     summary: CONFIDENTIALITY_STANDARD,
@@ -496,7 +495,7 @@ export const TRSA_COMPLIANCE_MATRIX = [
   },
   {
     id: 'VII',
-    itemNo: 'VII',
+    itemNo: 'VIII',
     clauseTitle: 'Language Requirements',
     category: 'Governance',
     summary: LANGUAGE_REQUIREMENT_STANDARD,
@@ -505,7 +504,7 @@ export const TRSA_COMPLIANCE_MATRIX = [
   },
   {
     id: 'VIII',
-    itemNo: 'VIII',
+    itemNo: 'IX',
     clauseTitle: 'Product Specifications',
     category: 'Technical',
     summary: 'Strict conformity to technical parameters, capacity, and quality specifications in the Technical Specification Attachment.',
@@ -514,7 +513,7 @@ export const TRSA_COMPLIANCE_MATRIX = [
   },
   {
     id: 'IX.A',
-    itemNo: 'IX.A',
+    itemNo: 'X.A',
     clauseTitle: 'Equipment Scope',
     category: 'Scope of Supply',
     summary: 'Complete design, engineering, manufacturing, factory testing, and supply of main machinery, control panels, and automation.',
@@ -523,7 +522,7 @@ export const TRSA_COMPLIANCE_MATRIX = [
   },
   {
     id: 'IX.B',
-    itemNo: 'IX.B',
+    itemNo: 'X.B',
     clauseTitle: 'Services Scope',
     category: 'Scope of Supply',
     summary: 'Supervised installation, testing & commissioning complete with Operator Training, Maintenance Training, and P&ID System Identification.',
@@ -532,7 +531,7 @@ export const TRSA_COMPLIANCE_MATRIX = [
   },
   {
     id: 'IX.C',
-    itemNo: 'IX.C',
+    itemNo: 'X.C',
     clauseTitle: 'Ancillaries & Logistics',
     category: 'Scope of Supply',
     summary: 'FAT/Shop Test & modular disassembly, pre-wired panels & J-boxes, seaworthy/roadworthy packing (Franco/CIF/CIP), civil/anchor drawings.',
@@ -541,8 +540,8 @@ export const TRSA_COMPLIANCE_MATRIX = [
   },
   {
     id: 'IX.D',
-    itemNo: 'IX.D',
-    clauseTitle: 'General Technical & Hygienic Requirements (12 Rules)',
+    itemNo: 'X.D',
+    clauseTitle: 'General Technical & Hygienic Requirements',
     category: 'Technical & Hygiene',
     summary: 'EHEDG/3-A design, seal-welded frames, zero dead-leg piping, min SUS304, calibration certs, FDA/EU 1935/2004 + EN 10204 3.1 + SDS/MSDS, IP65 panels, IE3 motors, lockable safety isolators, drip/grease pans, interlocked guards.',
     plants: ['1402', '1403', '1405', '1411'],
@@ -550,7 +549,7 @@ export const TRSA_COMPLIANCE_MATRIX = [
   },
   {
     id: 'IX.E',
-    itemNo: 'IX.E',
+    itemNo: 'X.E',
     clauseTitle: 'Control System, Software & Access Rights',
     category: 'Automation',
     summary: 'Unlocked PLC & HMI (OIT) source code without password + formal handover of all Master Passwords prior to Final Acceptance.',
@@ -559,7 +558,7 @@ export const TRSA_COMPLIANCE_MATRIX = [
   },
   {
     id: 'X',
-    itemNo: 'X',
+    itemNo: 'XI',
     clauseTitle: 'Target Performance Test',
     category: 'Acceptance',
     summary: 'Execution of FAT & SAT against measurable KPIs (capacity, efficiency, reject rate, product quality) and run-test duration.',
@@ -568,7 +567,7 @@ export const TRSA_COMPLIANCE_MATRIX = [
   },
   {
     id: 'XI',
-    itemNo: 'XI',
+    itemNo: 'XII',
     clauseTitle: 'Final Acceptance',
     category: 'Acceptance',
     summary: 'On-site SAT continuous reliability, signed Operator & Maintenance training attendance sheets, formal FAC sign-off, and binding Snag List (Punch List).',
@@ -577,7 +576,7 @@ export const TRSA_COMPLIANCE_MATRIX = [
   },
   {
     id: 'XII',
-    itemNo: 'XII',
+    itemNo: 'XIII',
     clauseTitle: 'Remedies & Consequences if Target is Not Reached',
     category: 'Commercial Risk',
     summary: '3-month rectification period (including raw materials consumed borne by Seller), or rejection with 100% full refund & dismantling/removal at Seller expense.',
@@ -586,7 +585,7 @@ export const TRSA_COMPLIANCE_MATRIX = [
   },
   {
     id: 'XIII.eq',
-    itemNo: 'XIII',
+    itemNo: 'XIV',
     clauseTitle: 'Equipment Payment Schedule',
     category: 'Payment Terms',
     summary: '30% DP T/T vs SWIFT/Telex APBG, 55% Progress T/T vs original invoice & shipping docs, 10% Commissioning T/T (<=60d B/L), 5% Retention T/T 3 mos (<=150d B/L).',
@@ -595,7 +594,7 @@ export const TRSA_COMPLIANCE_MATRIX = [
   },
   {
     id: 'XIII.srv',
-    itemNo: 'XIII',
+    itemNo: 'XIV',
     clauseTitle: 'Engineering Services Payment',
     category: 'Payment Terms',
     summary: '100% T/T after machine running w/ Acceptance Certificate or <=150 calendar days from B/L subject to formal Undertaking Letter.',
@@ -604,7 +603,7 @@ export const TRSA_COMPLIANCE_MATRIX = [
   },
   {
     id: 'XIII.bg',
-    itemNo: 'XIII',
+    itemNo: 'XIV',
     clauseTitle: 'Invoicing & Bank Guarantee Conditions',
     category: 'Payment Terms',
     summary: 'Draft invoice verification required before hardcopy dispatch; SWIFT/Telex Bank Guarantee is a strict condition precedent to DP release.',
@@ -613,7 +612,7 @@ export const TRSA_COMPLIANCE_MATRIX = [
   },
   {
     id: 'XIV',
-    itemNo: 'XIV',
+    itemNo: 'XV',
     clauseTitle: 'Shipment and Delivery',
     category: 'Logistics',
     summary: 'Schedule adherence, Franco Site / CIF-CIP + EXW lead time, 110% ICC(A)/Air Cargo Insurance (payable Jakarta to BCA), <=25yr Vessel Age Cert, Customs Clearance demurrage back-charge.',
@@ -622,7 +621,7 @@ export const TRSA_COMPLIANCE_MATRIX = [
   },
   {
     id: 'XV',
-    itemNo: 'XV',
+    itemNo: 'XVI',
     clauseTitle: 'Warranty',
     category: 'After-Sales',
     summary: WARRANTY_STANDARD,
@@ -631,7 +630,7 @@ export const TRSA_COMPLIANCE_MATRIX = [
   },
   {
     id: 'XVI.quote',
-    itemNo: 'XVI',
+    itemNo: 'XVII',
     clauseTitle: 'Quotation Breakdown',
     category: 'Tax & Regulatory',
     summary: 'Separate, itemized quotations for Equipment Supply and Engineering Services costs.',
@@ -640,7 +639,7 @@ export const TRSA_COMPLIANCE_MATRIX = [
   },
   {
     id: 'XVI.duty',
-    itemNo: 'XVI',
+    itemNo: 'XVII',
     clauseTitle: 'Import Duty Exemption & Free Demurrage',
     category: 'Tax & Regulatory',
     summary: 'Valid CoO/duty exemption (Form E, AK, IJEPA) and minimum 14 calendar days free demurrage at port of discharge; failures deducted from contract value.',
@@ -649,7 +648,7 @@ export const TRSA_COMPLIANCE_MATRIX = [
   },
   {
     id: 'XVI.pph26',
-    itemNo: 'XVI',
+    itemNo: 'XVII',
     clauseTitle: 'Foreign Vendor Withholding Tax (PPh 26 / DGT Form)',
     category: 'Tax & Regulatory',
     summary: '20% PPh 26; DGT treaty relief (5% CH, 7.5% DE, 10% IN/LU/PG/VE/ZW, 15% PK, 0% other); PMK 35/PMK.03/2019 6-month Time Test requiring BUT + NPWP.',
@@ -658,7 +657,7 @@ export const TRSA_COMPLIANCE_MATRIX = [
   },
   {
     id: 'XVI.visa',
-    itemNo: 'XVI',
+    itemNo: 'XVII',
     clauseTitle: 'Visa & Engineer Mobilization Expenses',
     category: 'Tax & Regulatory',
     summary: 'Valid Working Visa required (Indonesia visa by IFM, home visa by Seller); clear cost split between Foreign vs Local engineers.',
@@ -667,7 +666,7 @@ export const TRSA_COMPLIANCE_MATRIX = [
   },
   {
     id: 'XVI.local',
-    itemNo: 'XVI',
+    itemNo: 'XVII',
     clauseTitle: 'Local Vendor Taxation & Invoicing',
     category: 'Tax & Regulatory',
     summary: 'Indonesian PPN & PPh per Seller KLU Code; PP No. 44 Tahun 2022 Pasal 23 Ayat (2) commercial DPP invoice first + Faktur Pajak on payment date; Kwitansi + Materai.',
@@ -676,7 +675,7 @@ export const TRSA_COMPLIANCE_MATRIX = [
   },
   {
     id: 'XVI.contract',
-    itemNo: 'XVI',
+    itemNo: 'XVII',
     clauseTitle: 'Payment Term & Contract Issuance',
     category: 'Tax & Regulatory',
     summary: 'Payment within max 30 calendar days of approved original hardcopy docs; formalized via official PO and/or Sales Contract (Appendix 6).',
@@ -685,7 +684,7 @@ export const TRSA_COMPLIANCE_MATRIX = [
   },
   {
     id: 'XVII',
-    itemNo: 'XVII',
+    itemNo: 'XVIII',
     clauseTitle: 'Required Documentation (13 Deliverables)',
     category: 'Close-Out Docs',
     summary: 'Complete English softcopy & hardcopy deliverables prior to Final Acceptance (As-Built, Cabling, FDS, SDS, Unlocked PLC/HMI + Master Passwords, Manuals, Work Instructions, Spare Parts, Maintenance Schedule, Calibration, Halal, Layout .dwg/.pdf).',
@@ -694,7 +693,7 @@ export const TRSA_COMPLIANCE_MATRIX = [
   },
   {
     id: 'XVIII',
-    itemNo: 'XVIII',
+    itemNo: 'XIX',
     clauseTitle: 'Acknowledged and Approved By',
     category: 'Execution',
     summary: 'Formal execution and sign-off by authorized representatives of The Seller and PT Indofood Fortuna Makmur (The Buyer).',
@@ -703,7 +702,7 @@ export const TRSA_COMPLIANCE_MATRIX = [
   },
   {
     id: 'XIX',
-    itemNo: 'XIX',
+    itemNo: 'XX',
     clauseTitle: 'Attachments / Appendices (6 Appendices)',
     category: 'Appendices',
     summary: 'Binding reference appendices: Technical Specifications, Target Performance Table, Bank Guarantee Format, PMK 35/2019, PP 44/2022, Draft Sales Contract.',
@@ -1000,3 +999,226 @@ export function auditProjectMatrixCompliance(project) {
     discrepancies: checks.filter(c => !c.passed)
   };
 }
+
+export const PROJECT_CONTACT_ROLES = Object.freeze([
+  'PIC Project',
+  'Project & Engineering Team',
+  'Purchasing Plant'
+]);
+
+export function normalizeContactToProjectRole(contact = {}, teamMembers = []) {
+  const explicit = String(contact?.projectRole || '').trim();
+  if (PROJECT_CONTACT_ROLES.includes(explicit)) {
+    return explicit;
+  }
+
+  const emailLower = String(contact?.email || '').trim().toLowerCase();
+  const nameLower = String(contact?.name || '').trim().toLowerCase();
+  const matchedUser = Array.isArray(teamMembers)
+    ? teamMembers.find(
+        m => (emailLower && String(m.email || '').trim().toLowerCase() === emailLower) ||
+             (nameLower && String(m.name || '').trim().toLowerCase() === nameLower)
+      )
+    : null;
+
+  if (matchedUser) {
+    const userRole = String(matchedUser.role || '').trim();
+    if (PROJECT_CONTACT_ROLES.includes(userRole)) {
+      return userRole;
+    }
+    if (/super\s*admin/i.test(userRole)) {
+      return null;
+    }
+  }
+
+  const rawRole = String(contact?.role || '').trim();
+  if (!rawRole) return null;
+  if (PROJECT_CONTACT_ROLES.includes(rawRole)) return rawRole;
+  if (/super\s*admin|engineering\s*manager/i.test(rawRole)) return null;
+  if (/purchasing|buyer/i.test(rawRole)) return 'Purchasing Plant';
+  if (/project\s*&\s*engineering\s*team|project\s*engineer/i.test(rawRole)) return 'Project & Engineering Team';
+  if (/pic\s*project|project\s*team\s*pic|engineering\s*pic|user\s*\/\s*engineering|site\s*pic/i.test(rawRole)) return 'PIC Project';
+  return null;
+}
+
+export function resolveProjectKeyContacts(project = {}, teamMembers = [], plantOverride = null) {
+  const plantLoc = plantOverride || project?.documentInfo?.plantLocation || project?.generalInfo?.plantLocation || '1403';
+  const plantCode = resolvePlantCode(plantLoc);
+  const profile = PLANT_MATRIX_PROFILES[plantCode] || PLANT_MATRIX_PROFILES['1403'];
+  const fullSiteTitle = profile.siteTitle || `PT Indofood Fortuna Makmur – ${profile.plantName.replace(' Plant', '')}`;
+  const activeAddress = project?.siteDescription?.address || profile.address;
+  const companyAddress = `${fullSiteTitle}, ${activeAddress}`;
+
+  const toContactRecord = (person, projectRole, idx = 0) => {
+    const cleanRoleLabel = projectRole;
+    const jabatanNote = person.jabatan ? ` · ${person.jabatan}` : '';
+    return {
+      id: person.id || `proj-contact-${plantCode}-${projectRole.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-${idx + 1}`,
+      name: person.name,
+      projectRole,
+      role: `${cleanRoleLabel}${jabatanNote}`,
+      jabatan: person.jabatan || '',
+      companyAddress: person.companyAddress || companyAddress,
+      email: person.email || '',
+      plantCode: person.plantCode || plantCode
+    };
+  };
+
+  const roleOrder = {
+    'PIC Project': 1,
+    'Project & Engineering Team': 2,
+    'Purchasing Plant': 3
+  };
+
+  const sortContacts = (list) =>
+    list.sort((a, b) => (roleOrder[a.projectRole] || 99) - (roleOrder[b.projectRole] || 99));
+
+  // 1. If user has explicitly customized/assigned team contacts for this project
+  if (Array.isArray(project?.projectTeamContacts) && project.projectTeamContacts.length > 0) {
+    const seen = new Set();
+    const explicitList = [];
+    for (let i = 0; i < project.projectTeamContacts.length; i++) {
+      const c = project.projectTeamContacts[i];
+      if (!c || !c.name) continue;
+      const pRole = normalizeContactToProjectRole(c, teamMembers);
+      if (!pRole) continue;
+      const dedupKey = String(c.email || c.name).trim().toLowerCase();
+      if (seen.has(dedupKey)) continue;
+      seen.add(dedupKey);
+      const matchedUser = teamMembers.find(
+        m => (c.email && String(m.email || '').toLowerCase() === String(c.email).toLowerCase()) ||
+             String(m.name || '').toLowerCase() === String(c.name).toLowerCase()
+      );
+      explicitList.push(
+        toContactRecord(
+          {
+            ...matchedUser,
+            ...c,
+            companyAddress
+          },
+          pRole,
+          i
+        )
+      );
+    }
+    return sortContacts(explicitList);
+  }
+
+  // 2. Auto-derive the team matching the active project (Creator + Active Plant + Custom Contacts)
+  const users = Array.isArray(teamMembers) ? teamMembers : [];
+  const originatorName = String(
+    project?.documentInfo?.revisionHistory?.[0]?.originatedBy ||
+    project?.originatedBy ||
+    ''
+  ).trim().toLowerCase();
+  const seen = new Set();
+  const selected = [];
+
+  const pushUnique = (person, projectRole) => {
+    if (!person || !person.name || !PROJECT_CONTACT_ROLES.includes(projectRole)) return;
+    const key = String(person.email || person.name).trim().toLowerCase();
+    if (!key || seen.has(key)) return;
+    seen.add(key);
+    selected.push(toContactRecord(person, projectRole, selected.length));
+  };
+
+  // A. PIC Project matching active Plant & Creator
+  if (originatorName) {
+    const origUser = users.find(
+      u => u.role === 'PIC Project' && String(u.name || '').trim().toLowerCase() === originatorName
+    );
+    if (origUser) pushUnique(origUser, 'PIC Project');
+  }
+  const plantPicUsers = users.filter(
+    u => u.role === 'PIC Project' && resolvePlantCode(u.plantCode || '') === plantCode && u.plantCode !== 'All Plants'
+  );
+  if (plantPicUsers.length > 0) {
+    plantPicUsers.forEach(u => pushUnique(u, 'PIC Project'));
+  } else {
+    // Plant 1405 / 1411 fallback: include plant-profile project PIC if non-Super-Admin, else primary corporate PIC Project
+    const profilePicNonAdmin = (profile.projectTeamPics || []).filter(p => {
+      const m = users.find(u => u.email.toLowerCase() === p.email.toLowerCase());
+      return !m || m.role === 'PIC Project';
+    });
+    if (profilePicNonAdmin.length > 0) {
+      profilePicNonAdmin.forEach(p => {
+        const m = users.find(u => u.email.toLowerCase() === p.email.toLowerCase());
+        pushUnique(m || p, 'PIC Project');
+      });
+    } else if (!selected.some(c => c.projectRole === 'PIC Project')) {
+      const primaryPic = users.find(u => u.role === 'PIC Project') || USER_ENGINEERING_PICS[0];
+      if (primaryPic) pushUnique(primaryPic, 'PIC Project');
+    }
+  }
+
+  // B. Project & Engineering Team matching active Project Creator & Plant
+  if (originatorName) {
+    const origEng = users.find(
+      u => u.role === 'Project & Engineering Team' && String(u.name || '').trim().toLowerCase() === originatorName
+    );
+    if (origEng) pushUnique(origEng, 'Project & Engineering Team');
+  }
+  const plantEngTeam = users.filter(
+    u => u.role === 'Project & Engineering Team' && u.plantCode !== 'All Plants' && resolvePlantCode(u.plantCode || '') === plantCode
+  );
+  if (plantEngTeam.length > 0) {
+    plantEngTeam.forEach(u => pushUnique(u, 'Project & Engineering Team'));
+  } else if (!selected.some(c => c.projectRole === 'Project & Engineering Team')) {
+    const fallbackEng = users.find(u => u.role === 'Project & Engineering Team');
+    if (fallbackEng) pushUnique(fallbackEng, 'Project & Engineering Team');
+  }
+
+  // C. Purchasing Plant matching active Plant & purchasingAttn
+  const attnList = Array.isArray(project?.siteDescription?.purchasingAttn) && project.siteDescription.purchasingAttn.length > 0
+    ? project.siteDescription.purchasingAttn
+    : (profile.purchasingAttn || []);
+  const plantPurchasingUsers = users.filter(
+    u => u.role === 'Purchasing Plant' && u.plantCode !== 'All Plants' && resolvePlantCode(u.plantCode || '') === plantCode
+  );
+
+  if (plantPurchasingUsers.length > 0) {
+    plantPurchasingUsers.forEach(u => pushUnique(u, 'Purchasing Plant'));
+    // Also ensure explicit plant-level purchasingAttn contacts (if not All-Plants duplicate when plant users exist) are represented
+    attnList.forEach(a => {
+      const u = users.find(m => m.email.toLowerCase() === String(a.email || '').toLowerCase());
+      if (u && u.plantCode !== 'All Plants') {
+        pushUnique(u, 'Purchasing Plant');
+      }
+    });
+  } else {
+    attnList.forEach(a => {
+      const u = users.find(m => m.email.toLowerCase() === String(a.email || '').toLowerCase());
+      pushUnique(u || a, 'Purchasing Plant');
+    });
+  }
+
+  // D. Preserve any custom (non-matrix-) contacts added to project.keyContacts whose role fits the 3 allowed roles
+  if (Array.isArray(project?.keyContacts)) {
+    project.keyContacts
+      .filter(c => c && !String(c.id || '').startsWith('matrix-'))
+      .forEach(c => {
+        const pRole = normalizeContactToProjectRole(c, users);
+        if (pRole) pushUnique(c, pRole);
+      });
+  }
+
+  return sortContacts(selected);
+}
+
+export function formatSiteAddressLines(profile = {}, rawAddress = '') {
+  const addr = String(rawAddress || profile.address || '').trim();
+  const detail = profile.addressDetail;
+  if (detail && addr === String(profile.address || '').trim() && detail.street && detail.kecamatan) {
+    const line1 = [detail.street, detail.kelurahan].filter(Boolean).join(', ') + ',';
+    const cityProvZip = [detail.kecamatan, detail.city, [detail.province, detail.postalCode].filter(Boolean).join(' '), detail.country]
+      .filter(Boolean)
+      .join(', ');
+    return [line1, cityProvZip];
+  }
+  const kecMatch = addr.match(/^(.*?),\s*(Kec\..*)$/i);
+  if (kecMatch) {
+    return [`${kecMatch[1].trim()},`, kecMatch[2].trim()];
+  }
+  return addr ? [addr] : [];
+}
+
