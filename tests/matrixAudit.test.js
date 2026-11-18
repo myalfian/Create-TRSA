@@ -22,6 +22,13 @@ import {
   USER_ENGINEERING_PICS,
   PLANT_MATRIX_PROFILES,
   DOCUMENT_SUBMISSION_COMPLIANCE,
+  CONFIDENTIALITY_STANDARD,
+  LANGUAGE_REQUIREMENT_STANDARD,
+  TECHNICAL_HYGIENIC_REQUIREMENTS_12,
+  FINAL_ACCEPTANCE_RULES,
+  REMEDIES_CONSEQUENCES_STANDARD,
+  INVOICING_AND_BG_CONDITIONS,
+  WARRANTY_STANDARD,
   TRSA_COMPLIANCE_MATRIX,
   resolvePlantCode,
   isClauseApplicable,
@@ -30,9 +37,15 @@ import {
   auditProjectMatrixCompliance,
   PROJECT_CONTACT_ROLES,
   resolveProjectKeyContacts,
-  formatSiteAddressLines
+  formatSiteAddressLines,
+  getShipmentPortForPlant,
+  resolveShipmentItemsForMatrix
 } from '../src/js/trsaMatrixService.js';
-import { DEFAULT_TEAM_MEMBERS } from '../src/js/masterDataService.js';
+import {
+  DEFAULT_TEAM_MEMBERS,
+  loadPaymentTerms,
+  getPaymentTermByCode
+} from '../src/js/masterDataService.js';
 import { TRSAStore } from '../src/js/app.js';
 
 describe('IFM 19-Clause TRSA Compliance Matrix & Deep Audit Tests', () => {
@@ -68,31 +81,44 @@ describe('IFM 19-Clause TRSA Compliance Matrix & Deep Audit Tests', () => {
     assert.ok(p1411.profile.address.includes('Wisma Damatex'));
   });
 
-  test('Verify Plant x Origin Clause XVI gating across 1402/1403/1405 vs 1411', () => {
+  test('Verify Origin-driven Clause XVII (Tax & Regulatory) gating across 1402/1403/1405/1411', () => {
     const dutyRow = TRSA_COMPLIANCE_MATRIX.find(r => r.id === 'XVI.duty');
     const pph26Row = TRSA_COMPLIANCE_MATRIX.find(r => r.id === 'XVI.pph26');
     const localRow = TRSA_COMPLIANCE_MATRIX.find(r => r.id === 'XVI.local');
 
-    assert.strictEqual(isClauseApplicable(dutyRow, '1411', 'Foreign'), true);
-    assert.strictEqual(isClauseApplicable(dutyRow, '1411', 'Local'), false);
-    assert.strictEqual(isClauseApplicable(dutyRow, '1403', 'Foreign'), false);
+    ['1402', '1403', '1405', '1411'].forEach(code => {
+      assert.strictEqual(isClauseApplicable(dutyRow, code, 'Foreign'), true);
+      assert.strictEqual(isClauseApplicable(dutyRow, code, 'Local'), false);
+      assert.strictEqual(isClauseApplicable(pph26Row, code, 'Foreign'), true);
+      assert.strictEqual(isClauseApplicable(pph26Row, code, 'Local'), false);
+      assert.strictEqual(isClauseApplicable(localRow, code, 'Local'), true);
+      assert.strictEqual(isClauseApplicable(localRow, code, 'Foreign'), false);
 
-    assert.strictEqual(isClauseApplicable(pph26Row, '1411', 'Foreign'), true);
-    assert.strictEqual(isClauseApplicable(pph26Row, '1405', 'Foreign'), false);
+      const foreignProvs = buildLegalAndTaxProvisions(code, 'Foreign');
+      assert.strictEqual(foreignProvs.length, 5);
+      assert.ok(foreignProvs.some(p => p.matrixId === 'XVI.duty'));
+      assert.ok(foreignProvs.some(p => p.matrixId === 'XVI.pph26'));
+      assert.ok(!foreignProvs.some(p => p.matrixId === 'XVI.local'));
+      const foreignVisa = foreignProvs.find(p => p.matrixId === 'XVI.visa');
+      assert.ok(foreignVisa.description.includes('Working Visa'));
+      assert.ok(!foreignVisa.description.includes('Local Company Engineers'));
 
-    assert.strictEqual(isClauseApplicable(localRow, '1402', 'Local'), true);
-    assert.strictEqual(isClauseApplicable(localRow, '1403', 'Local'), true);
-    assert.strictEqual(isClauseApplicable(localRow, '1405', 'Local'), true);
-    assert.strictEqual(isClauseApplicable(localRow, '1411', 'Local'), false);
+      const localProvs = buildLegalAndTaxProvisions(code, 'Local');
+      assert.strictEqual(localProvs.length, 4);
+      assert.ok(localProvs.some(p => p.matrixId === 'XVI.local'));
+      assert.ok(!localProvs.some(p => p.matrixId === 'XVI.duty'));
+      assert.ok(!localProvs.some(p => p.matrixId === 'XVI.pph26'));
+      const localMob = localProvs.find(p => p.matrixId === 'XVI.visa');
+      assert.ok(!localMob.description.includes('Working Visa'));
+      assert.ok(localMob.description.includes('All mobilization costs'));
+    });
 
-    const p1411Foreign = buildLegalAndTaxProvisions('1411', 'Foreign');
-    assert.ok(p1411Foreign.some(p => p.matrixId === 'XVI.duty'));
-    assert.ok(p1411Foreign.some(p => p.matrixId === 'XVI.pph26'));
-    assert.ok(!p1411Foreign.some(p => p.matrixId === 'XVI.local'));
-
-    const p1405Local = buildLegalAndTaxProvisions('1405', 'Local');
-    assert.ok(p1405Local.some(p => p.matrixId === 'XVI.local'));
-    assert.ok(!p1405Local.some(p => p.matrixId === 'XVI.duty'));
+    const p1403Mixed = buildLegalAndTaxProvisions('1403', 'Mixed');
+    assert.strictEqual(p1403Mixed.length, 7);
+    assert.ok(p1403Mixed.some(p => p.matrixId === 'XVI.mixed'));
+    assert.ok(p1403Mixed.some(p => p.matrixId === 'XVI.duty'));
+    assert.ok(p1403Mixed.some(p => p.matrixId === 'XVI.pph26'));
+    assert.ok(p1403Mixed.some(p => p.matrixId === 'XVI.local'));
   });
 
   test('Deep Audit achieves 100% score on defaultTRSAProject and detects legacy discrepancies', () => {
@@ -190,4 +216,174 @@ describe('IFM 19-Clause TRSA Compliance Matrix & Deep Audit Tests', () => {
     assert.strictEqual(viiConf.itemNo, 'VII');
     assert.strictEqual(xxApp.itemNo, 'XX');
   });
+
+  test('XIV. Term of Payment database CRUD and dropdown option selection', () => {
+    globalThis.localStorage.clear();
+    const defaults = loadPaymentTerms();
+    assert.strictEqual(defaults.length, 3);
+    assert.strictEqual(getPaymentTermByCode('Option 1').breakdown[0].percent, '85%');
+
+    const store = new TRSAStore();
+    store.setCurrentUser('Moh Yusuf Alfian');
+    const created = store.savePaymentTermRecord({
+      code: 'Option 3',
+      label: 'Option 3 (Local IDR 30/60/10)',
+      currencyNote: 'IDR (Local Bank Transfer)',
+      breakdown: [
+        { percent: '30%', stage: 'Down Payment', method: 'T/T upon PO confirmation' },
+        { percent: '60%', stage: 'Delivery Payment', method: 'T/T upon site delivery & BAST' },
+        { percent: '10%', stage: 'Final Acceptance', method: 'T/T after SAT sign-off' }
+      ]
+    });
+    assert.ok(created);
+    assert.strictEqual(loadPaymentTerms().length, 4);
+
+    const applied = store.setPaymentTermOption('Option 3');
+    assert.strictEqual(applied.code, 'Option 3');
+    const active = store.getActiveProject();
+    assert.strictEqual(active.commercialTerms.selectedPaymentOption, 'Option 3');
+    assert.strictEqual(active.commercialTerms.activePaymentBreakdown.length, 3);
+    assert.strictEqual(active.commercialTerms.activePaymentBreakdown[1].percent, '60%');
+
+    // Audit compliance still remains 100% since matrixEquipmentSchedule is preserved
+    const audit = auditProjectMatrixCompliance(active);
+    assert.strictEqual(audit.complianceScore, 100);
+  });
+
+  test('XV. Shipment and Delivery automates by Vendor Origin (Local/Foreign) and Plant (1402/1403/1405/1411) without duplicate clauses', () => {
+    globalThis.localStorage.clear();
+    const store = new TRSAStore();
+    const proj = store.getActiveProject();
+    store.setCurrentUser('Moh Yusuf Alfian');
+
+    // Foreign + 1403 Semarang
+    assert.strictEqual(getShipmentPortForPlant('1403'), 'Semarang Port, Indonesia');
+    assert.strictEqual(proj.commercialTerms.shipmentItems.length, 6);
+    assert.strictEqual(proj.commercialTerms.shipmentItems[0].title, 'Equipment Ex-works vendor Factory');
+    assert.ok(proj.commercialTerms.shipmentItems[1].description.includes('CIF / CIP / CFR Semarang Port, Indonesia'));
+    assert.ok(proj.commercialTerms.shipmentItems[3].description.includes('110%'));
+    assert.ok(proj.commercialTerms.shipmentItems[4].description.includes('25 years'));
+    assert.ok(proj.commercialTerms.shipmentItems[5].description.includes('back-charged to the Seller'));
+
+    // Ensure no duplicate clause titles or repeated 110%/25-year rules across items
+    const foreignTitles = proj.commercialTerms.shipmentItems.map(i => i.title);
+    assert.strictEqual(new Set(foreignTitles).size, foreignTitles.length);
+    assert.strictEqual(proj.commercialTerms.shipmentItems.filter(i => i.description.includes('110%')).length, 1);
+    assert.strictEqual(proj.commercialTerms.shipmentItems.filter(i => i.description.includes('25 years')).length, 1);
+
+    // Foreign + 1402 / 1405 / 1411 switches port to Tanjung Priok Port, Jakarta, Indonesia
+    ['Cikokol Plant', 'Cikupa Plant', 'Agro Plant'].forEach(plantName => {
+      store.updatePlantLocation(plantName);
+      assert.strictEqual(proj.commercialTerms.shipmentItems.length, 6);
+      assert.ok(proj.commercialTerms.shipmentItems[1].description.includes('CIF / CIP / CFR Tanjung Priok Port, Jakarta, Indonesia'));
+    });
+
+    // Switch to Local + Cikokol (1402): exactly 2 items (EXW vendor factory + Franco Site to 1402)
+    store.updatePlantLocation('Cikokol Plant');
+    store.updateVendorOrigin('Local');
+    assert.strictEqual(proj.commercialTerms.shipmentItems.length, 2);
+    assert.strictEqual(proj.commercialTerms.shipmentItems[0].title, 'Equipment Ex-works vendor Factory');
+    assert.ok(proj.commercialTerms.shipmentItems[1].description.includes('Franco Site basis (Local Vendor)'));
+    assert.ok(proj.commercialTerms.shipmentItems[1].description.includes('PT Indofood Fortuna Makmur – Cikokol'));
+
+    // Local compliance audit stays 100%
+    const localAudit = auditProjectMatrixCompliance(proj);
+    assert.strictEqual(localAudit.complianceScore, 100);
+  });
+
+  test('XVIII. Required Documentation excludes Operator Work Instructions and migrates legacy saved projects', () => {
+    globalThis.localStorage.clear();
+    const legacy = JSON.parse(JSON.stringify(defaultTRSAProject));
+    legacy.requiredDocumentation.splice(7, 0, {
+      id: 9,
+      title: 'Operator Work Instructions',
+      desc: 'Detailed step-by-step SOP / working instructions for line operators',
+      required: true
+    });
+    globalThis.localStorage.setItem('TRSA_ENTERPRISE_PROJECTS_V1', JSON.stringify([legacy]));
+
+    const store = new TRSAStore();
+    const loaded = store.getActiveProject();
+    assert.ok(!loaded.requiredDocumentation.some(d => /operator\s*work\s*instructions/i.test(d.title)));
+    assert.strictEqual(loaded.requiredDocumentation.length, 12);
+    assert.strictEqual(loaded.requiredDocumentation[11].id, 12);
+  });
+
+  test('XVII. Administrative, Tax & Regulatory Provisions render detailed item-by-item bullets by Origin and migrate legacy projects', () => {
+    globalThis.localStorage.clear();
+    const store = new TRSAStore();
+    store.setCurrentUser('Moh Yusuf Alfian');
+
+    // Foreign Vendor: 5 clauses with detailed sub-items [1, 3, 3, 2, 2]
+    const foreignProj = store.getActiveProject();
+    assert.strictEqual(foreignProj.legalAndTaxProvisions.length, 5);
+    assert.deepStrictEqual(
+      foreignProj.legalAndTaxProvisions.map(p => p.items.length),
+      [1, 3, 3, 2, 2]
+    );
+    assert.ok(foreignProj.legalAndTaxProvisions[2].items.some(i => i.includes('DGT-1') && i.includes('5% Switzerland')));
+    assert.ok(foreignProj.legalAndTaxProvisions[2].items.some(i => i.includes('PMK No. 35/PMK.03/2019')));
+    assert.ok(foreignProj.legalAndTaxProvisions[3].items.some(i => i.includes('Working Visa')));
+
+    // Local Vendor: 4 clauses with detailed sub-items [1, 3, 1, 2]
+    store.updateVendorOrigin('Local');
+    assert.strictEqual(foreignProj.legalAndTaxProvisions.length, 4);
+    assert.deepStrictEqual(
+      foreignProj.legalAndTaxProvisions.map(p => p.items.length),
+      [1, 3, 1, 2]
+    );
+    assert.ok(foreignProj.legalAndTaxProvisions[1].items.some(i => i.includes('PP No. 44 Tahun 2022')));
+    assert.ok(foreignProj.legalAndTaxProvisions[1].items.some(i => i.includes('Kwitansi')));
+    assert.ok(foreignProj.legalAndTaxProvisions[3].items.some(i => i.includes('thirty (30) calendar days')));
+
+    // Mixed Vendor: 7 clauses combining Offshore + Onshore bullet lists
+    store.updateVendorOrigin('Mixed');
+    assert.strictEqual(foreignProj.legalAndTaxProvisions.length, 7);
+    assert.ok(foreignProj.legalAndTaxProvisions.every(p => Array.isArray(p.items) && p.items.length >= 1));
+
+    // Legacy project migration when saved provisions lack items[]
+    const legacy = JSON.parse(JSON.stringify(defaultTRSAProject));
+    legacy.legalAndTaxProvisions = legacy.legalAndTaxProvisions.map(({ items, ...rest }) => rest);
+    globalThis.localStorage.setItem('TRSA_ENTERPRISE_PROJECTS_V1', JSON.stringify([legacy]));
+    const migratedStore = new TRSAStore();
+    const migratedProj = migratedStore.getActiveProject();
+    assert.ok(migratedProj.legalAndTaxProvisions.every(p => Array.isArray(p.items) && p.items.length > 0));
+  });
+
+  test('Global terminology enforces "must" instead of "shall" across standards, matrix outputs, and migrated projects', () => {
+    const hasShall = val => /\bshall\b/i.test(JSON.stringify(val));
+
+    assert.strictEqual(hasShall(defaultTRSAProject), false);
+    assert.strictEqual(hasShall(PLANT_MATRIX_PROFILES), false);
+    assert.strictEqual(hasShall(DOCUMENT_SUBMISSION_COMPLIANCE), false);
+    assert.strictEqual(hasShall(CONFIDENTIALITY_STANDARD), false);
+    assert.strictEqual(hasShall(LANGUAGE_REQUIREMENT_STANDARD), false);
+    assert.strictEqual(hasShall(TECHNICAL_HYGIENIC_REQUIREMENTS_12), false);
+    assert.strictEqual(hasShall(FINAL_ACCEPTANCE_RULES), false);
+    assert.strictEqual(hasShall(REMEDIES_CONSEQUENCES_STANDARD), false);
+    assert.strictEqual(hasShall(INVOICING_AND_BG_CONDITIONS), false);
+    assert.strictEqual(hasShall(WARRANTY_STANDARD), false);
+
+    ['1402', '1403', '1405', '1411'].forEach(code => {
+      ['Local', 'Foreign', 'Mixed'].forEach(origin => {
+        assert.strictEqual(hasShall(buildLegalAndTaxProvisions(code, origin)), false);
+        assert.strictEqual(hasShall(resolveShipmentItemsForMatrix(code, origin)), false);
+      });
+    });
+
+    // Legacy saved project containing "shall" is automatically converted to "must" on load
+    globalThis.localStorage.clear();
+    const legacy = JSON.parse(JSON.stringify(defaultTRSAProject));
+    legacy.commercialTerms.warranty = 'The Seller shall warrant equipment. Shall remain valid.';
+    legacy.performanceAcceptance.failureConsequence = 'Seller shall refund 100%.';
+    globalThis.localStorage.setItem('TRSA_ENTERPRISE_PROJECTS_V1', JSON.stringify([legacy]));
+
+    const store = new TRSAStore();
+    const loaded = store.getActiveProject();
+    assert.strictEqual(hasShall(loaded), false);
+    assert.ok(loaded.commercialTerms.warranty.includes('Seller must warrant equipment. Must remain valid.'));
+    assert.ok(loaded.performanceAcceptance.failureConsequence.includes('Seller must refund 100%.'));
+  });
 });
+
+

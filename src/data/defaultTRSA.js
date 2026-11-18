@@ -18,7 +18,8 @@ import {
   APPENDICES_6,
   resolveContactsForPlant,
   buildLegalAndTaxProvisions,
-  getShipmentTermsForMatrix
+  getShipmentTermsForMatrix,
+  resolveShipmentItemsForMatrix
 } from '../js/trsaMatrixService.js';
 
 const plant1403Contacts = resolveContactsForPlant('1403');
@@ -427,7 +428,7 @@ export const defaultTRSAProject = {
     ],
     finalAcceptance: "Final Site Acceptance (SAT) will be certified only after continuous reliable operation, comprehensive FAT/SAT Operator & Maintenance training evidenced by signed training attendance sheets, formal FAC execution, and recording of any pending items on a binding Snag List (Punch List) with corrective action plans, PIC, and completion timelines prior to final sign-off.",
     finalAcceptanceChecklist: JSON.parse(JSON.stringify(FINAL_ACCEPTANCE_RULES)),
-    failureConsequence: "1. Rectification Period: Seller shall undertake all corrective actions—repairs, modifications, or machine/component replacement—within three (3) months from Buyer's failure notification, bearing all associated costs including raw materials consumed during re-testing. 2. Rejection & Full Refund: Should target performance remain unmet after 3 months, Seller shall refund 100% of all payments released by Buyer and dismantle/remove the equipment from Buyer's premises at Seller's sole expense and risk.",
+    failureConsequence: "1. Rectification Period: Seller must undertake all corrective actions—repairs, modifications, or machine/component replacement—within three (3) months from Buyer's failure notification, bearing all associated costs including raw materials consumed during re-testing. 2. Rejection & Full Refund: Should target performance remain unmet after 3 months, Seller must refund 100% of all payments released by Buyer and dismantle/remove the equipment from Buyer's premises at Seller's sole expense and risk.",
     remediesAndConsequences: JSON.parse(JSON.stringify(REMEDIES_CONSEQUENCES_STANDARD))
   },
   commercialTerms: {
@@ -457,10 +458,11 @@ export const defaultTRSAProject = {
       }
     },
     vendorOrigin: "Foreign",
+    exWorksFactory: "Seller Manufacturing Facility (Firm EXW Lead Time: 24 – 28 weeks post-PO & DP receipt)",
     engineeringServicesPayment: MATRIX_ENGINEERING_SERVICES_PAYMENT,
     invoicingAndBankGuarantee: [...INVOICING_AND_BG_CONDITIONS],
     shipmentTerms: getShipmentTermsForMatrix('1403', 'Foreign'),
-    shipmentItems: JSON.parse(JSON.stringify(SHIPMENT_DELIVERY_ITEMS_5)),
+    shipmentItems: resolveShipmentItemsForMatrix('1403', 'Foreign', 'Seller Manufacturing Facility (Firm EXW Lead Time: 24 – 28 weeks post-PO & DP receipt)'),
     warranty: WARRANTY_STANDARD
   },
   legalAndTaxProvisions: buildLegalAndTaxProvisions('1403', 'Foreign'),

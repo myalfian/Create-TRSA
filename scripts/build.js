@@ -28,6 +28,7 @@ const requiredFiles = [
   'src/js/dashboardStatsService.js',
   'src/js/trsaMatrixService.js',
   'src/js/userMatrixSettingsService.js',
+  'src/js/vendorMatrixService.js',
   'src/js/masterDataService.js',
   'src/js/supabaseClient.js',
   'src/sql/schema.sql',
@@ -57,6 +58,7 @@ const jsFiles = [
   'src/js/dashboardStatsService.js',
   'src/js/trsaMatrixService.js',
   'src/js/userMatrixSettingsService.js',
+  'src/js/vendorMatrixService.js',
   'src/js/masterDataService.js',
   'src/js/supabaseClient.js',
   'src/js/app.js'

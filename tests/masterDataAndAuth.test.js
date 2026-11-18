@@ -56,6 +56,16 @@ import {
   upsertPlant
 } from '../src/js/masterDataService.js';
 import { PLANT_MATRIX_PROFILES } from '../src/js/trsaMatrixService.js';
+import {
+  VENDOR_TBC_MARKER,
+  VENDOR_CONTACT_ROLES,
+  classifyVendorOrigin,
+  correctProcurementTypos,
+  standardizeInternationalPhone,
+  buildVendorInformationMatrix,
+  formatVendorMatrixMarkdown,
+  parseRawVendorProfileText
+} from '../src/js/vendorMatrixService.js';
 import { TRSAStore, generateGlassCrackSVG, spawnGlassCrack } from '../src/js/app.js';
 import { getAuditLogs } from '../src/js/auditService.js';
 
@@ -278,4 +288,80 @@ describe('Master Data (Plants, Roles, Dept, Jabatan, Users, Vendors) & Login Tes
     assert.strictEqual(mockChildren[0].style.top, '200px');
     assert.ok(mockChildren[0].innerHTML.includes('glass-crack-svg'));
   });
+
+  test('Vendor Information Matrix: Classifies Local/Foreign, normalizes phones/typos, formats 6-role contacts & extracts raw data', () => {
+    globalThis.localStorage.clear();
+
+    assert.strictEqual(classifyVendorOrigin('Indonesia'), 'Local');
+    assert.strictEqual(classifyVendorOrigin('China'), 'Foreign');
+    assert.strictEqual(correctProcurementTypos('Snack Equipmnet Specfication'), 'Snack Equipment Specification');
+    assert.strictEqual(standardizeInternationalPhone('081234567890', 'Indonesia'), '+62 8123-4567-890');
+    assert.strictEqual(standardizeInternationalPhone('13800138000', 'China'), '+86 1380-0138-000');
+
+    // Parse partial Foreign raw text: missing fields marked [To Be Confirmed by Vendor]
+    const rawForeign = [
+      'Company: Zhejiang Snack Equipmnet Co., Ltd.',
+      'Address: No. 88 Binhai Industrial Park, Wenzhou, Zhejiang 325000, China',
+      'Country: China',
+      'Country of Origin of Equipment: China',
+      'Sales: Kevin Zhang | kevin.zhang@zjsnack.cn | 13800138000',
+      'Engineering: Li Wei | li.wei@zjsnack.cn | +86 577 8899 1122',
+      'Project Manager: Chen Ming | chen.ming@zjsnack.cn | +86 139 5566 7788'
+    ].join('\n');
+
+    const { vendorDraft, matrix } = parseRawVendorProfileText(rawForeign);
+    assert.strictEqual(vendorDraft.name, 'Zhejiang Snack Equipment Co., Ltd.');
+    assert.strictEqual(matrix.origin, 'Foreign');
+    assert.strictEqual(matrix.originTag, 'FOREIGN VENDOR');
+    assert.strictEqual(matrix.generalProfile.equipmentOriginCountry, 'China');
+    assert.strictEqual(matrix.keyContacts.length, 6);
+    assert.deepStrictEqual(matrix.keyContacts.map(c => c.role), VENDOR_CONTACT_ROLES);
+
+    const salesContact = matrix.keyContacts.find(c => c.role === 'Sales');
+    assert.strictEqual(salesContact.name, 'Kevin Zhang');
+    assert.strictEqual(salesContact.email, 'kevin.zhang@zjsnack.cn');
+    assert.ok(salesContact.phone.startsWith('+86'));
+
+    // Unprovided contacts (Spare Part, Finance, Project) must NOT be fabricated
+    const financeContact = matrix.keyContacts.find(c => c.role === 'Finance');
+    assert.strictEqual(financeContact.name, VENDOR_TBC_MARKER);
+    assert.strictEqual(financeContact.email, VENDOR_TBC_MARKER);
+    assert.strictEqual(financeContact.phone, VENDOR_TBC_MARKER);
+
+    // Foreign document matrix includes DGT-1 Form and COO
+    const commercialDocs = matrix.trsaDocuments.find(g => g.categoryNo === 1).items.map(i => i.title);
+    assert.ok(commercialDocs.some(t => t.includes('DGT-1 Form')));
+    assert.ok(commercialDocs.some(t => t.includes('Certificate of Origin (COO)')));
+
+    // Markdown export contains exact corporate headings A, B, C
+    const md = formatVendorMatrixMarkdown(matrix);
+    assert.ok(md.includes('#### A. VENDOR GENERAL & COMMERCIAL PROFILE'));
+    assert.ok(md.includes('#### B. VENDOR KEY CONTACT PERSONS'));
+    assert.ok(md.includes('#### C. LIST OF TRSA DOCUMENTS (ATTACHMENTS & DELIVERABLES)'));
+
+    // Local vendor classification & persistence through TRSAStore
+    const rawLocal = [
+      'Company: PT Mesin Pangan Lokal',
+      'Address: Jl. Industri Cikarang Blok B2, Bekasi 17530, Indonesia',
+      'Country: Indonesia',
+      'Term of Payment: 30% DP, 60% Delivery, 10% After SAT',
+      'Sales: Andi Pratama | andi@mesinlokal.co.id | 081199887766'
+    ].join('\n');
+    const localParsed = parseRawVendorProfileText(rawLocal);
+    assert.strictEqual(localParsed.matrix.originTag, 'LOCAL VENDOR');
+    const localDocs = localParsed.matrix.trsaDocuments[0].items.map(i => i.title);
+    assert.ok(localDocs.some(t => t.includes('Faktur Pajak')));
+    assert.ok(!localDocs.some(t => t.includes('DGT-1 Form')));
+
+    const store = new TRSAStore();
+    store.setCurrentUser('Moh Yusuf Alfian');
+    const saved = store.saveVendorRecord(localParsed.vendorDraft);
+    assert.ok(saved);
+    assert.strictEqual(saved.origin, 'Local');
+    assert.strictEqual(saved.keyContacts.length, 6);
+    assert.strictEqual(saved.keyContacts[0].phone, '+62 8119-9887-766');
+    const rebuilt = buildVendorInformationMatrix(saved);
+    assert.strictEqual(rebuilt.originTag, 'LOCAL VENDOR');
+  });
 });
+

@@ -30,6 +30,19 @@ ON CONFLICT (code) DO UPDATE SET
     tax_id = EXCLUDED.tax_id,
     default_port = EXCLUDED.default_port;
 
+-- 2b. PAYMENT TERMS MASTER TABLE (Database-driven XIV. Term of Payment options)
+CREATE TABLE IF NOT EXISTS trsa_payment_terms (
+    id VARCHAR(64) PRIMARY KEY,
+    code VARCHAR(100) UNIQUE NOT NULL,
+    label VARCHAR(255) NOT NULL,
+    currency_note VARCHAR(120),
+    summary TEXT,
+    breakdown JSONB NOT NULL DEFAULT '[]'::jsonb,
+    engineering_services_payment TEXT,
+    invoicing_conditions JSONB NOT NULL DEFAULT '[]'::jsonb,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
 -- 3. CORE TRSA PROJECTS TABLE (Hybrid Relational + JSONB)
 CREATE TABLE IF NOT EXISTS trsa_projects (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),

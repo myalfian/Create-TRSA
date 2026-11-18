@@ -5,7 +5,20 @@
  */
 
 import { ORG_ROLES } from './security.js';
-import { PLANT_MATRIX_PROFILES, resolvePlantCode } from './trsaMatrixService.js';
+import {
+  PLANT_MATRIX_PROFILES,
+  resolvePlantCode,
+  MATRIX_EQUIPMENT_PAYMENT_BREAKDOWN,
+  MATRIX_ENGINEERING_SERVICES_PAYMENT,
+  INVOICING_AND_BG_CONDITIONS
+} from './trsaMatrixService.js';
+import {
+  classifyVendorOrigin,
+  correctProcurementTypos,
+  getDefaultTermOfPaymentByOrigin,
+  normalizeVendorKeyContacts,
+  standardizeInternationalPhone
+} from './vendorMatrixService.js';
 
 export const MASTER_STORAGE_KEYS = Object.freeze({
   USERS: 'TRSA_MASTER_USERS_V1',
@@ -13,8 +26,79 @@ export const MASTER_STORAGE_KEYS = Object.freeze({
   PLANTS: 'TRSA_MASTER_PLANTS_V1',
   DEPARTMENTS: 'TRSA_MASTER_DEPARTMENTS_V1',
   JOB_TITLES: 'TRSA_MASTER_JOB_TITLES_V1',
+  PAYMENT_TERMS: 'TRSA_MASTER_PAYMENT_TERMS_V1',
   AUTH_SESSION: 'TRSA_AUTH_SESSION_V1'
 });
+
+export const DEFAULT_PAYMENT_TERMS = [
+  {
+    id: 'pt-matrix-standard',
+    code: 'Matrix Standard',
+    label: 'Matrix Standard (30/55/10/5 T/T & SWIFT APBG)',
+    currencyNote: 'USD / EUR / IDR',
+    summary: '30% DP T/T vs SWIFT APBG · 55% Progress T/T · 10% Commissioning (≤60d B/L) · 5% Retention 3 mos (≤150d B/L)',
+    breakdown: JSON.parse(JSON.stringify(MATRIX_EQUIPMENT_PAYMENT_BREAKDOWN)),
+    engineeringServicesPayment: MATRIX_ENGINEERING_SERVICES_PAYMENT,
+    invoicingConditions: [...INVOICING_AND_BG_CONDITIONS]
+  },
+  {
+    id: 'pt-option-1',
+    code: 'Option 1',
+    label: 'Option 1 (Standard L/C & T/T — 85/10/5)',
+    currencyNote: 'USD / EUR (Irrevocable L/C & T/T)',
+    summary: '85% L/C against Shipping Documents · 10% T/T after machine running (≤60d B/L) · 5% T/T 3 mos (≤150d B/L)',
+    breakdown: [
+      {
+        percent: '85%',
+        stage: 'Shipping Document L/C',
+        method: 'Irrevocable Letter of Credit (L/C) payable against complete original Shipping Documents.'
+      },
+      {
+        percent: '10%',
+        stage: 'Commissioning Payment',
+        method: 'Payable via T/T after successful machine running with signed Acceptance Certificate, or no later than 60 calendar days from the Bill of Lading (B/L) date.'
+      },
+      {
+        percent: '5%',
+        stage: 'Retention Payment',
+        method: 'Payable via T/T three (3) months after machine running and Final Acceptance Certificate (FAC), or no later than 150 calendar days from the B/L date.'
+      }
+    ],
+    engineeringServicesPayment: MATRIX_ENGINEERING_SERVICES_PAYMENT,
+    invoicingConditions: [...INVOICING_AND_BG_CONDITIONS]
+  },
+  {
+    id: 'pt-option-2',
+    code: 'Option 2',
+    label: 'Option 2 (DP Bank Guarantee + L/C — 30/55/10/5)',
+    currencyNote: 'USD / EUR (APBG + L/C + T/T)',
+    summary: '30% DP vs SWIFT APBG · 55% L/C prior to shipping · 10% Commissioning (≤60d B/L) · 5% Retention 3 mos (≤150d B/L)',
+    breakdown: [
+      {
+        percent: '30%',
+        stage: 'Down Payment',
+        method: 'Down Payment via T/T against irrevocable SWIFT/Telex Advance Payment Bank Guarantee transmitted directly to Buyer bank.'
+      },
+      {
+        percent: '55%',
+        stage: 'L/C Shipment Payment',
+        method: 'L/C payable prior to shipping / against original commercial invoice and complete shipping documents.'
+      },
+      {
+        percent: '10%',
+        stage: 'Commissioning Payment',
+        method: 'Payable via T/T upon successful trial run and signed Acceptance Certificate (or no later than 60 calendar days from the B/L date).'
+      },
+      {
+        percent: '5%',
+        stage: 'Retention Payment',
+        method: 'Retention T/T three (3) months after machine running and FAC (or no later than 150 calendar days from the B/L date).'
+      }
+    ],
+    engineeringServicesPayment: MATRIX_ENGINEERING_SERVICES_PAYMENT,
+    invoicingConditions: [...INVOICING_AND_BG_CONDITIONS]
+  }
+];
 
 export const DEFAULT_PASSCODE = 'indofood2026';
 
@@ -914,8 +998,49 @@ export function verifyLoginCredentials(identifier, password) {
   return { valid: true, user };
 }
 
+export function normalizeVendorRecord(vendor = {}) {
+  const country = correctProcurementTypos(vendor.country || '');
+  const origin = classifyVendorOrigin(country, vendor.origin);
+  const equipmentOriginCountry = correctProcurementTypos(vendor.equipmentOriginCountry || country || '');
+  const keyContacts = normalizeVendorKeyContacts({ ...vendor, country, origin });
+  const primaryContact =
+    keyContacts.find(c => c.name || c.email || c.phone) || { role: 'Sales', name: '', email: '', phone: '' };
+
+  const certs = Array.isArray(vendor.certifications)
+    ? vendor.certifications
+    : String(vendor.certifications || 'ISO 9001').split(',').map(s => s.trim()).filter(Boolean);
+
+  return {
+    id: vendor.id || `v-${Date.now()}`,
+    vendorCode: String(vendor.vendorCode || 'VND-000').trim().toUpperCase(),
+    name: correctProcurementTypos(vendor.name || ''),
+    country: country || 'Indonesia',
+    origin,
+    equipmentOriginCountry: equipmentOriginCountry || country || 'Indonesia',
+    equipmentType: correctProcurementTypos(vendor.equipmentType || 'Process Line'),
+    description: correctProcurementTypos(vendor.description || ''),
+    address: correctProcurementTypos(vendor.address || ''),
+    city: correctProcurementTypos(vendor.city || ''),
+    postalCode: String(vendor.postalCode || '').trim(),
+    website: String(vendor.website || '').trim(),
+    picName: correctProcurementTypos(vendor.picName || primaryContact.name || ''),
+    picRole: correctProcurementTypos(vendor.picRole || primaryContact.role || 'Account Manager'),
+    picEmail: String(vendor.picEmail || primaryContact.email || '').trim(),
+    picPhone: standardizeInternationalPhone(vendor.picPhone || primaryContact.phone || '', country),
+    keyContacts,
+    taxId: String(vendor.taxId || '').trim(),
+    paymentCurrency: String(vendor.paymentCurrency || (origin === 'Local' ? 'IDR (Rupiah)' : 'USD / EUR')).trim(),
+    termOfPayment: correctProcurementTypos(
+      vendor.termOfPayment || getDefaultTermOfPaymentByOrigin(origin, vendor.paymentCurrency)
+    ),
+    leadTimeWeeks: String(vendor.leadTimeWeeks || (origin === 'Local' ? '8 – 12 weeks' : '16 – 24 weeks')).trim(),
+    certifications: certs,
+    status: String(vendor.status || (origin === 'Local' ? 'Approved Local Vendor' : 'Approved OEM')).trim()
+  };
+}
+
 export function loadVendors() {
-  return readStorageArray(MASTER_STORAGE_KEYS.VENDORS, DEFAULT_VENDORS);
+  return readStorageArray(MASTER_STORAGE_KEYS.VENDORS, DEFAULT_VENDORS).map(normalizeVendorRecord);
 }
 
 export function saveVendors(list) {
@@ -924,35 +1049,16 @@ export function saveVendors(list) {
 
 export function upsertVendor(vendor) {
   const list = loadVendors();
-  const name = String(vendor.name || '').trim();
+  const name = correctProcurementTypos(vendor.name || '');
   if (!name) return null;
   const id = vendor.id || `v-${Date.now()}`;
-  const certs = Array.isArray(vendor.certifications)
-    ? vendor.certifications
-    : String(vendor.certifications || 'ISO 9001').split(',').map(s => s.trim()).filter(Boolean);
 
-  const entry = {
+  const entry = normalizeVendorRecord({
+    ...vendor,
     id,
     vendorCode: String(vendor.vendorCode || `VND-${String(list.length + 1).padStart(3, '0')}`).trim().toUpperCase(),
-    name,
-    country: String(vendor.country || 'Indonesia').trim(),
-    origin: ['Foreign', 'Local', 'Mixed'].includes(vendor.origin) ? vendor.origin : 'Foreign',
-    equipmentType: String(vendor.equipmentType || 'Process Line').trim(),
-    description: String(vendor.description || '').trim(),
-    address: String(vendor.address || '').trim(),
-    city: String(vendor.city || '').trim(),
-    postalCode: String(vendor.postalCode || '').trim(),
-    website: String(vendor.website || '').trim(),
-    picName: String(vendor.picName || '').trim(),
-    picRole: String(vendor.picRole || 'Account Manager').trim(),
-    picEmail: String(vendor.picEmail || '').trim(),
-    picPhone: String(vendor.picPhone || '').trim(),
-    taxId: String(vendor.taxId || '').trim(),
-    paymentCurrency: String(vendor.paymentCurrency || (vendor.origin === 'Local' ? 'IDR (Rupiah)' : 'USD / EUR')).trim(),
-    leadTimeWeeks: String(vendor.leadTimeWeeks || '16 – 24 weeks').trim(),
-    certifications: certs,
-    status: String(vendor.status || 'Approved OEM').trim()
-  };
+    name
+  });
 
   const idx = list.findIndex(v => v.id === id || v.name.toLowerCase() === name.toLowerCase());
   if (idx >= 0) list[idx] = { ...list[idx], ...entry };
@@ -1031,3 +1137,76 @@ export function upsertPlant(code, patch = {}) {
   writeStorageValue(MASTER_STORAGE_KEYS.PLANTS, all);
   return updated;
 }
+
+export function normalizePaymentTermRecord(pt = {}) {
+  const code = String(pt.code || pt.label || 'Custom Term').trim();
+  const breakdown = Array.isArray(pt.breakdown) && pt.breakdown.length > 0
+    ? pt.breakdown
+        .map(r => ({
+          percent: String(r.percent || '').trim(),
+          stage: String(r.stage || '').trim(),
+          method: String(r.method || '').trim()
+        }))
+        .filter(r => r.percent || r.stage || r.method)
+    : JSON.parse(JSON.stringify(MATRIX_EQUIPMENT_PAYMENT_BREAKDOWN));
+
+  return {
+    id: pt.id || `pt-${code.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`,
+    code,
+    label: String(pt.label || code).trim(),
+    currencyNote: String(pt.currencyNote || 'USD / EUR / IDR').trim(),
+    summary: String(pt.summary || breakdown.map(b => `${b.percent} ${b.stage}`).join(' · ')).trim(),
+    breakdown,
+    engineeringServicesPayment: String(pt.engineeringServicesPayment || MATRIX_ENGINEERING_SERVICES_PAYMENT).trim(),
+    invoicingConditions: Array.isArray(pt.invoicingConditions) && pt.invoicingConditions.length > 0
+      ? pt.invoicingConditions.map(c => String(c || '').trim()).filter(Boolean)
+      : [...INVOICING_AND_BG_CONDITIONS]
+  };
+}
+
+export function loadPaymentTerms() {
+  const raw = readStorageArray(MASTER_STORAGE_KEYS.PAYMENT_TERMS, DEFAULT_PAYMENT_TERMS);
+  return raw.map(normalizePaymentTermRecord);
+}
+
+export function savePaymentTerms(list) {
+  return writeStorageValue(MASTER_STORAGE_KEYS.PAYMENT_TERMS, list.map(normalizePaymentTermRecord));
+}
+
+export function getPaymentTermByCode(codeOrId = 'Matrix Standard') {
+  const list = loadPaymentTerms();
+  const key = String(codeOrId || '').trim().toLowerCase();
+  return list.find(pt =>
+    pt.code.toLowerCase() === key ||
+    pt.id.toLowerCase() === key ||
+    pt.label.toLowerCase() === key
+  ) || list[0] || normalizePaymentTermRecord(DEFAULT_PAYMENT_TERMS[0]);
+}
+
+export function upsertPaymentTerm(term) {
+  const list = loadPaymentTerms();
+  const normalized = normalizePaymentTermRecord(term);
+  if (!normalized.code || normalized.breakdown.length === 0) return null;
+  const idx = list.findIndex(
+    pt => pt.id === normalized.id ||
+          pt.code.toLowerCase() === normalized.code.toLowerCase() ||
+          (term.originalCode && pt.code.toLowerCase() === String(term.originalCode).toLowerCase())
+  );
+  if (idx >= 0) {
+    list[idx] = { ...list[idx], ...normalized };
+  } else {
+    list.push(normalized);
+  }
+  savePaymentTerms(list);
+  return normalized;
+}
+
+export function deletePaymentTerm(idOrCode) {
+  const list = loadPaymentTerms();
+  if (list.length <= 1) return false;
+  const key = String(idOrCode || '').trim().toLowerCase();
+  const next = list.filter(pt => pt.id.toLowerCase() !== key && pt.code.toLowerCase() !== key);
+  savePaymentTerms(next);
+  return next.length < list.length;
+}
+

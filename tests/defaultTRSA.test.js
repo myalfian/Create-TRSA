@@ -143,7 +143,7 @@ describe('TRSA Indofood Document Specification Matrix Tests', () => {
     assert.strictEqual(requiredSections.length, 19, 'Must verify all 19 ordered Roman clauses (I–XIX)');
   });
 
-  test('Verify Commercial Terms (Matrix 30/55/10/5, Undertaking Letter, SWIFT BG, 5 Shipment Items & 12M Warranty)', () => {
+  test('Verify Commercial Terms (Matrix 30/55/10/5, Undertaking Letter, SWIFT BG, Merged Shipment Items & 12M Warranty)', () => {
     const comm = defaultTRSAProject.commercialTerms;
     assert.strictEqual(comm.selectedPaymentOption, 'Matrix Standard');
     assert.strictEqual(comm.matrixEquipmentSchedule.length, 4);
@@ -151,21 +151,22 @@ describe('TRSA Indofood Document Specification Matrix Tests', () => {
     assert.ok(comm.options.option2, 'Option 2 must exist');
     assert.ok(comm.engineeringServicesPayment.includes('Undertaking Letter'), 'Engineering services payment must include 150-day Undertaking Letter condition');
     assert.strictEqual(comm.invoicingAndBankGuarantee.length, 2);
-    assert.strictEqual(comm.shipmentItems.length, 5);
+    assert.strictEqual(comm.shipmentItems.length, 6);
     assert.ok(comm.warranty.includes('twelve (12) months'), 'Warranty must specify 12 months post-FAC');
     assert.ok(comm.shipmentTerms.includes('Semarang Port'));
     assert.ok(comm.shipmentTerms.includes('110%'));
     assert.ok(comm.shipmentTerms.includes('25 years'));
   });
 
-  test('Verify 13 Required Documentation Deliverables & 6 Appendices', () => {
+  test('Verify 12 Required Documentation Deliverables & 6 Appendices', () => {
     const docs = defaultTRSAProject.requiredDocumentation;
-    assert.strictEqual(docs.length, 13, 'Must have exactly 13 required documentation deliverables per Matrix PDF');
+    assert.strictEqual(docs.length, 12, 'Must have 12 required documentation deliverables (Operator Work Instructions removed)');
     const titles = docs.map(d => d.title);
     assert.ok(titles.includes('As-Built Drawings'));
     assert.ok(titles.includes('Cabling Schedule'));
     assert.ok(titles.includes('Functional Design Specification (FDS)'));
     assert.ok(titles.includes('PLC & HMI (OIT) Source Code & Master Password'));
+    assert.ok(!titles.includes('Operator Work Instructions'));
     assert.ok(titles.includes('Halal Compliance Documentation'));
     assert.ok(titles.includes('Equipment Layout Drawings'));
 

@@ -15,6 +15,7 @@ const filesToLint = [
   'src/js/dashboardStatsService.js',
   'src/js/trsaMatrixService.js',
   'src/js/userMatrixSettingsService.js',
+  'src/js/vendorMatrixService.js',
   'src/js/masterDataService.js',
   'src/js/app.js'
 ];

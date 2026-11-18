@@ -51,7 +51,7 @@ export const PLANT_MATRIX_PROFILES = {
       { name: 'Natania WS', email: 'natania.ws@icbp.indofood.co.id' },
       { name: 'Arief Setyawan', email: 'arief.setyawan@icbp.indofood.co.id' }
     ],
-    customClearanceNote: 'Indofood will handle Indonesian customs clearance upon receipt of final original shipping documents. Any additional demurrage, storage, or penalty costs incurred due to delays in receiving these documents after cargo arrival shall be back-charged to the Seller.'
+    customClearanceNote: 'Indofood will handle Indonesian customs clearance upon receipt of final original shipping documents. Any additional demurrage, storage, or penalty costs incurred due to delays in receiving these documents after cargo arrival must be back-charged to the Seller.'
   },
   '1403': {
     code: '1403',
@@ -91,7 +91,7 @@ export const PLANT_MATRIX_PROFILES = {
       { name: 'Natalia Happy', email: 'natalia.happy@icbp.indofood.co.id' },
       { name: 'Yanuar Ari Wibowo', email: 'yanuar.wibowo@icbp.indofood.co.id' }
     ],
-    customClearanceNote: 'Indofood will handle Indonesian customs clearance upon receipt of final original shipping documents. Any additional demurrage, storage, or penalty costs incurred due to delays in receiving these documents after cargo arrival shall be back-charged to the Seller.'
+    customClearanceNote: 'Indofood will handle Indonesian customs clearance upon receipt of final original shipping documents. Any additional demurrage, storage, or penalty costs incurred due to delays in receiving these documents after cargo arrival must be back-charged to the Seller.'
   },
   '1405': {
     code: '1405',
@@ -128,7 +128,7 @@ export const PLANT_MATRIX_PROFILES = {
       { name: 'Dewi Natalia', email: 'dewi.natalia@icbp.indofood.co.id' },
       { name: 'Muhammad Alfatih', email: 'muhammad.alfatih@icbp.indofood.co.id' }
     ],
-    customClearanceNote: 'Indofood will handle Indonesian customs clearance upon receipt of final original shipping documents. Any additional demurrage, storage, or penalty costs incurred due to delays in receiving these documents after cargo arrival shall be back-charged to the Seller.'
+    customClearanceNote: 'Indofood will handle Indonesian customs clearance upon receipt of final original shipping documents. Any additional demurrage, storage, or penalty costs incurred due to delays in receiving these documents after cargo arrival must be back-charged to the Seller.'
   },
   '1411': {
     code: '1411',
@@ -165,18 +165,18 @@ export const PLANT_MATRIX_PROFILES = {
       { name: 'Dewi Natalia', email: 'dewi.natalia@icbp.indofood.co.id' },
       { name: 'Muhammad Alfatih', email: 'muhammad.alfatih@icbp.indofood.co.id' }
     ],
-    customClearanceNote: 'Indofood will handle Indonesian customs clearance upon receipt of final original shipping documents. Any additional demurrage, storage, or penalty costs incurred due to delays in receiving these documents after cargo arrival shall be back-charged to the Seller.'
+    customClearanceNote: 'Indofood will handle Indonesian customs clearance upon receipt of final original shipping documents. Any additional demurrage, storage, or penalty costs incurred due to delays in receiving these documents after cargo arrival must be back-charged to the Seller.'
   }
 };
 
 export const DOCUMENT_SUBMISSION_COMPLIANCE =
-  'All invoices, shipping documents, and supporting records must be submitted directly to the designated Purchasing recipients above. The Seller shall first submit softcopy drafts for IFM review and approval prior to dispatching original hardcopies. Any payment or customs clearance delays resulting from misdirected or non-compliant documentation shall be the sole responsibility of the Seller and shall under no circumstances excuse or extend the agreed project schedule.';
+  'All invoices, shipping documents, and supporting records must be submitted directly to the designated Purchasing recipients above. The Seller must first submit softcopy drafts for IFM review and approval prior to dispatching original hardcopies. Any payment or customs clearance delays resulting from misdirected or non-compliant documentation must be the sole responsibility of the Seller and must under no circumstances excuse or extend the agreed project schedule.';
 
 export const CONFIDENTIALITY_STANDARD =
-  'All technical, commercial, and proprietary information disclosed within this document or during project execution shall remain strictly confidential. The Seller shall not disclose any such information to third parties without the prior written consent of PT Indofood Fortuna Makmur (IFM).';
+  'All technical, commercial, and proprietary information disclosed within this document or during project execution must remain strictly confidential. The Seller must not disclose any such information to third parties without the prior written consent of PT Indofood Fortuna Makmur (IFM).';
 
 export const LANGUAGE_REQUIREMENT_STANDARD =
-  'English shall be the mandatory default language for all control systems, Operator Interface Terminals (OIT), Human-Machine Interfaces (HMI), physical panel/equipment nameplates, warning labels, engineering drawings, data sheets, software instructions, and O&M manuals.';
+  'English must be the mandatory default language for all control systems, Operator Interface Terminals (OIT), Human-Machine Interfaces (HMI), physical panel/equipment nameplates, warning labels, engineering drawings, data sheets, software instructions, and O&M manuals.';
 
 export const SERVICES_SCOPE_STANDARD = [
   {
@@ -207,7 +207,7 @@ export const TECHNICAL_HYGIENIC_REQUIREMENTS_12 = [
   {
     no: 1,
     title: 'Cleanability & Maintenance',
-    description: 'All product-contact equipment shall be engineered for rapid cleaning, sanitization, and maintenance without contaminating or reacting with the product or CIP/cleaning agents.'
+    description: 'All product-contact equipment must be engineered for rapid cleaning, sanitization, and maintenance without contaminating or reacting with the product or CIP/cleaning agents.'
   },
   {
     no: 2,
@@ -217,7 +217,7 @@ export const TECHNICAL_HYGIENIC_REQUIREMENTS_12 = [
   {
     no: 3,
     title: 'Structural Integrity',
-    description: 'Equipment frames shall be fully seal-welded and free of open holes, exposed threads, or penetrating fasteners that could harbor contaminants.'
+    description: 'Equipment frames must be fully seal-welded and free of open holes, exposed threads, or penetrating fasteners that could harbor contaminants.'
   },
   {
     no: 4,
@@ -247,12 +247,12 @@ export const TECHNICAL_HYGIENIC_REQUIREMENTS_12 = [
   {
     no: 9,
     title: 'Motor Efficiency',
-    description: 'All electric motors shall comply with minimum IE3 (Premium Efficiency) standards per IEC 60034-30-1.'
+    description: 'All electric motors must comply with minimum IE3 (Premium Efficiency) standards per IEC 60034-30-1.'
   },
   {
     no: 10,
     title: 'Local Isolation',
-    description: 'Every motor drive shall be fitted with a lockable local isolator switch electrically interlocked with the safety control circuit.'
+    description: 'Every motor drive must be fitted with a lockable local isolator switch electrically interlocked with the safety control circuit.'
   },
   {
     no: 11,
@@ -282,36 +282,36 @@ export const CONTROL_SYSTEM_ACCESS_RIGHTS = [
 export const FINAL_ACCEPTANCE_RULES = [
   {
     no: 1,
-    title: 'On-Site Operational Acceptance',
-    description: 'Final acceptance (SAT) shall occur on-site only after all equipment, control systems, and HMI/OIT units operate continuously and reliably in accordance with the agreed Target Performance Test parameters.'
+    title: '',
+    description: 'Final acceptance (SAT) must occur on-site only after all equipment, control systems, and HMI/OIT units operate continuously and reliably in accordance with the agreed Target Performance Test parameters.'
   },
   {
     no: 2,
-    title: 'Mandatory Training Completion',
+    title: '',
     description: 'FAT/SAT must include comprehensive classroom and on-site training sessions for both Operators and Maintenance personnel, evidenced by signed training attendance sheets as mandatory close-out documents.'
   },
   {
     no: 3,
-    title: 'Formal Sign-Off',
+    title: '',
     description: 'All acceptance test reports and the Final Acceptance Certificate (FAC) must be formally signed by authorized representatives of both parties.'
   },
   {
     no: 4,
-    title: 'Snag List (Punch List)',
-    description: 'Any minor defects or pending items identified during testing must be recorded in a formal Snag List detailing corrective action plans, PIC, and binding completion timelines prior to final sign-off.'
+    title: '',
+    description: '(if) Any minor defects or pending items identified during testing must be recorded in a formal Snag List detailing corrective action plans, PIC, and binding completion timelines prior to final sign-off.'
   }
 ];
 
 export const REMEDIES_CONSEQUENCES_STANDARD = [
   {
     no: 1,
-    title: 'Rectification Period',
-    description: "The Seller shall be fully responsible for undertaking all necessary corrective actions—including repairs, modifications, or machine/component replacement—within three (3) months from the Buyer's formal notification of performance test failure. All associated costs (including raw materials consumed during re-testing) shall be borne exclusively by the Seller."
+    title: '',
+    description: "The Seller must be fully responsible for undertaking all necessary corrective actions—including repairs, modifications, or machine/component replacement—within three (3) months from the Buyer's formal notification of performance test failure. All associated costs (including raw materials consumed during re-testing) must be borne exclusively by the Seller."
   },
   {
     no: 2,
-    title: 'Rejection & Full Refund',
-    description: "Should the target performance standards remain unmet upon expiration of the three (3) month rectification period, the Seller shall refund 100% of all payments previously released by the Buyer and dismantle/remove the equipment from the Buyer's premises at the Seller's sole expense and risk."
+    title: '',
+    description: "Should the target performance standards remain unmet upon expiration of the three (3) month rectification period, the Seller must refund 100% of all payments previously released by the Buyer and dismantle/remove the equipment from the Buyer's premises at the Seller's sole expense and risk."
   }
 ];
 
@@ -343,39 +343,118 @@ export const MATRIX_ENGINEERING_SERVICES_PAYMENT =
 
 export const INVOICING_AND_BG_CONDITIONS = [
   'The Seller must provide a draft invoice for Buyer verification prior to dispatching the original hardcopy accompanied by the signed Acceptance Certificate.',
-  "Transmission of the Bank Guarantee via SWIFT/Telex directly to the Buyer's bank is a strict condition precedent to Down Payment release. Any delay in Down Payment release caused by the Seller's non-compliance shall be borne entirely by the Seller and shall under no circumstances justify a delay in the project schedule."
+  "Transmission of the Bank Guarantee via SWIFT/Telex directly to the Buyer's bank is a strict condition precedent to Down Payment release. Any delay in Down Payment release caused by the Seller's non-compliance must be borne entirely by the Seller and must under no circumstances justify a delay in the project schedule."
 ];
 
-export const SHIPMENT_DELIVERY_ITEMS_5 = [
-  {
-    no: 1,
-    title: 'Delivery Schedule',
-    description: 'All equipment shall be delivered strictly in accordance with prior agreed schedules to the designated site location.'
-  },
-  {
-    no: 2,
-    title: 'Incoterms',
-    description: 'Quotation must be provided on a Franco Site basis (Local Vendor) or CIF/CIP Port/Site basis stating firm Ex-Works (EXW) lead time (Foreign Vendor).'
-  },
-  {
-    no: 3,
-    title: 'Cargo Insurance',
-    description: "Where insured by the Seller, the Seller shall provide an original Insurance Policy/Certificate in duplicate endorsed for at least 110% of the invoice value covering Institute Cargo Clauses (A) / Air, with claims payable in Jakarta, Indonesia (to Bank Central Asia on the applicant's behalf)."
-  },
-  {
-    no: 4,
-    title: 'Vessel Age Certificate',
-    description: 'For ocean freight under CFR/FOB where the Buyer covers insurance, the Seller must furnish a certificate from the shipping line/agent confirming the carrying vessel is not over 25 years old.'
-  },
-  {
-    no: 5,
-    title: 'Customs Clearance',
-    description: 'IFM will handle Indonesian customs clearance upon receipt of final original shipping documents. Any additional demurrage, storage, or penalty costs incurred due to delays in receiving these documents after cargo arrival shall be back-charged to the Seller.'
-  }
+export const ENGINEERING_SERVICES_PAYMENT_CLAUSES = [
+  MATRIX_ENGINEERING_SERVICES_PAYMENT,
+  'Engineering Services Payment: Payment for on-site engineering and technical support services performed by the Seller’s engineers or personnel at the Buyer’s premises—including, but not limited to, kick-off meetings, installation supervision, commissioning, and operator training.',
+  'Payment for Engineering Services is strictly contingent upon the Buyer’s receipt of an original, color-printed DGT-1 Form (Certificate of Domicile). The Buyer reserves the right to withhold payment until such valid documentation is duly submitted by the Seller.'
 ];
+
+export function getShipmentPortForPlant(plantLocationOrCode = '1403') {
+  const code = resolvePlantCode(plantLocationOrCode);
+  if (code === '1403') {
+    return 'Semarang Port, Indonesia';
+  }
+  return 'Tanjung Priok Port, Jakarta, Indonesia';
+}
+
+export function resolveShipmentItemsForMatrix(plantLocationOrCode = '1403', vendorOrigin = 'Foreign', exWorksFactory = '') {
+  const code = resolvePlantCode(plantLocationOrCode);
+  const profile = PLANT_MATRIX_PROFILES[code] || PLANT_MATRIX_PROFILES['1403'];
+  const origin = normalizeOriginMode(vendorOrigin);
+  const portName = getShipmentPortForPlant(code);
+  const exwDesc = String(exWorksFactory || '').trim() || 'To be confirmed in Seller Quotation (Factory Location & Firm EXW Lead Time)';
+
+  if (origin === 'Local') {
+    return [
+      {
+        no: 1,
+        title: 'Equipment Ex-works vendor Factory',
+        description: exwDesc
+      },
+      {
+        no: 2,
+        title: 'Franco Site Basis (Local Vendor)',
+        description: `Quotation must be provided on a Franco Site basis (Local Vendor) for delivery to ${profile.siteTitle} (${profile.address}). All equipment must be delivered strictly in accordance with prior agreed schedules to the designated site location, with domestic inland freight and transit risk borne by the Seller.`
+      }
+    ];
+  }
+
+  if (origin === 'Mixed') {
+    return [
+      {
+        no: 1,
+        title: 'Equipment Ex-works vendor Factory',
+        description: exwDesc
+      },
+      {
+        no: 2,
+        title: 'Applicable Basis & Incoterms (Dual Terms)',
+        description: `Offshore imported machinery: CIF / CIP / CFR ${portName} (final site: ${profile.siteTitle}, ${profile.address}), stating firm Ex-Works (EXW) lead time. Onshore/local scope: Quotation must be provided on a Franco Site basis (Local Vendor) delivered to ${profile.siteTitle}.`
+      },
+      {
+        no: 3,
+        title: 'Delivery Schedule',
+        description: `All imported and local equipment must be delivered strictly in accordance with prior agreed schedules to the designated site location (${profile.siteTitle}).`
+      },
+      {
+        no: 4,
+        title: 'Cargo & Marine Insurance (Offshore Scope)',
+        description: "Where insured by the Seller, the Seller must provide an original Marine / Cargo Insurance Policy/Certificate in duplicate endorsed for at least 110% of the invoice value covering Institute Cargo Clauses (A) / Air, with claims payable in Jakarta, Indonesia (to Bank Central Asia (BCA) on the applicant's behalf)."
+      },
+      {
+        no: 5,
+        title: 'Vessel Age Certificate (Offshore Scope)',
+        description: 'Carrying vessel must not be older than 25 years. For ocean freight under CFR/FOB where the Buyer covers insurance, the Seller must furnish a certificate from the shipping line/agent confirming the carrying vessel is not over 25 years old.'
+      },
+      {
+        no: 6,
+        title: 'Customs Clearance (Offshore Scope)',
+        description: 'IFM will handle Indonesian customs clearance upon receipt of final original shipping documents. Any additional demurrage, storage, or penalty costs incurred due to delays in receiving these documents after cargo arrival must be back-charged to the Seller.'
+      }
+    ];
+  }
+
+  return [
+    {
+      no: 1,
+      title: 'Equipment Ex-works vendor Factory',
+      description: exwDesc
+    },
+    {
+      no: 2,
+      title: 'Applicable Basis & Incoterms',
+      description: `CIF / CIP / CFR ${portName} (final site: ${profile.siteTitle}, ${profile.address}). Quotation must be provided on a CIF / CIP / CFR Port/Site basis stating firm Ex-Works (EXW) lead time.`
+    },
+    {
+      no: 3,
+      title: 'Delivery Schedule',
+      description: `All equipment must be delivered strictly in accordance with prior agreed schedules to the designated site location (${profile.siteTitle}).`
+    },
+    {
+      no: 4,
+      title: 'Cargo & Marine Insurance',
+      description: "Where insured by the Seller, the Seller must provide an original Marine / Cargo Insurance Policy/Certificate in duplicate endorsed for at least 110% of the invoice value covering Institute Cargo Clauses (A) / Air, with claims payable in Jakarta, Indonesia (to Bank Central Asia (BCA) on the applicant's behalf)."
+    },
+    {
+      no: 5,
+      title: 'Vessel Age Certificate',
+      description: 'Carrying vessel must not be older than 25 years. For ocean freight under CFR/FOB where the Buyer covers insurance, the Seller must furnish a certificate from the shipping line/agent confirming the carrying vessel is not over 25 years old.'
+    },
+    {
+      no: 6,
+      title: 'Customs Clearance',
+      description: 'IFM will handle Indonesian customs clearance upon receipt of final original shipping documents. Any additional demurrage, storage, or penalty costs incurred due to delays in receiving these documents after cargo arrival must be back-charged to the Seller.'
+    }
+  ];
+}
+
+export const SHIPMENT_DELIVERY_ITEMS_5 = resolveShipmentItemsForMatrix('1403', 'Foreign');
 
 export const WARRANTY_STANDARD =
-  'The Seller shall warrant the entire system, machinery, and workmanship against defects for a minimum period of twelve (12) months of continuous operation following Final Acceptance (FAC). Technical support (including telephone/remote system diagnostics) shall be available during standard business hours throughout the warranty period.';
+  'The Seller must warrant the entire system, machinery, and workmanship against defects for a minimum period of twelve (12) months of continuous operation following Final Acceptance (FAC). Technical support (including telephone/remote system diagnostics) must be available during standard business hours throughout the warranty period.';
 
 export const REQUIRED_DOCUMENTATION_13 = [
   { id: 1, title: 'As-Built Drawings', desc: 'Complete mechanical and electrical/control panel as-built drawings.', required: true },
@@ -385,12 +464,11 @@ export const REQUIRED_DOCUMENTATION_13 = [
   { id: 5, title: 'PLC & HMI (OIT) Source Code & Master Password', desc: 'The Seller must provide the latest program/source code of PLC and HMI (OIT) without Password, and formally provide all PLC and HMI (OIT) Master Passwords to the Buyer PIC.', required: true },
   { id: 6, title: 'Operational Manual', desc: 'Comprehensive operational manual for the equipment.', required: true },
   { id: 7, title: 'Maintenance Manual', desc: 'Preventive and corrective maintenance manual for the equipment.', required: true },
-  { id: 8, title: 'Operator Work Instructions', desc: 'Detailed step-by-step working instructions for operators.', required: true },
-  { id: 9, title: 'Recommended Spare Parts List', desc: 'Categorized list of recommended spare parts with OEM part numbers.', required: true },
-  { id: 10, title: 'Recommended Maintenance Schedule', desc: 'Interval-based preventive maintenance schedule.', required: true },
-  { id: 11, title: 'Calibration Certificates', desc: 'Valid calibration certificates for all measurement instruments.', required: true },
-  { id: 12, title: 'Halal Compliance Documentation', desc: 'Valid Halal Certificate or formal Statement Letter confirming that all equipment components and lubricants are not made from and have not come into contact with non-halal materials.', required: true },
-  { id: 13, title: 'Equipment Layout Drawings', desc: 'Complete equipment layout drawings (top view, elevation view, and interface sections) in editable AutoCAD (.dwg) and PDF formats.', required: true }
+  { id: 8, title: 'Recommended Spare Parts List', desc: 'Categorized list of recommended spare parts with OEM part numbers.', required: true },
+  { id: 9, title: 'Recommended Maintenance Schedule', desc: 'Interval-based preventive maintenance schedule.', required: true },
+  { id: 10, title: 'Calibration Certificates', desc: 'Valid calibration certificates for all measurement instruments.', required: true },
+  { id: 11, title: 'Halal Compliance Documentation', desc: 'Valid Halal Certificate or formal Statement Letter confirming that all equipment components and lubricants are not made from and have not come into contact with non-halal materials.', required: true },
+  { id: 12, title: 'Equipment Layout Drawings', desc: 'Complete equipment layout drawings (top view, elevation view, and interface sections) in editable AutoCAD (.dwg) and PDF formats.', required: true }
 ];
 
 export const APPENDICES_6 = [
@@ -577,7 +655,7 @@ export const TRSA_COMPLIANCE_MATRIX = [
   {
     id: 'XII',
     itemNo: 'XIII',
-    clauseTitle: 'Remedies & Consequences if Target is Not Reached',
+    clauseTitle: 'Consequences If Target is Not Reached',
     category: 'Commercial Risk',
     summary: '3-month rectification period (including raw materials consumed borne by Seller), or rejection with 100% full refund & dismantling/removal at Seller expense.',
     plants: ['1402', '1403', '1405', '1411'],
@@ -615,7 +693,7 @@ export const TRSA_COMPLIANCE_MATRIX = [
     itemNo: 'XV',
     clauseTitle: 'Shipment and Delivery',
     category: 'Logistics',
-    summary: 'Schedule adherence, Franco Site / CIF-CIP + EXW lead time, 110% ICC(A)/Air Cargo Insurance (payable Jakarta to BCA), <=25yr Vessel Age Cert, Customs Clearance demurrage back-charge.',
+    summary: 'Automated per Plant (1402/1403/1405/1411) x Origin: Local (EXW Vendor Factory + Franco Site) or Foreign (EXW Vendor Factory + CIF/CIP/CFR Port w/ EXW lead time, Delivery Schedule, 110% ICC(A)/Air Cargo Insurance payable Jakarta to BCA, <=25yr Vessel Age Cert, Customs Clearance demurrage back-charge).',
     plants: ['1402', '1403', '1405', '1411'],
     origins: ['Local', 'Foreign']
   },
@@ -633,7 +711,7 @@ export const TRSA_COMPLIANCE_MATRIX = [
     itemNo: 'XVII',
     clauseTitle: 'Quotation Breakdown',
     category: 'Tax & Regulatory',
-    summary: 'Separate, itemized quotations for Equipment Supply and Engineering Services costs.',
+    summary: 'Separate, itemized quotations for Equipment Supply and Engineering Services costs (USD/EUR offshore vs IDR w/ DPP, PPN & PPh local).',
     plants: ['1402', '1403', '1405', '1411'],
     origins: ['Local', 'Foreign']
   },
@@ -643,24 +721,24 @@ export const TRSA_COMPLIANCE_MATRIX = [
     clauseTitle: 'Import Duty Exemption & Free Demurrage',
     category: 'Tax & Regulatory',
     summary: 'Valid CoO/duty exemption (Form E, AK, IJEPA) and minimum 14 calendar days free demurrage at port of discharge; failures deducted from contract value.',
-    plants: ['1411'],
+    plants: ['1402', '1403', '1405', '1411'],
     origins: ['Foreign']
   },
   {
     id: 'XVI.pph26',
     itemNo: 'XVII',
-    clauseTitle: 'Foreign Vendor Withholding Tax (PPh 26 / DGT Form)',
+    clauseTitle: 'Foreign Vendor Withholding Tax (PPh 26 / DGT-1 Form)',
     category: 'Tax & Regulatory',
-    summary: '20% PPh 26; DGT treaty relief (5% CH, 7.5% DE, 10% IN/LU/PG/VE/ZW, 15% PK, 0% other); PMK 35/PMK.03/2019 6-month Time Test requiring BUT + NPWP.',
-    plants: ['1411'],
+    summary: '20% PPh 26; original DGT-1 treaty relief (5% CH, 7.5% DE, 10% IN/LU/PG/VE/ZW, 15% PK, 0% other); PMK 35/PMK.03/2019 6-month Time Test requiring BUT + NPWP.',
+    plants: ['1402', '1403', '1405', '1411'],
     origins: ['Foreign']
   },
   {
     id: 'XVI.visa',
     itemNo: 'XVII',
-    clauseTitle: 'Visa & Engineer Mobilization Expenses',
+    clauseTitle: 'Engineer Mobilization & Visa Expenses',
     category: 'Tax & Regulatory',
-    summary: 'Valid Working Visa required (Indonesia visa by IFM, home visa by Seller); clear cost split between Foreign vs Local engineers.',
+    summary: 'Foreign: Working Visa (ID by IFM, home by Seller) + IFM hotel/meals/local transport vs Seller allowances/airfare/insurance. Local: ALL mobilization costs borne by Seller.',
     plants: ['1402', '1403', '1405', '1411'],
     origins: ['Local', 'Foreign']
   },
@@ -670,7 +748,7 @@ export const TRSA_COMPLIANCE_MATRIX = [
     clauseTitle: 'Local Vendor Taxation & Invoicing',
     category: 'Tax & Regulatory',
     summary: 'Indonesian PPN & PPh per Seller KLU Code; PP No. 44 Tahun 2022 Pasal 23 Ayat (2) commercial DPP invoice first + Faktur Pajak on payment date; Kwitansi + Materai.',
-    plants: ['1402', '1403', '1405'],
+    plants: ['1402', '1403', '1405', '1411'],
     origins: ['Local']
   },
   {
@@ -685,9 +763,9 @@ export const TRSA_COMPLIANCE_MATRIX = [
   {
     id: 'XVII',
     itemNo: 'XVIII',
-    clauseTitle: 'Required Documentation (13 Deliverables)',
+    clauseTitle: 'Required Documentation',
     category: 'Close-Out Docs',
-    summary: 'Complete English softcopy & hardcopy deliverables prior to Final Acceptance (As-Built, Cabling, FDS, SDS, Unlocked PLC/HMI + Master Passwords, Manuals, Work Instructions, Spare Parts, Maintenance Schedule, Calibration, Halal, Layout .dwg/.pdf).',
+    summary: 'Complete English softcopy & hardcopy deliverables prior to Final Acceptance (As-Built, Cabling, FDS, SDS, Unlocked PLC/HMI + Master Passwords, Manuals, Spare Parts, Maintenance Schedule, Calibration, Halal, Layout .dwg/.pdf).',
     plants: ['1402', '1403', '1405', '1411'],
     origins: ['Local', 'Foreign']
   },
@@ -793,80 +871,208 @@ export function resolveContactsForPlant(plantLocationOrCode = '1403') {
 
 export function buildLegalAndTaxProvisions(plantLocationOrCode = '1403', vendorOrigin = 'Foreign') {
   const code = resolvePlantCode(plantLocationOrCode);
+  const profile = PLANT_MATRIX_PROFILES[code] || PLANT_MATRIX_PROFILES['1403'];
+  const portName = getShipmentPortForPlant(code);
   const origin = normalizeOriginMode(vendorOrigin);
-  const provisions = [];
-
-  // Always applicable (1402, 1403, 1405, 1411 | Local & Foreign)
-  provisions.push({
-    matrixId: 'XVI.quote',
-    title: 'Quotation Breakdown',
-    description: 'The Seller shall provide separate, itemized quotations for Equipment Supply and Engineering Services costs.',
-    applicablePlants: ['1402', '1403', '1405', '1411'],
-    applicableOrigins: ['Local', 'Foreign']
+  const makeProv = (matrixId, title, items, applicablePlants, applicableOrigins) => ({
+    matrixId,
+    title,
+    items,
+    description: items.join(' '),
+    applicablePlants,
+    applicableOrigins
   });
 
-  // 1411 + Foreign (or Mixed on 1411)
-  if (code === '1411' && (origin === 'Foreign' || origin === 'Mixed')) {
-    provisions.push({
-      matrixId: 'XVI.duty',
-      title: 'Import Duty Exemption & Free Demurrage (14 Days)',
-      description: 'The Seller shall furnish valid Certificates of Origin / duty exemption documentation (e.g., Form E, AK, IJEPA) for countries with an Economic Partnership / Free Trade Agreement with Indonesia and provide a minimum of fourteen (14) calendar days of free demurrage at port of discharge. Any incurred import duties, demurrage, or detention from failure to comply shall be borne by Seller and deducted from total contract value.',
-      applicablePlants: ['1411'],
-      applicableOrigins: ['Foreign']
-    });
-    provisions.push({
-      matrixId: 'XVI.pph26',
-      title: 'Foreign Vendor Withholding Tax (PPh 26 / DGT Form & PMK 35/2019)',
-      description: 'Engineering Services costs rendered by a Foreign Seller are subject to 20% Indonesian Withholding Tax (PPh Article 26). Valid Certificate of Domicile (DGT Form) prior to payment entitles treaty rates (5% Switzerland, 7.5% Germany, 10% India/Luxembourg/PNG/Venezuela/Zimbabwe, 15% Pakistan, 0% other treaty countries). Per PMK No. 35/PMK.03/2019 (Appendix 4), exceeding the 6-month accumulative Time Test in 12 months requires Permanent Establishment (BUT) + NPWP (PPh 23 / corporate tax); failure invalidates DGT and triggers 20% PPh 26.',
-      applicablePlants: ['1411'],
-      applicableOrigins: ['Foreign']
-    });
+  if (origin === 'Local') {
+    return [
+      makeProv(
+        'XVI.quote',
+        'Quotation Breakdown (IDR / Local Scope)',
+        [
+          'The Seller must provide separate, itemized quotations in Indonesian Rupiah (IDR) for Equipment Supply and Engineering Services costs (clearly specifying base DPP, applicable PPN, and PPh withholding).'
+        ],
+        ['1402', '1403', '1405', '1411'],
+        ['Local']
+      ),
+      makeProv(
+        'XVI.local',
+        'Local Vendor Taxation & Invoicing (PPN, PPh, KLU & PP 44/2022)',
+        [
+          "Subject to Indonesian PPN (VAT) and PPh (Income Tax) in accordance with prevailing tax regulations and the Seller's registered Company KLU Code (supporting KLU documents must be submitted to IFM).",
+          'Tax Invoice (Faktur Pajak) issuance must comply with PP No. 44 Tahun 2022 Pasal 23 Ayat (2) (Appendix 5): for Down Payment and Progress Payments, the Seller issues a commercial DPP invoice first, and issues the Faktur Pajak bearing the exact date payment is received.',
+          "Original invoices must be accompanied by complete original supporting documents and a duly signed 'Kwitansi' affixed with a valid 'Materai'."
+        ],
+        ['1402', '1403', '1405', '1411'],
+        ['Local']
+      ),
+      makeProv(
+        'XVI.visa',
+        'Local Engineer Mobilization Expenses',
+        [
+          `Local Company Engineers (${profile.siteTitle}): All mobilization costs—including daily allowances, air/land tickets, insurance, hotel accommodation, meals, and local transportation—must be borne exclusively by the Seller.`
+        ],
+        ['1402', '1403', '1405', '1411'],
+        ['Local']
+      ),
+      makeProv(
+        'XVI.contract',
+        'Payment Term & Contract Issuance',
+        [
+          "Invoices will be paid in IDR within a maximum of thirty (30) calendar days after receipt of complete, approved original hardcopy documents (including valid Faktur Pajak, KLU proof, and signed 'Kwitansi' affixed with a valid 'Materai') by IFM.",
+          'PT Indofood Fortuna Makmur will formalize the award by issuing an official Purchase Order (PO) and/or Sales Contract (as outlined in Appendix 6) to the selected Seller.'
+        ],
+        ['1402', '1403', '1405', '1411'],
+        ['Local']
+      )
+    ];
   }
 
-  // Always applicable (1402, 1403, 1405, 1411 | Local & Foreign)
-  provisions.push({
-    matrixId: 'XVI.visa',
-    title: 'Visa & Engineer Mobilization Expenses',
-    description: 'Engineers must hold valid Working Visas (Indonesian visa managed & paid by IFM; home-country visa by Seller). Foreign Company Engineers: Seller bears daily allowances, international/domestic airfares & insurance; IFM bears hotel accommodation, standard meals & local transport directly related to project execution (excluding alcohol, cigarettes & personal expenses). Local Company Engineers: ALL mobilization costs (allowances, air/land tickets, insurance, hotel, meals, local transport) borne exclusively by Seller.',
-    applicablePlants: ['1402', '1403', '1405', '1411'],
-    applicableOrigins: ['Local', 'Foreign']
-  });
-
-  // 1402, 1403, 1405 + Local (or Mixed on those plants)
-  if (['1402', '1403', '1405'].includes(code) && (origin === 'Local' || origin === 'Mixed')) {
-    provisions.push({
-      matrixId: 'XVI.local',
-      title: 'Local Vendor Taxation & Invoicing (PPN, PPh, KLU & PP 44/2022)',
-      description: "Subject to Indonesian PPN (VAT) and PPh (Income Tax) per prevailing tax regulations and Seller's registered Company KLU Code (supporting KLU docs required). Faktur Pajak issuance shall comply with PP No. 44 Tahun 2022 Pasal 23 Ayat (2) (Appendix 5): for Down Payment and Progress Payments, issue commercial DPP invoice first, then Faktur Pajak bearing the exact payment receipt date. Original invoices must attach complete supporting documents and duly signed Kwitansi affixed with valid Materai.",
-      applicablePlants: ['1402', '1403', '1405'],
-      applicableOrigins: ['Local']
-    });
+  if (origin === 'Mixed') {
+    return [
+      makeProv(
+        'XVI.mixed',
+        'Separation of Offshore Supply & Onshore Scope',
+        [
+          'Contracts and commercial quotations are strictly itemized between Offshore Equipment Supply (USD/EUR) and Onshore Local Works/Services (IDR).'
+        ],
+        ['1402', '1403', '1405', '1411'],
+        ['Mixed']
+      ),
+      makeProv(
+        'XVI.quote',
+        'Quotation Breakdown (Dual Currency Scope)',
+        [
+          'The Seller must provide separate, itemized quotations for Offshore Equipment Supply (USD/EUR), Onshore/Local Works (IDR), and Engineering Services costs.'
+        ],
+        ['1402', '1403', '1405', '1411'],
+        ['Mixed']
+      ),
+      makeProv(
+        'XVI.duty',
+        'Import Duty Exemption & Free Demurrage (Offshore Scope)',
+        [
+          'The Seller must furnish the Buyer with valid Certificates of Origin / duty exemption documentation (e.g., Form E, AK, IJEPA) for equipment manufactured in countries holding an Economic Partnership / Free Trade Agreement with Indonesia.',
+          `A minimum of fourteen (14) calendar days of free demurrage at the port of discharge (${portName}) must be provided by the Seller.`,
+          'In the event the Seller fails to provide valid duty exemption documentation within the free demurrage period, any incurred import duties, demurrage, and detention costs must be borne by the Seller and deducted from the total contract value.'
+        ],
+        ['1402', '1403', '1405', '1411'],
+        ['Foreign', 'Mixed']
+      ),
+      makeProv(
+        'XVI.pph26',
+        'Foreign Vendor Withholding Tax (PPh 26 / DGT Form — Offshore Services)',
+        [
+          'Engineering Services costs rendered by a Foreign Seller are subject to Indonesian Withholding Tax (PPh Article 26 at 20%).',
+          'Tax treaty relief applies upon valid submission of an original, color-printed Certificate of Domicile (DGT Form / DGT-1) prior to payment (reduced rates: 5% Switzerland, 7.5% Germany, 10% India/Luxembourg/PNG/Venezuela/Zimbabwe, 15% Pakistan, or 0% for other treaty countries per applicable Indonesian tax regulations).',
+          'Pursuant to PMK No. 35/PMK.03/2019 (Appendix 4), if service work exceeds the applicable Time Test (6 months accumulative within a 12-month period), the Seller must register a Permanent Establishment (BUT) and obtain an Indonesian Tax ID (NPWP), subjecting service fees to domestic withholding tax (PPh 23 / corporate tax). Failure to establish a BUT after exceeding the Time Test invalidates the DGT Form and triggers the full 20% PPh 26 withholding tax.'
+        ],
+        ['1402', '1403', '1405', '1411'],
+        ['Foreign', 'Mixed']
+      ),
+      makeProv(
+        'XVI.local',
+        'Local Vendor Taxation & Invoicing (Onshore Scope)',
+        [
+          "Subject to Indonesian PPN (VAT) and PPh (Income Tax) in accordance with prevailing tax regulations and the Seller's registered Company KLU Code (supporting KLU documents must be submitted to IFM).",
+          'Tax Invoice (Faktur Pajak) issuance must comply with PP No. 44 Tahun 2022 Pasal 23 Ayat (2) (Appendix 5): for Down Payment and Progress Payments, the Seller issues a commercial DPP invoice first, and issues the Faktur Pajak bearing the exact date payment is received.',
+          "Original invoices must be accompanied by complete original supporting documents and a duly signed 'Kwitansi' affixed with a valid 'Materai'."
+        ],
+        ['1402', '1403', '1405', '1411'],
+        ['Local', 'Mixed']
+      ),
+      makeProv(
+        'XVI.visa',
+        'Visa & Engineer Mobilization Expenses (Foreign & Local Teams)',
+        [
+          `Engineers must be dispatched to ${profile.siteTitle} under a valid Working Visa. Visa processing in Indonesia is managed and paid by IFM, whereas home-country visa processing is managed and paid by the Seller.`,
+          'Foreign Company Engineers: The Seller must bear daily allowances, international and domestic airfares, and insurance expenses. IFM must bear hotel accommodation, standard meals, and local transportation within Indonesia solely when directly related to project execution with IFM (excluding alcoholic beverages, cigarettes, and personal expenses).',
+          'Local Company Engineers: All mobilization costs—including daily allowances, air/land tickets, insurance, hotel accommodation, meals, and local transportation—must be borne exclusively by the Seller.'
+        ],
+        ['1402', '1403', '1405', '1411'],
+        ['Mixed']
+      ),
+      makeProv(
+        'XVI.contract',
+        'Payment Term & Contract Issuance',
+        [
+          'Invoices will be paid within a maximum of thirty (30) calendar days after receipt of complete, approved original hardcopy documents (DGT Form for offshore services; Faktur Pajak & Kwitansi w/ Materai for onshore scope) by IFM.',
+          'PT Indofood Fortuna Makmur will formalize the award by issuing an official Purchase Order (PO) and/or Sales Contract (as outlined in Appendix 6) to the selected Seller.'
+        ],
+        ['1402', '1403', '1405', '1411'],
+        ['Mixed']
+      )
+    ];
   }
 
-  // Always applicable (1402, 1403, 1405, 1411 | Local & Foreign)
-  provisions.push({
-    matrixId: 'XVI.contract',
-    title: 'Payment Term & Contract Issuance (Max 30 Days & Appendix 6)',
-    description: 'Invoices will be paid within a maximum of thirty (30) calendar days after receipt of complete, approved original hardcopy documents by IFM. PT Indofood Fortuna Makmur will formalize award by issuing an official Purchase Order (PO) and/or Sales Contract (as outlined in Appendix 6).',
-    applicablePlants: ['1402', '1403', '1405', '1411'],
-    applicableOrigins: ['Local', 'Foreign']
-  });
-
-  return provisions;
+  // Foreign Vendor (1402, 1403, 1405, 1411)
+  return [
+    makeProv(
+      'XVI.quote',
+      'Quotation Breakdown (Offshore Supply & Engineering Services)',
+      [
+        'The Seller must provide separate, itemized quotations in foreign currency (USD / EUR or agreed offshore currency) for Equipment Supply and Engineering Services costs.'
+      ],
+      ['1402', '1403', '1405', '1411'],
+      ['Foreign']
+    ),
+    makeProv(
+      'XVI.duty',
+      'Import Duty Exemption & Free Demurrage',
+      [
+        'The Seller must furnish the Buyer with valid Certificates of Origin / duty exemption documentation (e.g., Form E, AK, IJEPA) for equipment manufactured in countries holding an Economic Partnership / Free Trade Agreement with Indonesia.',
+        `A minimum of fourteen (14) calendar days of free demurrage at the port of discharge (${portName}) must be provided by the Seller.`,
+        'In the event the Seller fails to provide valid duty exemption documentation within the free demurrage period, any incurred import duties, demurrage, and detention costs must be borne by the Seller and deducted from the total contract value.'
+      ],
+      ['1402', '1403', '1405', '1411'],
+      ['Foreign']
+    ),
+    makeProv(
+      'XVI.pph26',
+      'Foreign Vendor Withholding Tax (PPh 26 / DGT Form)',
+      [
+        'Engineering Services costs rendered by a Foreign Seller are subject to Indonesian Withholding Tax (PPh Article 26 at 20%).',
+        'Tax treaty relief applies upon valid submission of an original, color-printed Certificate of Domicile (DGT Form / DGT-1) prior to payment (reduced rates: 5% Switzerland, 7.5% Germany, 10% India/Luxembourg/PNG/Venezuela/Zimbabwe, 15% Pakistan, or 0% for other treaty countries per applicable Indonesian tax regulations).',
+        'Pursuant to PMK No. 35/PMK.03/2019 (Appendix 4), if service work exceeds the applicable Time Test (6 months accumulative within a 12-month period), the Seller must register a Permanent Establishment (BUT) and obtain an Indonesian Tax ID (NPWP), subjecting service fees to domestic withholding tax (PPh 23 / corporate tax). Failure to establish a BUT after exceeding the Time Test invalidates the DGT Form and triggers the full 20% PPh 26 withholding tax.'
+      ],
+      ['1402', '1403', '1405', '1411'],
+      ['Foreign']
+    ),
+    makeProv(
+      'XVI.visa',
+      'Visa & Foreign Engineer Mobilization Expenses',
+      [
+        `Engineers must be dispatched to ${profile.siteTitle} under a valid Working Visa. Visa processing in Indonesia is managed and paid by IFM, whereas home-country visa processing is managed and paid by the Seller.`,
+        'Foreign Company Engineers: The Seller must bear daily allowances, international and domestic airfares, and insurance expenses. IFM must bear hotel accommodation, standard meals, and local transportation within Indonesia solely when directly related to project execution with IFM (excluding alcoholic beverages, cigarettes, and personal expenses).'
+      ],
+      ['1402', '1403', '1405', '1411'],
+      ['Foreign']
+    ),
+    makeProv(
+      'XVI.contract',
+      'Payment Term & Contract Issuance',
+      [
+        'Invoices will be paid within a maximum of thirty (30) calendar days after receipt of complete, approved original hardcopy documents (including valid original DGT Form for Engineering Services) by IFM.',
+        'PT Indofood Fortuna Makmur will formalize the award by issuing an official Purchase Order (PO) and/or Sales Contract (as outlined in Appendix 6) to the selected Seller.'
+      ],
+      ['1402', '1403', '1405', '1411'],
+      ['Foreign']
+    )
+  ];
 }
 
 export function getShipmentTermsForMatrix(plantLocationOrCode = '1403', vendorOrigin = 'Foreign') {
   const code = resolvePlantCode(plantLocationOrCode);
   const profile = PLANT_MATRIX_PROFILES[code] || PLANT_MATRIX_PROFILES['1403'];
   const origin = normalizeOriginMode(vendorOrigin);
+  const portName = getShipmentPortForPlant(code);
 
   if (origin === 'Local') {
     return `Franco Site / Franco Pabrik ${profile.siteTitle} (${profile.address}). Delivered strictly to agreed schedules. Domestic inland freight and transit risk borne by Seller.`;
   }
   if (origin === 'Mixed') {
-    return `Dual Terms: Offshore machinery CIF / CIP ${profile.deliveryPort} stating firm EXW lead time (110% ICC(A)/Air Cargo Insurance payable Jakarta to Bank Central Asia; carrying vessel <= 25 years for CFR/FOB). Onshore/local scope delivered Franco Site ${profile.siteTitle}.`;
+    return `Dual Terms: Offshore machinery CIF / CIP / CFR ${portName} stating firm EXW lead time (110% ICC(A)/Air Cargo Insurance payable Jakarta to Bank Central Asia; carrying vessel <= 25 years for CFR/FOB). Onshore/local scope delivered Franco Site ${profile.siteTitle}.`;
   }
-  return `CIF / CIP ${profile.deliveryPort} stating firm Ex-Works (EXW) lead time. Duplicate original Insurance Policy/Certificate >= 110% invoice value covering ICC (A)/Air payable in Jakarta to Bank Central Asia (BCA). Carrying vessel must not exceed 25 years (CFR/FOB). Customs clearance by IFM upon original shipping docs.`;
+  return `CIF / CIP / CFR ${portName} stating firm Ex-Works (EXW) lead time. Duplicate original Insurance Policy/Certificate >= 110% invoice value covering ICC (A)/Air payable in Jakarta to Bank Central Asia (BCA). Carrying vessel must not exceed 25 years (CFR/FOB). Customs clearance by IFM upon original shipping docs.`;
 }
 
 export function auditProjectMatrixCompliance(project) {
@@ -945,33 +1151,39 @@ export function auditProjectMatrixCompliance(project) {
     'Verifies signed training attendance sheets, Snag List (Punch List), 3-month rectification, and 100% refund/dismantle clause.'
   );
 
-  // XIII-XV: Payment Schedule (30/55/10/5 & 150d Undertaking Letter), SWIFT BG, Shipment (5 items), 12M FAC Warranty
+  // XIII-XV: Payment Schedule (30/55/10/5 & 150d Undertaking Letter), SWIFT BG, Origin-automated Shipment, 12M FAC Warranty
   const hasMatrixSchedule = Array.isArray(p.commercialTerms?.matrixEquipmentSchedule) && p.commercialTerms.matrixEquipmentSchedule.length === 4;
   const hasUndertaking = String(p.commercialTerms?.engineeringServicesPayment || '').toLowerCase().includes('undertaking letter');
   const hasBgCond = Array.isArray(p.commercialTerms?.invoicingAndBankGuarantee) && p.commercialTerms.invoicingAndBankGuarantee.length >= 2;
-  const hasShip5 = Array.isArray(p.commercialTerms?.shipmentItems) && p.commercialTerms.shipmentItems.length >= 5;
-  addCheck('XIII-XV', 'Payment Schedule, SWIFT BG, Undertaking Letter, Shipment (5) & 12M Warranty',
-    hasMatrixSchedule && hasUndertaking && hasBgCond && hasShip5,
-    'Checks 30/55/10/5 T/T schedule, 150-day Engineering Services Undertaking Letter, SWIFT/Telex BG condition, and 5 shipment rules.'
+  const shipItems = Array.isArray(p.commercialTerms?.shipmentItems) ? p.commercialTerms.shipmentItems : [];
+  const hasShipValid = vendorOrigin === 'Local'
+    ? shipItems.length >= 2 && shipItems.some(i => /franco\s*site/i.test(`${i.title} ${i.description}`))
+    : shipItems.length >= 6 && shipItems.some(i => /cif\s*\/\s*cip/i.test(`${i.title} ${i.description}`));
+  addCheck('XIII-XV', 'Payment Schedule, SWIFT BG, Undertaking Letter, Shipment & 12M Warranty',
+    hasMatrixSchedule && hasUndertaking && hasBgCond && hasShipValid,
+    'Checks 30/55/10/5 T/T schedule, 150-day Engineering Services Undertaking Letter, SWIFT/Telex BG condition, and origin-automated Shipment & Delivery rules.'
   );
 
   // XVI: Plant x Origin Administrative, Tax & Regulatory Provisions
   const expectedProvIds = buildLegalAndTaxProvisions(plantCode, vendorOrigin).map(pr => pr.matrixId);
-  const actualProvIds = new Set((p.legalAndTaxProvisions || []).map(pr => pr.matrixId).filter(Boolean));
+  const actualProvIdsList = (p.legalAndTaxProvisions || []).map(pr => pr.matrixId).filter(Boolean);
+  const actualProvIds = new Set(actualProvIdsList);
   const missingProvIds = expectedProvIds.filter(id => !actualProvIds.has(id));
+  const extraProvIds = actualProvIdsList.filter(id => !expectedProvIds.includes(id));
   addCheck('XVI', `Administrative & Tax Provisions (Plant ${plantCode} × ${vendorOrigin})`,
-    missingProvIds.length === 0,
-    missingProvIds.length === 0
-      ? `All ${expectedProvIds.length} applicable Clause XVI provisions match Plant ${plantCode} × ${vendorOrigin}.`
-      : `Missing or out-of-sync Clause XVI rules: ${missingProvIds.join(', ')}`
+    missingProvIds.length === 0 && extraProvIds.length === 0,
+    missingProvIds.length === 0 && extraProvIds.length === 0
+      ? `All ${expectedProvIds.length} applicable Clause XVII provisions match Plant ${plantCode} × ${vendorOrigin}.`
+      : `Out-of-sync Clause XVII rules (missing: ${missingProvIds.join(', ') || 'none'}; extra: ${extraProvIds.join(', ') || 'none'})`
   );
 
-  // XVII: 13 Required Documents
+  // XVIII: Required Documentation (12 Deliverables, without Operator Work Instructions)
   const docs = p.requiredDocumentation || [];
   const hasMasterPwdDoc = docs.some(d => String(d.title || '').toLowerCase().includes('master password'));
-  addCheck('XVII', 'Required Documentation (13 PDF Deliverables)',
-    docs.length === 13 && hasMasterPwdDoc,
-    `${docs.length}/13 deliverables configured (must include unlocked PLC & HMI Source Code & Master Password + .dwg/.pdf layouts).`
+  const hasRemovedWorkInstr = docs.some(d => /operator\s*work\s*instructions/i.test(String(d.title || '')));
+  addCheck('XVII', 'Required Documentation (12 PDF Deliverables)',
+    docs.length === REQUIRED_DOCUMENTATION_13.length && hasMasterPwdDoc && !hasRemovedWorkInstr,
+    `${docs.length}/${REQUIRED_DOCUMENTATION_13.length} deliverables configured (must include unlocked PLC & HMI Source Code & Master Password + .dwg/.pdf layouts).`
   );
 
   // XIX: 6 Reference Appendices

@@ -32,8 +32,23 @@ import {
   deleteVendor,
   loadPlants,
   getPlantProfile,
-  upsertPlant
+  upsertPlant,
+  loadPaymentTerms,
+  getPaymentTermByCode,
+  upsertPaymentTerm,
+  deletePaymentTerm
 } from './masterDataService.js';
+import {
+  VENDOR_TBC_MARKER,
+  VENDOR_CONTACT_ROLES,
+  classifyVendorOrigin,
+  getVendorOriginTag,
+  getDefaultTermOfPaymentByOrigin,
+  normalizeVendorKeyContacts,
+  buildVendorInformationMatrix,
+  formatVendorMatrixMarkdown,
+  parseRawVendorProfileText
+} from './vendorMatrixService.js';
 import { 
   ACTIVITY_DOMAINS,
   ACTIVITY_DOMAIN_LABELS,
@@ -99,6 +114,7 @@ import {
   REMEDIES_CONSEQUENCES_STANDARD,
   MATRIX_EQUIPMENT_PAYMENT_BREAKDOWN,
   MATRIX_ENGINEERING_SERVICES_PAYMENT,
+  ENGINEERING_SERVICES_PAYMENT_CLAUSES,
   INVOICING_AND_BG_CONDITIONS,
   SHIPMENT_DELIVERY_ITEMS_5,
   WARRANTY_STANDARD,
@@ -112,6 +128,8 @@ import {
   resolveContactsForPlant,
   buildLegalAndTaxProvisions,
   getShipmentTermsForMatrix,
+  getShipmentPortForPlant,
+  resolveShipmentItemsForMatrix,
   auditProjectMatrixCompliance,
   PROJECT_CONTACT_ROLES,
   normalizeContactToProjectRole,
@@ -320,16 +338,16 @@ export const VENDOR_ORIGIN_CONFIG = {
     origin: 'Foreign',
     label: 'Foreign (International OEM)',
     badgeClass: 'bg-sky-50 text-[#0284C7] border border-sky-200',
-    description: 'International OEM. CIF/CIP Port/Site w/ EXW lead time, 30/55/10/5 T/T w/ SWIFT APBG, PPh 26/PMK 35/2019 (1411), 14-day free demurrage & Working Visas.',
+    description: 'International OEM. CIF/CIP/CFR Port w/ EXW lead time, T/T w/ SWIFT APBG, CoO Duty Exemption & 14-day Free Demurrage, PPh 26/DGT-1/PMK 35/2019 & Working Visas.',
     currency: 'USD / EUR',
     defaultShipment: getShipmentTermsForMatrix('1403', 'Foreign'),
-    defaultProvisions: buildLegalAndTaxProvisions('1411', 'Foreign')
+    defaultProvisions: buildLegalAndTaxProvisions('1403', 'Foreign')
   },
   Local: {
     origin: 'Local',
     label: 'Local (Domestic Indonesian Vendor)',
     badgeClass: 'bg-emerald-50 text-emerald-700 border border-emerald-200',
-    description: 'Domestic Indonesian vendor. Franco Site delivery in IDR, PPN/PPh per Company KLU Code, PP 44/2022 Pasal 23 Ayat (2) commercial DPP + Faktur Pajak, Kwitansi + Materai.',
+    description: 'Domestic Indonesian vendor. Franco Site delivery in IDR, PPN/PPh per Company KLU Code, PP 44/2022 Pasal 23 Ayat (2) commercial DPP + Faktur Pajak, Kwitansi + Materai & Local Engineer Mobilization.',
     currency: 'IDR (Rupiah)',
     defaultShipment: getShipmentTermsForMatrix('1403', 'Local'),
     defaultProvisions: buildLegalAndTaxProvisions('1403', 'Local')
@@ -338,18 +356,10 @@ export const VENDOR_ORIGIN_CONFIG = {
     origin: 'Mixed',
     label: 'Mixed (Dual Sourcing: Foreign & Local)',
     badgeClass: 'bg-purple-50 text-purple-700 border border-purple-200',
-    description: 'Hybrid sourcing model: Offshore core equipment (CIF/CIP, PPh 26/PMK 35/2019) paired with onshore fabrication/installation (Franco Site, IDR, KLU, PP 44/2022).',
+    description: 'Hybrid sourcing model: Offshore core equipment (CIF/CIP/CFR, CoO, PPh 26/DGT-1/PMK 35/2019, Working Visa) paired with onshore fabrication/installation (Franco Site, IDR, KLU, PP 44/2022, Local Mobilization).',
     currency: 'USD/EUR (Import Equipment) & IDR (Local Scope)',
     defaultShipment: getShipmentTermsForMatrix('1403', 'Mixed'),
-    defaultProvisions: [
-      {
-        matrixId: 'XVI.mixed',
-        title: 'Separation of Offshore Supply & Onshore Scope',
-        description: 'Contracts and commercial quotations are strictly itemized between Offshore Equipment Supply (USD/EUR) and Onshore Local Works/Services (IDR).'
-      },
-      ...buildLegalAndTaxProvisions('1411', 'Foreign').filter(p => p.matrixId === 'XVI.duty' || p.matrixId === 'XVI.pph26'),
-      ...buildLegalAndTaxProvisions('1403', 'Local')
-    ]
+    defaultProvisions: buildLegalAndTaxProvisions('1403', 'Mixed')
   }
 };
 
@@ -718,9 +728,23 @@ export function ensureProjectMatrixDefaults(project) {
   project.performanceAcceptance = project.performanceAcceptance || {};
   if (!Array.isArray(project.performanceAcceptance.finalAcceptanceChecklist) || project.performanceAcceptance.finalAcceptanceChecklist.length === 0) {
     project.performanceAcceptance.finalAcceptanceChecklist = JSON.parse(JSON.stringify(FINAL_ACCEPTANCE_RULES));
+  } else {
+    const legacyFac = project.performanceAcceptance.finalAcceptanceChecklist;
+    if (
+      legacyFac[0]?.title === 'On-Site Operational Acceptance' ||
+      legacyFac[2]?.title === 'Formal Sign-Off' ||
+      (legacyFac[3] && !String(legacyFac[3].description || '').startsWith('(if)'))
+    ) {
+      project.performanceAcceptance.finalAcceptanceChecklist = JSON.parse(JSON.stringify(FINAL_ACCEPTANCE_RULES));
+    }
   }
   if (!Array.isArray(project.performanceAcceptance.remediesAndConsequences) || project.performanceAcceptance.remediesAndConsequences.length === 0) {
     project.performanceAcceptance.remediesAndConsequences = JSON.parse(JSON.stringify(REMEDIES_CONSEQUENCES_STANDARD));
+  } else {
+    const legacyRem = project.performanceAcceptance.remediesAndConsequences;
+    if (legacyRem[0]?.title === 'Rectification Period' || legacyRem[1]?.title === 'Rejection & Full Refund') {
+      project.performanceAcceptance.remediesAndConsequences = JSON.parse(JSON.stringify(REMEDIES_CONSEQUENCES_STANDARD));
+    }
   }
 
   project.commercialTerms = project.commercialTerms || {};
@@ -743,22 +767,82 @@ export function ensureProjectMatrixDefaults(project) {
   if (!Array.isArray(project.commercialTerms.invoicingAndBankGuarantee) || project.commercialTerms.invoicingAndBankGuarantee.length === 0) {
     project.commercialTerms.invoicingAndBankGuarantee = [...INVOICING_AND_BG_CONDITIONS];
   }
-  if (!Array.isArray(project.commercialTerms.shipmentItems) || project.commercialTerms.shipmentItems.length === 0) {
-    project.commercialTerms.shipmentItems = JSON.parse(JSON.stringify(SHIPMENT_DELIVERY_ITEMS_5));
+  const expectedShipItems = resolveShipmentItemsForMatrix(plantCode, origin, project.commercialTerms.exWorksFactory);
+  const currentShipItems = Array.isArray(project.commercialTerms.shipmentItems) ? project.commercialTerms.shipmentItems : [];
+  const isLegacyOrStaleShip =
+    currentShipItems.length === 0 ||
+    currentShipItems[0]?.title === 'Delivery Schedule' ||
+    currentShipItems.length !== expectedShipItems.length ||
+    currentShipItems[1]?.description !== expectedShipItems[1]?.description;
+  if (isLegacyOrStaleShip) {
+    project.commercialTerms.shipmentItems = expectedShipItems;
+  }
+  if (!project.commercialTerms.shipmentTerms ||
+      project.commercialTerms.shipmentTerms.includes('CIF / CIP') ||
+      project.commercialTerms.shipmentTerms.includes('Franco') ||
+      project.commercialTerms.shipmentTerms.includes('Dual Terms')) {
+    project.commercialTerms.shipmentTerms = getShipmentTermsForMatrix(plantCode, origin);
   }
   if (!project.commercialTerms.warranty) {
     project.commercialTerms.warranty = WARRANTY_STANDARD;
   }
 
-  if (!Array.isArray(project.legalAndTaxProvisions) || project.legalAndTaxProvisions.length === 0) {
-    project.legalAndTaxProvisions = buildLegalAndTaxProvisions(plantCode, origin);
+  const expectedProvisions = buildLegalAndTaxProvisions(plantCode, origin);
+  const currentProvisions = Array.isArray(project.legalAndTaxProvisions) ? project.legalAndTaxProvisions : [];
+  const expectedProvSignature = expectedProvisions.map(pr => `${pr.matrixId}:${pr.title}`).join('|');
+  const currentProvSignature = currentProvisions.map(pr => `${pr.matrixId}:${pr.title}`).join('|');
+  const hasLegacyVisaText = currentProvisions.some(
+    pr => pr.matrixId === 'XVI.visa' &&
+      ((origin === 'Local' && String(pr.description || '').includes('Working Visa')) ||
+       (origin === 'Foreign' && String(pr.description || '').includes('Local Company Engineers')))
+  );
+  const missingItemizedBullets = currentProvisions.some(
+    pr => !Array.isArray(pr?.items) || pr.items.length === 0
+  );
+  if (currentProvisions.length === 0 || currentProvSignature !== expectedProvSignature || hasLegacyVisaText || missingItemizedBullets) {
+    project.legalAndTaxProvisions = expectedProvisions;
   }
   if (!Array.isArray(project.requiredDocumentation) || project.requiredDocumentation.length === 0) {
     project.requiredDocumentation = JSON.parse(JSON.stringify(REQUIRED_DOCUMENTATION_13));
+  } else if (project.requiredDocumentation.some(d => /operator\s*work\s*instructions/i.test(String(d?.title || '')))) {
+    project.requiredDocumentation = project.requiredDocumentation
+      .filter(d => !/operator\s*work\s*instructions/i.test(String(d?.title || '')))
+      .map((d, idx) => ({ ...d, id: idx + 1 }));
   }
   if (!Array.isArray(project.appendices) || project.appendices.length === 0) {
     project.appendices = JSON.parse(JSON.stringify(APPENDICES_6));
   }
+
+  const replaceShallWithMust = val => {
+    if (typeof val === 'string') {
+      return val.replace(/\b(s)hall\b/gi, (_, s) => (s === 'S' ? 'Must' : 'must'));
+    }
+    if (Array.isArray(val)) {
+      return val.map(replaceShallWithMust);
+    }
+    if (val && typeof val === 'object') {
+      const next = {};
+      for (const [k, v] of Object.entries(val)) {
+        next[k] = replaceShallWithMust(v);
+      }
+      return next;
+    }
+    return val;
+  };
+  [
+    'siteDescription',
+    'scopeOfSupply',
+    'hygieneAndQuality',
+    'performanceAcceptance',
+    'commercialTerms',
+    'legalAndTaxProvisions',
+    'requiredDocumentation',
+    'appendices'
+  ].forEach(sectionKey => {
+    if (project[sectionKey]) {
+      project[sectionKey] = replaceShallWithMust(project[sectionKey]);
+    }
+  });
 
   return project;
 }
@@ -819,6 +903,7 @@ export class TRSAStore {
     this.teamMembers = loadUsers();
     this.vendors = loadVendors();
     this.plants = loadPlants();
+    this.paymentTerms = loadPaymentTerms();
     this.currentUser = this.loadUser();
     this.isAuthenticated = this.loadAuthSession();
     this.loginError = '';
@@ -836,7 +921,7 @@ export class TRSAStore {
     this.selectedMatrixUserKey = getUserSettingKey(this.teamMembers[1] || this.teamMembers[0]);
     this.userMatrixSearch = '';
     this.matrixClauseScopeFilter = 'all'; // 'all' | 'assigned'
-    this.directoryTab = 'users'; // 'users' | 'vendors' | 'plants' | 'org'
+    this.directoryTab = 'users'; // 'users' | 'vendors' | 'plants' | 'org' | 'payment_terms'
     this.selectedDirectoryUserEmail = (this.teamMembers[0] || {}).email || '';
     this.selectedDirectoryVendorId = (this.vendors[0] || {}).id || 'v-01';
     this.selectedDirectoryPlantCode = '1403';
@@ -847,11 +932,16 @@ export class TRSAStore {
     this.editingUserEmail = null;
     this.showAddVendorForm = false;
     this.editingVendorId = null;
+    this.showVendorExtractor = false;
+    this.vendorExtractorRawText = '';
+    this.vendorExtractorResult = null;
     this.editingPlantCode = null;
     this.showAddDeptForm = false;
     this.editingDeptCode = null;
     this.showAddJobForm = false;
     this.editingJobId = null;
+    this.showAddPaymentTermForm = false;
+    this.editingPaymentTermId = null;
     this.auditSearchQuery = '';
     this.auditProjectFilter = 'all';
     this.auditDomainFilter = ACTIVITY_DOMAINS.ALL;
@@ -924,6 +1014,7 @@ export class TRSAStore {
     this.teamMembers = loadUsers();
     this.vendors = loadVendors();
     this.plants = loadPlants();
+    this.paymentTerms = loadPaymentTerms();
   }
 
   loadAuthSession() {
@@ -1337,6 +1428,66 @@ export class TRSAStore {
     return ok;
   }
 
+  savePaymentTermRecord(termData) {
+    if (!this.isAdmin() && !String(this.getCurrentUser()?.role || '').toLowerCase().includes('purchasing')) {
+      this.showNotification('Hanya Super Admin atau Purchasing yang dapat mengubah database Term of Payment.', 'error');
+      return null;
+    }
+    const saved = upsertPaymentTerm(termData);
+    if (!saved) {
+      this.showNotification('Kode, Label, dan minimal 1 termin pembayaran wajib diisi.', 'error');
+      return null;
+    }
+    this.refreshMasterData();
+    this.logActivity('MASTER_PAYMENT_TERM_UPDATE', [{
+      category: 'Payment Terms DB',
+      description: `Saved payment term format "${saved.code}" (${saved.breakdown.length} milestones)`,
+      from: 'Payment Terms Master',
+      to: saved.label
+    }], { targetEntity: saved.code });
+    this.showNotification(`Format Term of Payment "${saved.label}" tersimpan ke database.`, 'success');
+    return saved;
+  }
+
+  removePaymentTermRecord(idOrCode) {
+    if (!this.isAdmin()) {
+      this.showNotification('Hanya Super Admin yang dapat menghapus format Term of Payment.', 'error');
+      return false;
+    }
+    const prev = (this.paymentTerms || []).find(pt => pt.id === idOrCode || pt.code === idOrCode);
+    const ok = deletePaymentTerm(idOrCode);
+    if (ok) {
+      this.refreshMasterData();
+      this.logActivity('MASTER_PAYMENT_TERM_DELETE', [{
+        category: 'Payment Terms DB',
+        description: `Deleted payment term format "${prev?.label || idOrCode}"`,
+        from: prev?.code || idOrCode,
+        to: 'Removed'
+      }], { targetEntity: prev?.code || idOrCode });
+      this.showNotification('Format Term of Payment dihapus dari database.', 'info');
+    } else {
+      this.showNotification('Minimal harus tersisa 1 format Term of Payment di database.', 'error');
+    }
+    return ok;
+  }
+
+  setPaymentTermOption(optCode) {
+    const p = this.getActiveProject();
+    if (!p) return null;
+    const term = getPaymentTermByCode(optCode);
+    p.commercialTerms = p.commercialTerms || {};
+    p.commercialTerms.selectedPaymentOption = term.code;
+    p.commercialTerms.activePaymentBreakdown = JSON.parse(JSON.stringify(term.breakdown));
+    if (!p.commercialTerms.engineeringServicesPayment) {
+      p.commercialTerms.engineeringServicesPayment = term.engineeringServicesPayment || MATRIX_ENGINEERING_SERVICES_PAYMENT;
+    }
+    if (Array.isArray(term.invoicingConditions) && term.invoicingConditions.length > 0) {
+      p.commercialTerms.invoicingAndBankGuarantee = [...term.invoicingConditions];
+    }
+    this.saveProjects();
+    return term;
+  }
+
   getCurrentUserMatrixSetting() {
     return getUserMatrixSetting(this.getCurrentUser(), this.teamMembers);
   }
@@ -1578,26 +1729,11 @@ export class TRSAStore {
     syncPlantContacts(plantData.code, proj);
 
     // Sync Plant x Origin administrative & tax provisions + shipment wording
-    if (origin === 'Mixed') {
-      proj.legalAndTaxProvisions = [
-        {
-          matrixId: 'XVI.mixed',
-          title: 'Separation of Offshore Supply & Onshore Scope',
-          description: 'Contracts and commercial quotations are strictly itemized between Offshore Equipment Supply (USD/EUR) and Onshore Local Works/Services (IDR).'
-        },
-        ...buildLegalAndTaxProvisions(plantData.code, 'Mixed')
-      ];
-    } else {
-      proj.legalAndTaxProvisions = buildLegalAndTaxProvisions(plantData.code, origin);
-    }
+    proj.legalAndTaxProvisions = buildLegalAndTaxProvisions(plantData.code, origin);
 
     if (!proj.commercialTerms) proj.commercialTerms = {};
-    if (!proj.commercialTerms.shipmentTerms ||
-        proj.commercialTerms.shipmentTerms.includes('CIF / CIP') ||
-        proj.commercialTerms.shipmentTerms.includes('Franco') ||
-        proj.commercialTerms.shipmentTerms.includes('Dual Terms')) {
-      proj.commercialTerms.shipmentTerms = getShipmentTermsForMatrix(plantData.code, origin);
-    }
+    proj.commercialTerms.shipmentTerms = getShipmentTermsForMatrix(plantData.code, origin);
+    proj.commercialTerms.shipmentItems = resolveShipmentItemsForMatrix(plantData.code, origin, proj.commercialTerms.exWorksFactory);
 
     // Update Doc Number plant code if standard format
     const parsed = parseTRSANumber(proj.documentInfo.docNumber);
@@ -1833,27 +1969,12 @@ export class TRSAStore {
     const plantCode = resolvePlantCode(proj.documentInfo?.plantLocation || proj.generalInfo?.plantLocation || '1403');
     const config = VENDOR_ORIGIN_CONFIG[origin];
 
-    // Adapt default shipment terms to match Plant x Origin Matrix
-    if (!proj.commercialTerms.shipmentTerms ||
-        proj.commercialTerms.shipmentTerms.includes('CIF / CIP') ||
-        proj.commercialTerms.shipmentTerms.includes('Franco') ||
-        proj.commercialTerms.shipmentTerms.includes('Dual Terms')) {
-      proj.commercialTerms.shipmentTerms = getShipmentTermsForMatrix(plantCode, origin);
-    }
+    // Adapt shipment terms & items to match Plant x Origin Matrix
+    proj.commercialTerms.shipmentTerms = getShipmentTermsForMatrix(plantCode, origin);
+    proj.commercialTerms.shipmentItems = resolveShipmentItemsForMatrix(plantCode, origin, proj.commercialTerms.exWorksFactory);
 
-    // Build Clause XVI provisions from Plant x Origin Matrix
-    if (origin === 'Mixed') {
-      proj.legalAndTaxProvisions = [
-        {
-          matrixId: 'XVI.mixed',
-          title: 'Separation of Offshore Supply & Onshore Scope',
-          description: 'Contracts and commercial quotations are strictly itemized between Offshore Equipment Supply (USD/EUR) and Onshore Local Works/Services (IDR).'
-        },
-        ...buildLegalAndTaxProvisions(plantCode, 'Mixed')
-      ];
-    } else {
-      proj.legalAndTaxProvisions = buildLegalAndTaxProvisions(plantCode, origin);
-    }
+    // Build Clause XVII provisions from Plant x Origin Matrix
+    proj.legalAndTaxProvisions = buildLegalAndTaxProvisions(plantCode, origin);
 
     this.saveProjects('VENDOR_ORIGIN_CHANGE', [{
       category: 'Vendor Origin',
@@ -1923,19 +2044,10 @@ export class TRSAStore {
     proj.commercialTerms.engineeringServicesPayment = MATRIX_ENGINEERING_SERVICES_PAYMENT;
     proj.commercialTerms.invoicingAndBankGuarantee = [...INVOICING_AND_BG_CONDITIONS];
     proj.commercialTerms.shipmentTerms = getShipmentTermsForMatrix(plantCode, origin);
-    proj.commercialTerms.shipmentItems = JSON.parse(JSON.stringify(SHIPMENT_DELIVERY_ITEMS_5));
+    proj.commercialTerms.shipmentItems = resolveShipmentItemsForMatrix(plantCode, origin, proj.commercialTerms.exWorksFactory);
     proj.commercialTerms.warranty = WARRANTY_STANDARD;
 
-    proj.legalAndTaxProvisions = origin === 'Mixed'
-      ? [
-          {
-            matrixId: 'XVI.mixed',
-            title: 'Separation of Offshore Supply & Onshore Scope',
-            description: 'Contracts and commercial quotations are strictly itemized between Offshore Equipment Supply (USD/EUR) and Onshore Local Works/Services (IDR).'
-          },
-          ...buildLegalAndTaxProvisions(plantCode, 'Mixed')
-        ]
-      : buildLegalAndTaxProvisions(plantCode, origin);
+    proj.legalAndTaxProvisions = buildLegalAndTaxProvisions(plantCode, origin);
 
     proj.requiredDocumentation = JSON.parse(JSON.stringify(REQUIRED_DOCUMENTATION_13));
     proj.appendices = JSON.parse(JSON.stringify(APPENDICES_6));
@@ -2060,6 +2172,7 @@ export class TRSAStore {
     const origin = normalizeOriginMode(newProj.documentInfo.vendorOrigin || 'Foreign');
     newProj.legalAndTaxProvisions = buildLegalAndTaxProvisions(plantData.code, origin);
     newProj.commercialTerms.shipmentTerms = getShipmentTermsForMatrix(plantData.code, origin);
+    newProj.commercialTerms.shipmentItems = resolveShipmentItemsForMatrix(plantData.code, origin, newProj.commercialTerms.exWorksFactory);
 
     newProj.documentInfo.docNumber = generateTRSANumber({
       seq: nextSeq,
@@ -6125,26 +6238,46 @@ function renderStep1(proj, validation = validateProject(proj)) {
               </div>
             </div>
 
-            ${selectedVendorDetails ? `
-              <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2 pt-2 border-t border-slate-100 text-[11px]">
-                <div class="bg-slate-50 rounded-lg px-2.5 py-1.5">
-                  <div class="text-[10px] text-slate-500">Vendor Code &amp; Tax ID</div>
-                  <div class="font-mono font-semibold text-slate-800 truncate">${escapeHtml(selectedVendorDetails.vendorCode || 'OEM')} &middot; ${escapeHtml(selectedVendorDetails.taxId || 'Registered')}</div>
+            ${selectedVendorDetails ? (() => {
+              const step1Matrix = buildVendorInformationMatrix(selectedVendorDetails);
+              return `
+                <div class="space-y-2.5 pt-2 border-t border-slate-100 text-[11px]">
+                  <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
+                    <div class="bg-slate-50 rounded-lg px-2.5 py-1.5">
+                      <div class="text-[10px] text-slate-500">Vendor Tag &amp; Tax ID</div>
+                      <div class="font-mono font-semibold text-slate-800 truncate">${escapeHtml(step1Matrix.originTag)} &middot; ${escapeHtml(selectedVendorDetails.taxId || 'Registered')}</div>
+                    </div>
+                    <div class="bg-slate-50 rounded-lg px-2.5 py-1.5">
+                      <div class="text-[10px] text-slate-500">Equipment Origin Country</div>
+                      <div class="font-semibold text-slate-800 truncate">${escapeHtml(step1Matrix.generalProfile.equipmentOriginCountry)}</div>
+                    </div>
+                    <div class="bg-slate-50 rounded-lg px-2.5 py-1.5">
+                      <div class="text-[10px] text-slate-500">HQ / Factory Address</div>
+                      <div class="text-slate-700 truncate" title="${escapeHtml(step1Matrix.generalProfile.address)}">${escapeHtml(step1Matrix.generalProfile.address)}</div>
+                    </div>
+                    <div class="bg-slate-50 rounded-lg px-2.5 py-1.5">
+                      <div class="text-[10px] text-slate-500">Lead Time &amp; Term of Payment</div>
+                      <div class="font-semibold text-slate-800 truncate" title="${escapeHtml(step1Matrix.generalProfile.termOfPayment)}">${escapeHtml(selectedVendorDetails.leadTimeWeeks || '16–24 wks')} &middot; ${escapeHtml(step1Matrix.generalProfile.termOfPayment)}</div>
+                    </div>
+                  </div>
+                  <div class="bg-slate-50/90 border border-slate-200/80 rounded-xl p-2.5">
+                    <div class="flex items-center justify-between gap-2 mb-1.5">
+                      <span class="text-[10px] font-bold uppercase tracking-wider text-slate-500">Vendor Key Contact Persons (6 Roles)</span>
+                      <button type="button" onclick="window.TRSA.openVendorInDirectory('${escapeHtml(selectedVendorDetails.id)}')" class="text-[10px] font-bold text-[#0284C7] hover:underline cursor-pointer">Kelola 6 Kontak &amp; Matrix &rarr;</button>
+                    </div>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-1.5">
+                      ${step1Matrix.keyContacts.map(kc => `
+                        <div class="bg-white border border-slate-200/70 rounded-lg px-2 py-1">
+                          <div class="text-[10px] font-bold text-[#0B2447]">${escapeHtml(kc.role)}</div>
+                          <div class="text-[10px] text-slate-700 truncate">${escapeHtml(kc.name)}</div>
+                          <div class="text-[9px] font-mono text-slate-500 truncate">${escapeHtml(kc.email)} &middot; ${escapeHtml(kc.phone)}</div>
+                        </div>
+                      `).join('')}
+                    </div>
+                  </div>
                 </div>
-                <div class="bg-slate-50 rounded-lg px-2.5 py-1.5">
-                  <div class="text-[10px] text-slate-500">Vendor PIC</div>
-                  <div class="font-semibold text-slate-800 truncate">${escapeHtml(selectedVendorDetails.picName || 'Account Team')} (${escapeHtml(selectedVendorDetails.picEmail || '-')})</div>
-                </div>
-                <div class="bg-slate-50 rounded-lg px-2.5 py-1.5">
-                  <div class="text-[10px] text-slate-500">HQ / Factory Address</div>
-                  <div class="text-slate-700 truncate" title="${escapeHtml(selectedVendorDetails.address || '')}">${escapeHtml(selectedVendorDetails.address || selectedVendorDetails.country)}${selectedVendorDetails.city ? `, ${escapeHtml(selectedVendorDetails.city)}` : ''}</div>
-                </div>
-                <div class="bg-slate-50 rounded-lg px-2.5 py-1.5">
-                  <div class="text-[10px] text-slate-500">Lead Time &amp; Currency</div>
-                  <div class="font-semibold text-slate-800 truncate">${escapeHtml(selectedVendorDetails.leadTimeWeeks || '16–24 wks')} &middot; ${escapeHtml(selectedVendorDetails.paymentCurrency || 'USD/EUR')}</div>
-                </div>
-              </div>
-            ` : ''}
+              `;
+            })() : ''}
 
             ${selectedVendorDetails?.description ? `
               <p class="text-[11px] text-slate-500 mt-0.5 italic">
@@ -7401,8 +7534,8 @@ function renderStep5(proj, validation = validateProject(proj)) {
   return `
     <div class="dropx-card p-6 bg-white border border-[#E0ECF6] space-y-6">
       <div class="border-b border-[#E0ECF6] pb-4">
-        <h2 class="text-base font-bold text-[#0B2447]">Hygienic Design (12 Rules), Performance Protocol, Final Acceptance &amp; Remedies</h2>
-        <p class="text-xs text-[#5A7184]">Clauses X.D, XI, XII (Training Attendance + Snag List), and XIII (3-Month Rectification &amp; 100% Refund).</p>
+        <h2 class="text-base font-bold text-[#0B2447]">Hygienic Design, Performance Protocol, Final Acceptance &amp; Consequences</h2>
+        <p class="text-xs text-[#5A7184]">Clauses X.D, XI, XII (Final Acceptance), and XIII (Consequences If Target is Not Reached).</p>
       </div>
 
       <!-- Hygiene Requirements -->
@@ -7463,27 +7596,25 @@ function renderStep5(proj, validation = validateProject(proj)) {
         </div>
       </div>
 
-      <!-- Clause XII: Final Acceptance (Training Attendance Sheets & Snag List) -->
+      <!-- Clause XII: Final Acceptance -->
       <div class="border-t border-[#E0ECF6] pt-5 space-y-3">
-        <h3 class="text-xs font-bold text-[#0B2447] uppercase tracking-wider">XII. Final Acceptance Criteria (${facList.length} Rules)</h3>
+        <h3 class="text-xs font-bold text-[#0B2447] uppercase tracking-wider">XII. Final Acceptance</h3>
         <div class="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
           ${facList.map(item => `
             <div class="p-3.5 rounded-2xl border border-emerald-200 bg-emerald-50/40">
-              <div class="font-bold text-emerald-900">${item.no}. ${escapeHtml(item.title)}</div>
-              <p class="text-[11px] text-emerald-950/90 mt-1 leading-relaxed">${escapeHtml(item.description)}</p>
+              <p class="text-[11px] text-emerald-950/90 leading-relaxed"><strong class="text-emerald-900">${item.no}.</strong> ${item.title ? `<strong class="text-emerald-900">${escapeHtml(item.title)}:</strong> ` : ''}${escapeHtml(item.description)}</p>
             </div>
           `).join('')}
         </div>
       </div>
 
-      <!-- Clause XIII: Remedies & Consequences -->
+      <!-- Clause XIII: Consequences If Target is Not Reached -->
       <div class="border-t border-[#E0ECF6] pt-5 space-y-3">
-        <h3 class="text-xs font-bold text-red-800 uppercase tracking-wider">XIII. Remedies &amp; Consequences If Target is Not Reached</h3>
+        <h3 class="text-xs font-bold text-red-800 uppercase tracking-wider">XIII. Consequences If Target is Not Reached</h3>
         <div class="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
           ${remedies.map(rem => `
             <div class="p-4 rounded-2xl border border-red-200 bg-red-50/60 text-red-950">
-              <div class="font-bold text-red-800">${rem.no}. ${escapeHtml(rem.title)}</div>
-              <p class="text-[11px] mt-1 leading-relaxed">${escapeHtml(rem.description)}</p>
+              <p class="text-[11px] leading-relaxed"><strong class="text-red-800">${rem.no}.</strong> ${rem.title ? `<strong class="text-red-800">${escapeHtml(rem.title)}:</strong> ` : ''}${escapeHtml(rem.description)}</p>
             </div>
           `).join('')}
         </div>
@@ -7498,10 +7629,11 @@ function renderStep6(proj, validation = validateProject(proj)) {
   const currentOption = proj.commercialTerms.selectedPaymentOption || 'Matrix Standard';
   const activeCode = resolvePlantCode(proj.documentInfo?.plantLocation || 'Semarang Plant');
   const activeOrigin = normalizeOriginMode(proj.documentInfo?.vendorOrigin || 'Foreign');
+  const activeProfile = PLANT_MATRIX_PROFILES[activeCode] || PLANT_MATRIX_PROFILES['1403'];
   const matrixPay = proj.commercialTerms.matrixEquipmentSchedule || MATRIX_EQUIPMENT_PAYMENT_BREAKDOWN;
   const engPay = proj.commercialTerms.engineeringServicesPayment || MATRIX_ENGINEERING_SERVICES_PAYMENT;
   const bgConds = proj.commercialTerms.invoicingAndBankGuarantee || INVOICING_AND_BG_CONDITIONS;
-  const shipItems = proj.commercialTerms.shipmentItems || SHIPMENT_DELIVERY_ITEMS_5;
+  const shipItems = resolveShipmentItemsForMatrix(activeCode, activeOrigin, proj.commercialTerms?.exWorksFactory);
   const appendices = proj.appendices || APPENDICES_6;
 
   return `
@@ -7548,106 +7680,174 @@ function renderStep6(proj, validation = validateProject(proj)) {
         </div>
       </div>
 
-      <!-- Payment Option Selector -->
+      <!-- Payment Option Selector (Database-Driven Dropdown) -->
       <div class="space-y-4">
-        <label class="block text-xs font-bold text-[#0B2447] uppercase tracking-wider">XIV. Term of Payment (Equipment Supply &amp; Engineering Services)</label>
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
-          <!-- Matrix Standard -->
-          <div class="p-4 rounded-2xl border-2 transition-all cursor-pointer ${
-            currentOption === 'Matrix Standard' ? 'border-[#0284C7] bg-[#E0F2FE]/45 shadow-sm' : 'border-[#E0ECF6] bg-white hover:border-[#BAE6FD]'
-          }" onclick="window.TRSA.setPaymentOption('Matrix Standard')">
-            <div class="flex items-center justify-between mb-2">
-              <span class="font-bold text-xs text-[#0B2447]">Matrix Standard (30/55/10/5 T/T)</span>
-              <input type="radio" name="pay-option" value="Matrix Standard" ${currentOption === 'Matrix Standard' ? 'checked' : ''} class="w-4 h-4 text-[#0284C7]" />
+        ${(() => {
+          const paymentTermsList = store.paymentTerms || loadPaymentTerms();
+          const selectedTerm = getPaymentTermByCode(currentOption);
+          return `
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+              <div>
+                <label for="payment-term-select" class="block text-xs font-bold text-[#0B2447] uppercase tracking-wider">XIV. Term of Payment</label>
+                <p class="text-[11px] text-[#5A7184] mt-0.5">Pilih format termin pembayaran resmi langsung dari Master Database Term of Payment.</p>
+              </div>
+              <button
+                type="button"
+                onclick="window.TRSA.openPaymentTermsInDirectory()"
+                class="text-[11px] font-bold text-[#0284C7] hover:underline self-start sm:self-center cursor-pointer"
+              >
+                Kelola Database Term of Payment &rarr;
+              </button>
             </div>
-            <ul class="text-xs space-y-1.5 text-[#5A7184]">
-              ${matrixPay.map(row => `
-                <li class="flex items-center justify-between"><span>${escapeHtml(row.stage)}</span><span class="font-bold font-mono text-[#0B2447]">${escapeHtml(row.percent)}</span></li>
-              `).join('')}
-            </ul>
-            <div class="mt-2 text-[10px] text-[#0369A1] font-semibold">SWIFT/Telex APBG &bull; &le;60d / &le;150d B/L</div>
-          </div>
 
-          <!-- Option 1 -->
-          <div class="p-4 rounded-2xl border-2 transition-all cursor-pointer ${
-            currentOption === 'Option 1' ? 'border-[#0284C7] bg-[#E0F2FE]/45 shadow-sm' : 'border-[#E0ECF6] bg-white hover:border-[#BAE6FD]'
-          }" onclick="window.TRSA.setPaymentOption('Option 1')">
-            <div class="flex items-center justify-between mb-2">
-              <span class="font-bold text-xs text-[#0B2447]">Option 1: L/C &amp; T/T</span>
-              <input type="radio" name="pay-option" value="Option 1" ${currentOption === 'Option 1' ? 'checked' : ''} class="w-4 h-4 text-[#0284C7]" />
-            </div>
-            <ul class="text-xs space-y-1.5 text-[#5A7184]">
-              <li class="flex items-center justify-between"><span>L/C against Shipping Document</span><span class="font-bold font-mono text-[#0B2447]">85%</span></li>
-              <li class="flex items-center justify-between"><span>T/T after machine running (&le; 60d)</span><span class="font-bold font-mono text-[#0B2447]">10%</span></li>
-              <li class="flex items-center justify-between"><span>T/T retention 3 mos (&le; 150d)</span><span class="font-bold font-mono text-[#0B2447]">5%</span></li>
-            </ul>
-          </div>
+            <div class="p-4 rounded-2xl border border-[#CBE0F0] bg-[#F8FBFE] space-y-4">
+              <div class="text-xs font-extrabold text-[#0B2447]">Equipment&apos;s Payment:</div>
+              <div class="grid grid-cols-1 md:grid-cols-12 gap-3 items-center">
+                <div class="md:col-span-7">
+                  <label for="payment-term-select" class="block text-[11px] font-bold text-[#0B2447] mb-1">
+                    Pilih Format Term of Payment (Database) <span class="text-red-500">*</span>
+                  </label>
+                  <select
+                    id="payment-term-select"
+                    data-validation-key="commercialTerms.selectedPaymentOption"
+                    onchange="window.TRSA.setPaymentOption(this.value)"
+                    class="w-full text-xs p-2.5 bg-white border border-[#BAE6FD] rounded-xl font-bold text-[#0B2447] focus:outline-none focus:border-[#0284C7] focus:ring-2 focus:ring-[#0284C7]/20 ${errorClass('commercialTerms.selectedPaymentOption', validation)}"
+                  >
+                    ${paymentTermsList.map(pt => `
+                      <option value="${escapeHtml(pt.code)}" ${selectedTerm.code === pt.code ? 'selected' : ''}>
+                        ${escapeHtml(pt.label)}
+                      </option>
+                    `).join('')}
+                  </select>
+                  ${renderErrorMsg('commercialTerms.selectedPaymentOption', validation)}
+                </div>
+                <div class="md:col-span-5 p-3 rounded-xl bg-white border border-[#E0ECF6] text-xs">
+                  <div class="text-[10px] font-bold uppercase text-[#0284C7]">Format Aktif (${escapeHtml(selectedTerm.code)})</div>
+                  <div class="font-bold text-[#0B2447] mt-0.5">${escapeHtml(selectedTerm.label)}</div>
+                  <div class="text-[11px] text-[#5A7184] mt-0.5">${escapeHtml(selectedTerm.currencyNote)}</div>
+                </div>
+              </div>
 
-          <!-- Option 2 -->
-          <div class="p-4 rounded-2xl border-2 transition-all cursor-pointer ${
-            currentOption === 'Option 2' ? 'border-[#0284C7] bg-[#E0F2FE]/45 shadow-sm' : 'border-[#E0ECF6] bg-white hover:border-[#BAE6FD]'
-          }" onclick="window.TRSA.setPaymentOption('Option 2')">
-            <div class="flex items-center justify-between mb-2">
-              <span class="font-bold text-xs text-[#0B2447]">Option 2: DP BG + L/C</span>
-              <input type="radio" name="pay-option" value="Option 2" ${currentOption === 'Option 2' ? 'checked' : ''} class="w-4 h-4 text-[#0284C7]" />
+              <div class="overflow-x-auto rounded-xl border border-[#E0ECF6] bg-white">
+                <table class="w-full text-left border-collapse text-xs">
+                  <thead>
+                    <tr class="bg-[#FFF7ED] border-b border-orange-200 text-[10px] uppercase text-[#9A3412]">
+                      <th class="py-2 px-3 font-bold" style="width: 14%;">Tranche</th>
+                      <th class="py-2 px-3 font-bold" style="width: 26%;">Milestone Stage</th>
+                      <th class="py-2 px-3 font-bold" style="width: 60%;">Payment Trigger &amp; Terms</th>
+                    </tr>
+                  </thead>
+                  <tbody class="divide-y divide-slate-100">
+                    ${selectedTerm.breakdown.map(row => `
+                      <tr>
+                        <td class="py-2.5 px-3 font-mono font-bold text-[#EA580C]">${escapeHtml(row.percent)}</td>
+                        <td class="py-2.5 px-3 font-bold text-[#0B2447]">${escapeHtml(row.stage)}</td>
+                        <td class="py-2.5 px-3 text-[11px] text-slate-700">${escapeHtml(row.method)}</td>
+                      </tr>
+                    `).join('')}
+                  </tbody>
+                </table>
+              </div>
             </div>
-            <ul class="text-xs space-y-1.5 text-[#5A7184]">
-              <li class="flex items-center justify-between"><span>Down Payment Counter BG</span><span class="font-bold font-mono text-[#0B2447]">30%</span></li>
-              <li class="flex items-center justify-between"><span>L/C payable prior to shipping</span><span class="font-bold font-mono text-[#0B2447]">55%</span></li>
-              <li class="flex items-center justify-between"><span>After Machine Running</span><span class="font-bold font-mono text-[#0B2447]">10%</span></li>
-              <li class="flex items-center justify-between"><span>T/T retention 3 months</span><span class="font-bold font-mono text-[#0B2447]">5%</span></li>
-            </ul>
+          `;
+        })()}
+
+        <div class="p-4 rounded-2xl bg-sky-50/50 border border-sky-200 text-xs space-y-3">
+          <div class="flex items-center justify-between gap-2">
+            <div class="font-extrabold text-[#0369A1]">Engineering Services Payment:</div>
+            <button
+              type="button"
+              onclick="window.TRSA.resetEngineeringServicesPayment()"
+              class="text-[11px] font-bold text-[#0284C7] hover:underline cursor-pointer"
+              title="Kembalikan teks 100% Payment ke standar IFM Matrix"
+            >
+              Reset Default
+            </button>
+          </div>
+          <div>
+            <label for="comm-eng-payment" class="block text-[11px] font-bold text-[#0B2447] mb-1">
+              Ketentuan 100% Payment (Dapat Dimodifikasi)
+            </label>
+            <textarea
+              id="comm-eng-payment"
+              rows="3"
+              class="w-full text-xs p-2.5 bg-white border border-sky-200 rounded-xl text-slate-800 focus:outline-none focus:border-[#0284C7] focus:ring-2 focus:ring-[#0284C7]/20 leading-relaxed"
+            >${escapeHtml(engPay || ENGINEERING_SERVICES_PAYMENT_CLAUSES[0])}</textarea>
+          </div>
+          <div class="space-y-2 text-[11px] text-slate-700 leading-relaxed">
+            ${ENGINEERING_SERVICES_PAYMENT_CLAUSES.slice(1).map(para => `<p>${escapeHtml(para)}</p>`).join('')}
           </div>
         </div>
 
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
-          <div class="p-3.5 rounded-xl bg-sky-50/50 border border-sky-200">
-            <div class="font-bold text-[#0369A1]">Engineering Services Payment (150-Day Undertaking Letter)</div>
-            <p class="text-[11px] text-slate-700 mt-1 leading-relaxed">${escapeHtml(engPay)}</p>
-          </div>
-          <div class="p-3.5 rounded-xl bg-amber-50/50 border border-amber-200">
-            <div class="font-bold text-amber-800">Invoicing &amp; SWIFT/Telex BG Conditions</div>
-            <ul class="text-[11px] text-slate-700 mt-1 space-y-1 list-disc pl-4">
-              ${bgConds.map(c => `<li>${escapeHtml(c)}</li>`).join('')}
-            </ul>
-          </div>
+        <div class="p-4 rounded-2xl bg-amber-50/60 border border-amber-200 text-xs space-y-2 text-slate-800 leading-relaxed">
+          ${bgConds.map(c => `<p class="text-[11px]">${escapeHtml(c)}</p>`).join('')}
         </div>
       </div>
 
       <!-- XV Shipment & XVI Warranty -->
       <div class="border-t border-[#E0ECF6] pt-5 space-y-3">
-        <div class="flex items-center justify-between">
-          <h3 class="text-xs font-bold text-[#0B2447] uppercase tracking-wider">XV. Shipment, Delivery &amp; XVI. Warranty</h3>
-          <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-700">${escapeHtml(activeOrigin)} Mode</span>
+        <div class="flex flex-wrap items-center justify-between gap-2">
+          <div>
+            <h3 class="text-xs font-bold text-[#0B2447] uppercase tracking-wider">XV. Shipment, Delivery &amp; XVI. Warranty</h3>
+            <p class="text-[11px] text-[#5A7184] mt-0.5">Otomatis menyesuaikan Vendor Origin (${escapeHtml(activeOrigin)}) dan Plant Location (${escapeHtml(activeCode)} &mdash; ${escapeHtml(activeProfile.plantName)}).</p>
+          </div>
+          <span class="px-2.5 py-1 rounded-full text-[10px] font-bold bg-[#E0F2FE] text-[#0369A1] border border-[#BAE6FD]">Plant ${escapeHtml(activeCode)} &times; ${escapeHtml(activeOrigin)}</span>
         </div>
-        <div class="p-3 rounded-xl bg-[#F4F8FC] border border-[#D6E6F2] text-xs text-slate-700">
-          <strong>Active Delivery Basis:</strong> ${escapeHtml(proj.commercialTerms.shipmentTerms)}
+
+        <div class="p-3.5 rounded-xl bg-[#F8FBFE] border border-[#CBE0F0] space-y-1.5">
+          <label for="comm-exworks-factory" class="block text-[11px] font-bold text-[#0B2447]">
+            1. Equipment Ex-works vendor Factory (Lokasi Pabrik / Lead Time EXW)
+          </label>
+          <input
+            type="text"
+            id="comm-exworks-factory"
+            value="${escapeHtml(proj.commercialTerms?.exWorksFactory || '')}"
+            placeholder="Contoh: Vendor Manufacturing Facility, Japan (Firm EXW Lead Time: 24 – 28 weeks post-PO &amp; DP)"
+            class="w-full text-xs p-2.5 bg-white border border-[#BAE6FD] rounded-xl text-slate-800 focus:outline-none focus:border-[#0284C7] focus:ring-2 focus:ring-[#0284C7]/20"
+          />
         </div>
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2.5 text-xs">
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-2.5 text-xs">
           ${shipItems.map(item => `
             <div class="p-3 rounded-xl border border-slate-200 bg-white">
               <div class="font-bold text-[#0B2447]">${item.no}. ${escapeHtml(item.title)}</div>
-              <div class="text-[11px] text-slate-600 mt-0.5">${escapeHtml(item.description)}</div>
+              <div ${item.no === 1 ? 'id="step6-shipment-item-1-desc"' : ''} class="text-[11px] text-slate-600 mt-0.5 leading-relaxed">${escapeHtml(item.description)}</div>
             </div>
           `).join('')}
-          <div class="p-3 rounded-xl border border-sky-200 bg-sky-50/50">
+          <div class="p-3 rounded-xl border border-sky-200 bg-sky-50/50 ${shipItems.length % 2 === 0 ? 'md:col-span-2' : ''}">
             <div class="font-bold text-[#0369A1]">XVI. Warranty Standard</div>
-            <div class="text-[11px] text-slate-700 mt-0.5">${escapeHtml(proj.commercialTerms.warranty || WARRANTY_STANDARD)}</div>
+            <div class="text-[11px] text-slate-700 mt-0.5 leading-relaxed">${escapeHtml(proj.commercialTerms.warranty || WARRANTY_STANDARD)}</div>
           </div>
         </div>
       </div>
 
       <!-- XVII Administrative, Tax & Regulatory Provisions -->
       <div class="border-t border-[#E0ECF6] pt-5 space-y-2.5">
-        <div class="flex items-center justify-between">
-          <h3 class="text-xs font-bold text-[#0B2447] uppercase tracking-wider">XVII. Administrative, Tax &amp; Regulatory Provisions (Plant ${activeCode} &times; ${activeOrigin})</h3>
+        <div class="flex flex-wrap items-center justify-between gap-2">
+          <div>
+            <h3 class="text-xs font-bold text-[#0B2447] uppercase tracking-wider">XVII. Administrative, Tax &amp; Regulatory Provisions (Plant ${activeCode} &times; ${activeOrigin})</h3>
+            <p class="text-[11px] text-[#5A7184] mt-0.5">
+              ${activeOrigin === 'Local'
+                ? 'Ketentuan pajak &amp; mobilisasi domestik (IDR, PPN/PPh/KLU, PP 44/2022, Kwitansi + Materai, dan mobilisasi teknisi lokal).'
+                : activeOrigin === 'Mixed'
+                ? 'Ketentuan gabungan Offshore (CoO, 14d Free Demurrage, PPh 26/DGT-1/PMK 35/2019, Working Visa) &amp; Onshore Lokal (IDR, PPN/PPh/KLU, PP 44/2022).'
+                : 'Ketentuan impor &amp; pajak lintas negara (USD/EUR, CoO Duty Exemption, 14d Free Demurrage, PPh 26/DGT-1/PMK 35/2019, dan Working Visa).'
+              }
+            </p>
+          </div>
           <span class="text-[11px] font-mono text-[#0284C7] font-bold">${(proj.legalAndTaxProvisions || []).length} Active Clauses</span>
         </div>
         <div class="grid grid-cols-1 md:grid-cols-2 gap-2.5 text-xs">
-          ${(proj.legalAndTaxProvisions || []).map(p => `
+          ${(proj.legalAndTaxProvisions || []).map((p, idx) => `
             <div class="p-3 rounded-xl border border-slate-200 bg-slate-50/80">
-              <div class="font-bold text-[#0B2447]">${escapeHtml(p.title)}</div>
-              <div class="text-[11px] text-slate-600 mt-1 leading-relaxed">${escapeHtml(p.description)}</div>
+              <div class="font-bold text-[#0B2447]">${idx + 1}. ${escapeHtml(p.title)}</div>
+              ${Array.isArray(p.items) && p.items.length > 0 ? `
+                <ul class="list-disc pl-4 space-y-1 text-[11px] text-slate-600 mt-1.5 leading-relaxed">
+                  ${p.items.map(item => `<li>${escapeHtml(item)}</li>`).join('')}
+                </ul>
+              ` : `
+                <div class="text-[11px] text-slate-600 mt-1 leading-relaxed">${escapeHtml(p.description)}</div>
+              `}
             </div>
           `).join('')}
         </div>
@@ -7656,7 +7856,7 @@ function renderStep6(proj, validation = validateProject(proj)) {
       <!-- 13 Required Documents Checklist -->
       <div class="border-t border-[#E0ECF6] pt-5">
         <div class="flex items-center justify-between mb-3">
-          <label class="text-xs font-bold text-[#0B2447] uppercase tracking-wider">XVIII. Required Seller Documentation (${proj.requiredDocumentation.length} Mandatory Deliverables)</label>
+          <label class="text-xs font-bold text-[#0B2447] uppercase tracking-wider">XVIII. Required Documentation</label>
         </div>
         <div class="grid grid-cols-1 md:grid-cols-2 gap-2.5">
           ${proj.requiredDocumentation.map((doc, i) => `
@@ -7758,7 +7958,7 @@ function renderStudio(proj) {
   const remediesList = proj.performanceAcceptance?.remediesAndConsequences || REMEDIES_CONSEQUENCES_STANDARD;
   const matrixSchedule = proj.commercialTerms?.matrixEquipmentSchedule || MATRIX_EQUIPMENT_PAYMENT_BREAKDOWN;
   const bgConditions = proj.commercialTerms?.invoicingAndBankGuarantee || INVOICING_AND_BG_CONDITIONS;
-  const shipmentItems = proj.commercialTerms?.shipmentItems || SHIPMENT_DELIVERY_ITEMS_5;
+  const shipmentItems = resolveShipmentItemsForMatrix(activeCode, activeOrigin, proj.commercialTerms?.exWorksFactory);
   const appendicesList = proj.appendices || APPENDICES_6;
 
   return `
@@ -7915,7 +8115,7 @@ function renderStudio(proj) {
           <!-- Section IV: Key Contacts -->
           <div class="mb-6">
             <h2 class="text-xs font-bold text-[#0B2447] uppercase tracking-wider mb-2">IV. Key Contacts</h2>
-            <p class="text-[11px] text-[#5A7184] mb-2">All correspondence pertaining to this project with <span class="ifm-company-brand" style="color: rgb(0, 168, 232); font-weight: 700;">PT. Indofood Fortuna Makmur</span> shall be directed through the assigned project team below (<strong>PIC Project</strong>, <strong>Project &amp; Engineering Team</strong>, and <strong>Purchasing Plant</strong>):</p>
+            <p class="text-[11px] text-[#5A7184] mb-2">All correspondence pertaining to this project with <span class="ifm-company-brand" style="color: rgb(0, 168, 232); font-weight: 700;">PT. Indofood Fortuna Makmur</span> must be directed through the assigned project team below (<strong>PIC Project</strong>, <strong>Project &amp; Engineering Team</strong>, and <strong>Purchasing Plant</strong>):</p>
             <table class="clean-form-table table-header-orange">
               <thead>
                 <tr>
@@ -8184,70 +8384,70 @@ function renderStudio(proj) {
           <div class="mb-6">
             <h2 class="text-xs font-bold text-[#0B2447] uppercase tracking-wider mb-2">XII. Final Acceptance</h2>
             <div class="p-3 bg-emerald-50 border border-emerald-200 text-xs text-emerald-950 rounded leading-relaxed space-y-1.5">
-              ${facChecklist.map(item => `<div><strong>${item.no}. ${escapeHtml(item.title)}:</strong> ${escapeHtml(item.description)}</div>`).join('')}
+              ${facChecklist.map(item => `<div><strong>${item.no}.</strong> ${item.title ? `<strong>${escapeHtml(item.title)}:</strong> ` : ''}${escapeHtml(item.description)}</div>`).join('')}
             </div>
           </div>
 
-          <!-- Section XIII: Remedies & Consequences If Target is Not Reached -->
+          <!-- Section XIII: Consequences If Target is Not Reached -->
           <div class="mb-6">
-            <h2 class="text-xs font-bold text-[#0B2447] uppercase tracking-wider mb-2">XIII. Remedies &amp; Consequences If Target is Not Reached</h2>
+            <h2 class="text-xs font-bold text-[#0B2447] uppercase tracking-wider mb-2">XIII. Consequences If Target is Not Reached</h2>
             <div class="p-3 bg-red-50 border border-red-200 text-xs text-red-950 rounded leading-relaxed space-y-1.5">
-              ${remediesList.map(rem => `<div><strong>${rem.no}. ${escapeHtml(rem.title)}:</strong> ${escapeHtml(rem.description)}</div>`).join('')}
+              ${remediesList.map(rem => `<div><strong>${rem.no}.</strong> ${rem.title ? `<strong>${escapeHtml(rem.title)}:</strong> ` : ''}${escapeHtml(rem.description)}</div>`).join('')}
             </div>
           </div>
 
           <!-- Section XIV: Term of Payment -->
           <div class="mb-6">
-            <h2 class="text-xs font-bold text-[#0B2447] uppercase tracking-wider mb-2">XIV. Term of Payment (Selected: ${escapeHtml(proj.commercialTerms.selectedPaymentOption || 'Matrix Standard')})</h2>
-            <table class="clean-form-table table-header-orange mb-2">
-              <thead>
-                <tr>
-                  <th style="width: 14%;">Tranche</th>
-                  <th style="width: 24%;">Milestone Stage</th>
-                  <th style="width: 62%;">Matrix Equipment Supply Payment Trigger (SWIFT APBG &amp; T/T)</th>
-                </tr>
-              </thead>
-              <tbody>
-                ${matrixSchedule.map(row => `
-                  <tr class="${proj.commercialTerms.selectedPaymentOption === 'Matrix Standard' ? 'bg-[#FFF7ED]' : ''}">
-                    <td class="font-mono font-bold text-center text-[#EA580C]">${escapeHtml(row.percent)}</td>
-                    <td class="font-bold text-[#0B2447]">${escapeHtml(row.stage)}</td>
-                    <td class="text-[11px]">${escapeHtml(row.method)}</td>
-                  </tr>
-                `).join('')}
-              </tbody>
-            </table>
+            ${(() => {
+              const selectedTerm = getPaymentTermByCode(proj.commercialTerms.selectedPaymentOption || 'Matrix Standard');
+              const activeSchedule = Array.isArray(selectedTerm?.breakdown) && selectedTerm.breakdown.length > 0
+                ? selectedTerm.breakdown
+                : matrixSchedule;
+              const engClauses = [
+                proj.commercialTerms.engineeringServicesPayment || selectedTerm.engineeringServicesPayment || ENGINEERING_SERVICES_PAYMENT_CLAUSES[0],
+                ...ENGINEERING_SERVICES_PAYMENT_CLAUSES.slice(1)
+              ];
+              return `
+                <h2 class="text-xs font-bold text-[#0B2447] uppercase tracking-wider mb-2">XIV. Term of Payment</h2>
 
-            <table class="clean-form-table mb-2">
-              <thead>
-                <tr>
-                  <th style="width: 50%;">Alternative Option 1</th>
-                  <th style="width: 50%;">Alternative Option 2</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr>
-                  <td class="text-[11px] ${proj.commercialTerms.selectedPaymentOption === 'Option 1' ? 'bg-[#FFF7ED] font-bold text-[#EA580C]' : ''}">
-                    85% L/C against Shipping Documents; 10% T/T after machine running (&le; 60d B/L); 5% T/T 3 mos (&le; 150d B/L)
-                  </td>
-                  <td class="text-[11px] ${proj.commercialTerms.selectedPaymentOption === 'Option 2' ? 'bg-[#FFF7ED] font-bold text-[#EA580C]' : ''}">
-                    30% DP via SWIFT/Telex APBG; 55% against invoice &amp; shipping docs; 10% after running (&le; 60d B/L); 5% retention 3 mos (&le; 150d B/L)
-                  </td>
-                </tr>
-              </tbody>
-            </table>
+                <div class="mb-3">
+                  <div class="text-xs font-bold text-[#0B2447] mb-1.5">- Equipment&apos;s Payment:</div>
+                  <table class="clean-form-table table-header-orange mb-2">
+                    <thead>
+                      <tr>
+                        <th style="width: 14%;">Tranche</th>
+                        <th style="width: 24%;">Milestone Stage</th>
+                        <th style="width: 62%;">Payment Schedule &amp; Trigger (${escapeHtml(selectedTerm.label)})</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      ${activeSchedule.map(row => `
+                        <tr class="bg-[#FFF7ED]/60">
+                          <td class="font-mono font-bold text-center text-[#EA580C]">${escapeHtml(row.percent)}</td>
+                          <td class="font-bold text-[#0B2447]">${escapeHtml(row.stage)}</td>
+                          <td class="text-[11px]">${escapeHtml(row.method)}</td>
+                        </tr>
+                      `).join('')}
+                    </tbody>
+                  </table>
+                </div>
 
-            <div class="text-[11px] text-slate-700 bg-[#F4F8FC] p-2.5 border border-[#D6E6F2] rounded space-y-1">
-              <div><strong class="text-[#0284C7]">Engineering Services Payment:</strong> ${escapeHtml(proj.commercialTerms.engineeringServicesPayment || MATRIX_ENGINEERING_SERVICES_PAYMENT)}</div>
-              <div><strong class="text-[#0B2447]">Invoicing &amp; SWIFT/Telex BG Conditions:</strong> ${bgConditions.map(c => escapeHtml(c)).join(' ')}</div>
-            </div>
+                <div class="text-[11px] text-slate-700 bg-[#F4F8FC] p-3 border border-[#D6E6F2] rounded space-y-2 leading-relaxed mb-2.5">
+                  <div class="text-xs font-bold text-[#0B2447]">- Engineering Services Payment:</div>
+                  ${engClauses.map(para => `<p>${escapeHtml(para)}</p>`).join('')}
+                </div>
+
+                <div class="text-[11px] text-slate-800 bg-amber-50/70 p-3 border border-amber-200 rounded space-y-1.5 leading-relaxed">
+                  ${bgConditions.map(c => `<p>${escapeHtml(c)}</p>`).join('')}
+                </div>
+              `;
+            })()}
           </div>
 
           <!-- Section XV: Shipment and Delivery -->
           <div class="mb-6">
             <h2 class="text-xs font-bold text-[#0B2447] uppercase tracking-wider mb-2">XV. Shipment and Delivery</h2>
             <div class="p-3 bg-[#F4F8FC] border border-[#D6E6F2] text-xs text-slate-700 rounded leading-relaxed space-y-1.5">
-              <div><strong>Applicable Basis:</strong> ${escapeHtml(proj.commercialTerms.shipmentTerms)}</div>
               ${shipmentItems.map(item => `
                 <div class="text-[11px]"><strong>${item.no}. ${escapeHtml(item.title)}:</strong> ${escapeHtml(item.description)}</div>
               `).join('')}
@@ -8265,10 +8465,17 @@ function renderStudio(proj) {
           <!-- Section XVII: Administrative, Tax & Regulatory Provisions -->
           <div class="mb-6">
             <h2 class="text-xs font-bold text-[#0B2447] uppercase tracking-wider mb-2">XVII. Administrative, Tax &amp; Regulatory Provisions</h2>
-            <div class="space-y-2 text-xs text-slate-700">
-              ${(proj.legalAndTaxProvisions || []).map(p => `
-                <div class="p-2.5 bg-slate-50 border border-slate-200 rounded">
-                  <strong class="text-[#0B2447]">${escapeHtml(p.title)}:</strong> ${escapeHtml(p.description)}
+            <div class="space-y-2.5 text-xs text-slate-700">
+              ${(proj.legalAndTaxProvisions || []).map((p, idx) => `
+                <div class="p-2.5 bg-slate-50 border border-slate-200 rounded leading-relaxed">
+                  <div class="font-bold text-[#0B2447]">${idx + 1}. ${escapeHtml(p.title)}</div>
+                  ${Array.isArray(p.items) && p.items.length > 0 ? `
+                    <ul class="list-disc pl-5 mt-1 space-y-1 text-[11px] text-slate-700 leading-relaxed">
+                      ${p.items.map(item => `<li>${escapeHtml(item)}</li>`).join('')}
+                    </ul>
+                  ` : `
+                    <div class="text-[11px] text-slate-700 mt-1 leading-relaxed">${escapeHtml(p.description)}</div>
+                  `}
                 </div>
               `).join('')}
             </div>
@@ -8276,7 +8483,7 @@ function renderStudio(proj) {
 
           <!-- Section XVIII: Required Documentation -->
           <div class="mb-6">
-            <h2 class="text-xs font-bold text-[#0B2447] uppercase tracking-wider mb-2">XVIII. Required Documentation (${proj.requiredDocumentation.length} Items)</h2>
+            <h2 class="text-xs font-bold text-[#0B2447] uppercase tracking-wider mb-2">XVIII. Required Documentation</h2>
             <div class="grid grid-cols-2 gap-x-4 gap-y-1 text-[11px] text-slate-700">
               ${proj.requiredDocumentation.map(d => `
                 <div class="flex items-start gap-1.5">
@@ -8315,6 +8522,50 @@ function renderStudio(proj) {
                 <div class="text-center text-[10px] text-[#5A7184] uppercase font-semibold">Signature &amp; Company Stamp</div>
               </div>
             </div>
+
+            ${(() => {
+              const studioVendor = getVendorDetails(proj.generalInfo.vendorName) || {
+                name: proj.generalInfo.vendorName,
+                country: proj.generalInfo.countryOriginForeign || 'Indonesia',
+                origin: proj.documentInfo.vendorOrigin || 'Foreign',
+                equipmentOriginCountry: proj.generalInfo.countryOriginForeign || 'Indonesia'
+              };
+              const vMatrix = buildVendorInformationMatrix(studioVendor);
+              return `
+                <div class="mt-6 pt-4 border-t border-[#D6E6F2] space-y-3">
+                  <div class="text-[11px] font-bold text-[#0B2447] uppercase tracking-wider">Vendor Information Matrix (${escapeHtml(vMatrix.originTag)})</div>
+                  <table class="clean-form-table text-[11px]">
+                    <tbody>
+                      <tr><td class="font-bold w-48 bg-slate-50">Company Name</td><td>${escapeHtml(vMatrix.generalProfile.companyName)}</td></tr>
+                      <tr><td class="font-bold bg-slate-50">Address</td><td>${escapeHtml(vMatrix.generalProfile.address)}</td></tr>
+                      <tr><td class="font-bold bg-slate-50">Country / Origin Tag</td><td>${escapeHtml(vMatrix.generalProfile.country)} <strong>(${escapeHtml(vMatrix.originTag)})</strong></td></tr>
+                      <tr><td class="font-bold bg-slate-50">Country of Origin of Equipment</td><td>${escapeHtml(vMatrix.generalProfile.equipmentOriginCountry)}</td></tr>
+                      <tr><td class="font-bold bg-slate-50">Term of Payment</td><td>${escapeHtml(vMatrix.generalProfile.termOfPayment)}</td></tr>
+                    </tbody>
+                  </table>
+                  <table class="clean-form-table table-header-navy text-[10px]">
+                    <thead>
+                      <tr>
+                        <th>Department / Role</th>
+                        <th>Contact Name</th>
+                        <th>Email Address</th>
+                        <th>Phone / WhatsApp Number</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      ${vMatrix.keyContacts.map(kc => `
+                        <tr>
+                          <td class="font-bold text-[#0B2447]">${escapeHtml(kc.role)}</td>
+                          <td>${escapeHtml(kc.name)}</td>
+                          <td class="font-mono text-[#0284C7]">${escapeHtml(kc.email)}</td>
+                          <td class="font-mono">${escapeHtml(kc.phone)}</td>
+                        </tr>
+                      `).join('')}
+                    </tbody>
+                  </table>
+                </div>
+              `;
+            })()}
           </div>
 
           <!-- Section XX: Attachments / Appendices -->
@@ -8357,6 +8608,11 @@ function renderDirectoryView(activeProject) {
   const plantList = Object.values(plantsMap);
   const departments = store.departments || loadDepartments();
   const jobTitles = store.jobTitles || loadJobTitles();
+
+  const paymentTerms = store.paymentTerms || loadPaymentTerms();
+  const editingPaymentTermObj = store.editingPaymentTermId
+    ? paymentTerms.find(pt => pt.id === store.editingPaymentTermId || pt.code === store.editingPaymentTermId)
+    : null;
 
   const filteredUsers = users.filter(u => {
     const matchesRole = store.directoryRoleFilter === 'all' || u.role === store.directoryRoleFilter;
@@ -8417,16 +8673,17 @@ function renderDirectoryView(activeProject) {
             <div class="text-[11px] font-bold uppercase tracking-wider text-[#0284C7]"><span class="ifm-company-brand" style="color: rgb(0, 168, 232); font-weight: 700;">PT Indofood Fortuna Makmur</span> &middot; Master Governance</div>
             <h1 class="text-xl font-extrabold text-[#0F172A] mt-0.5">Enterprise Master Directory</h1>
             <p class="text-xs text-slate-500 mt-1">
-              Kelola detail User, Role, Department, Jabatan User, Vendor OEM/Lokal, dan Detail Alamat Lengkap Plant IFM.
+              Kelola detail User, Role, Department, Jabatan User, Vendor OEM/Lokal, Detail Alamat Plant, dan Database Term of Payment.
             </p>
           </div>
           <div class="flex flex-wrap items-center gap-2">
-            ${['users', 'vendors', 'plants', 'org'].map(tab => {
+            ${['users', 'vendors', 'plants', 'org', 'payment_terms'].map(tab => {
               const meta = {
                 users: { label: 'Detail User', count: users.length },
                 vendors: { label: 'Detail Vendor', count: vendors.length },
                 plants: { label: 'Detail Alamat Plant', count: plantList.length },
-                org: { label: 'Role, Dept & Jabatan', count: departments.length + jobTitles.length }
+                org: { label: 'Role, Dept & Jabatan', count: departments.length + jobTitles.length },
+                payment_terms: { label: 'Term of Payment DB', count: paymentTerms.length }
               }[tab];
               const active = currentTab === tab;
               return `
@@ -8723,12 +8980,15 @@ function renderDirectoryView(activeProject) {
           </div>
         </div>
       ` : currentTab === 'vendors' ? `
-        <!-- TAB 2: DETAIL VENDOR -->
+        <!-- TAB 2: DETAIL VENDOR & VENDOR INFORMATION MATRIX -->
         <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-          <div class="lg:col-span-5 dropx-card p-5 space-y-4">
+          <div class="lg:col-span-4 dropx-card p-5 space-y-4">
             <div class="flex items-center justify-between gap-2">
-              <h2 class="text-sm font-extrabold text-[#0F172A]">Direktori Vendor OEM &amp; Lokal (${filteredVendors.length})</h2>
-              <button type="button" onclick="window.TRSA.toggleAddVendorForm()" class="btn-capiclean-primary px-3 py-1.5 text-xs cursor-pointer">+ Tambah Vendor</button>
+              <h2 class="text-sm font-extrabold text-[#0F172A]">Direktori Vendor (${filteredVendors.length})</h2>
+              <div class="flex items-center gap-1.5">
+                <button type="button" onclick="window.TRSA.toggleVendorExtractor()" class="px-2.5 py-1.5 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 text-[11px] font-bold cursor-pointer">Ekstrak Matrix</button>
+                <button type="button" onclick="window.TRSA.toggleAddVendorForm()" class="btn-capiclean-primary px-3 py-1.5 text-xs cursor-pointer">+ Tambah</button>
+              </div>
             </div>
 
             <input
@@ -8753,9 +9013,10 @@ function renderDirectoryView(activeProject) {
               `).join('')}
             </div>
 
-            <div class="divide-y divide-slate-100 max-h-[560px] overflow-y-auto pr-1">
+            <div class="divide-y divide-slate-100 max-h-[600px] overflow-y-auto pr-1">
               ${filteredVendors.map(v => {
                 const isSel = selectedVendor && selectedVendor.id === v.id;
+                const tag = getVendorOriginTag(v.origin, v.country);
                 return `
                   <button
                     type="button"
@@ -8768,7 +9029,7 @@ function renderDirectoryView(activeProject) {
                       <div class="text-xs font-bold text-[#0F172A] truncate">${escapeHtml(v.name)}</div>
                       <div class="text-[11px] text-slate-500 truncate">${escapeHtml(v.equipmentType)} &middot; ${escapeHtml(v.country)}</div>
                       <div class="mt-1 flex items-center gap-1.5">
-                        <span class="px-1.5 py-0.5 rounded text-[10px] font-bold ${v.origin === 'Foreign' ? 'bg-sky-50 text-sky-800 border border-sky-200' : 'bg-emerald-50 text-emerald-800 border border-emerald-200'}">${escapeHtml(v.origin)}</span>
+                        <span class="px-1.5 py-0.5 rounded text-[10px] font-bold ${v.origin === 'Local' ? 'bg-emerald-50 text-emerald-800 border border-emerald-200' : 'bg-sky-50 text-sky-800 border border-sky-200'}">${escapeHtml(tag)}</span>
                         <span class="text-[10px] font-mono text-slate-400">${escapeHtml(v.vendorCode || v.id)}</span>
                       </div>
                     </div>
@@ -8778,13 +9039,113 @@ function renderDirectoryView(activeProject) {
             </div>
           </div>
 
-          <div class="lg:col-span-7 dropx-card p-6">
-            ${(store.showAddVendorForm || editingVendorObj) ? `
+          <div class="lg:col-span-8 dropx-card p-6">
+            ${store.showVendorExtractor ? `
+              <div class="space-y-4">
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-3">
+                  <div>
+                    <h3 class="text-base font-extrabold text-[#0F172A]">TRSA Vendor Information Matrix Extractor</h3>
+                    <p class="text-xs text-slate-500">Tempel profil vendor mentah, header penawaran (quotation), tanda tangan email, atau proposal komersial untuk standarisasi otomatis ke format A, B &amp; C.</p>
+                  </div>
+                  <div class="flex items-center gap-2 shrink-0">
+                    <button type="button" onclick="window.TRSA.loadSampleVendorRawText()" class="px-2.5 py-1.5 text-[11px] font-bold text-[#0284C7] bg-sky-50 hover:bg-sky-100 border border-sky-200 rounded-xl cursor-pointer">Muat Contoh Data</button>
+                    <button type="button" onclick="window.TRSA.toggleVendorExtractor()" class="px-3 py-1.5 text-xs font-bold text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl cursor-pointer">Tutup</button>
+                  </div>
+                </div>
+
+                <div>
+                  <label class="block text-[11px] font-bold text-slate-600 uppercase mb-1">Raw Vendor Input Data</label>
+                  <textarea
+                    id="vendor-extractor-raw"
+                    rows="7"
+                    class="corp-textarea font-mono text-xs"
+                    placeholder="Contoh:&#10;Company: PT Contoh Mesin Nusantara&#10;Address: Jl. Jababeka IV No. 12, Cikarang 17530, Indonesia&#10;Country of Origin of Equipment: Germany / Indonesia&#10;Term of Payment: 30% DP, 60% Delivery, 10% After SAT&#10;Sales: Budi Santoso | budi@contoh.co.id | 081234567890&#10;Engineering: Andi Wijaya | andi@contoh.co.id | 021-8931122"
+                  >${escapeHtml(store.vendorExtractorRawText || '')}</textarea>
+                  <div class="flex flex-wrap items-center justify-between gap-2 mt-2.5">
+                    <span class="text-[11px] text-slate-500">Otomatis mengoreksi salah ketik (mis. <em>Equipmnet &rarr; Equipment</em>), format kode telepon internasional, klasifikasi <strong>LOCAL / FOREIGN VENDOR</strong>, dan menandai kolom kosong sebagai <code>${VENDOR_TBC_MARKER}</code>.</span>
+                    <button type="button" onclick="window.TRSA.runVendorMatrixExtractor()" class="btn-capiclean-primary px-4 py-2 text-xs cursor-pointer">Ekstrak &amp; Standarisasi Matrix</button>
+                  </div>
+                </div>
+
+                ${store.vendorExtractorResult ? (() => {
+                  const ext = store.vendorExtractorResult.matrix;
+                  return `
+                    <div class="space-y-4 pt-3 border-t border-slate-200">
+                      <div class="flex flex-wrap items-center justify-between gap-2">
+                        <span class="px-2.5 py-1 rounded-lg text-xs font-extrabold ${ext.origin === 'Local' ? 'bg-emerald-50 text-emerald-800 border border-emerald-200' : 'bg-sky-50 text-sky-800 border border-sky-200'}">Auto-Tag: ${escapeHtml(ext.originTag)}</span>
+                        <div class="flex flex-wrap gap-2">
+                          <button type="button" onclick="window.TRSA.copyExtractedMatrixMarkdown()" class="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold cursor-pointer">Copy Markdown</button>
+                          <button type="button" onclick="window.TRSA.saveExtractedVendor(false)" class="btn-capiclean-primary px-3.5 py-1.5 text-xs cursor-pointer">Simpan ke Direktori Vendor</button>
+                          <button type="button" onclick="window.TRSA.saveExtractedVendor(true)" class="btn-capiclean-accent px-3.5 py-1.5 text-xs cursor-pointer">Simpan &amp; Terapkan ke TRSA Aktif</button>
+                        </div>
+                      </div>
+
+                      <div class="space-y-2">
+                        <h4 class="text-xs font-extrabold text-[#0B2447] uppercase tracking-wider">A. VENDOR GENERAL &amp; COMMERCIAL PROFILE</h4>
+                        <div class="overflow-x-auto border border-slate-200 rounded-xl">
+                          <table class="w-full text-xs">
+                            <tbody class="divide-y divide-slate-100">
+                              <tr><td class="px-3 py-2 font-bold bg-slate-50 w-56 text-slate-700">Company Name</td><td class="px-3 py-2 font-semibold text-[#0F172A]">${escapeHtml(ext.generalProfile.companyName)}</td></tr>
+                              <tr><td class="px-3 py-2 font-bold bg-slate-50 text-slate-700">Address</td><td class="px-3 py-2">${escapeHtml(ext.generalProfile.address)}</td></tr>
+                              <tr><td class="px-3 py-2 font-bold bg-slate-50 text-slate-700">Country</td><td class="px-3 py-2">${escapeHtml(ext.generalProfile.country)} <span class="ml-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-700">${escapeHtml(ext.originTag)}</span></td></tr>
+                              <tr><td class="px-3 py-2 font-bold bg-slate-50 text-slate-700">Country of Origin of Equipment</td><td class="px-3 py-2">${escapeHtml(ext.generalProfile.equipmentOriginCountry)}</td></tr>
+                              <tr><td class="px-3 py-2 font-bold bg-slate-50 text-slate-700">Term of Payment</td><td class="px-3 py-2">${escapeHtml(ext.generalProfile.termOfPayment)}</td></tr>
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+
+                      <div class="space-y-2">
+                        <h4 class="text-xs font-extrabold text-[#0B2447] uppercase tracking-wider">B. VENDOR KEY CONTACT PERSONS</h4>
+                        <div class="overflow-x-auto border border-slate-200 rounded-xl">
+                          <table class="w-full text-xs">
+                            <thead class="bg-[#0B2447] text-white text-[11px]">
+                              <tr>
+                                <th class="px-3 py-2 text-left">Department / Role</th>
+                                <th class="px-3 py-2 text-left">Contact Name</th>
+                                <th class="px-3 py-2 text-left">Email Address</th>
+                                <th class="px-3 py-2 text-left">Phone / WhatsApp Number</th>
+                              </tr>
+                            </thead>
+                            <tbody class="divide-y divide-slate-100">
+                              ${ext.keyContacts.map(c => `
+                                <tr>
+                                  <td class="px-3 py-2 font-bold text-[#0B2447]">${escapeHtml(c.role)}</td>
+                                  <td class="px-3 py-2 ${c.name === VENDOR_TBC_MARKER ? 'text-amber-700 italic' : ''}">${escapeHtml(c.name)}</td>
+                                  <td class="px-3 py-2 font-mono ${c.email === VENDOR_TBC_MARKER ? 'text-amber-700 italic' : 'text-[#0284C7]'}">${escapeHtml(c.email)}</td>
+                                  <td class="px-3 py-2 font-mono ${c.phone === VENDOR_TBC_MARKER ? 'text-amber-700 italic' : ''}">${escapeHtml(c.phone)}</td>
+                                </tr>
+                              `).join('')}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+
+                      <div class="space-y-2">
+                        <h4 class="text-xs font-extrabold text-[#0B2447] uppercase tracking-wider">C. LIST OF TRSA DOCUMENTS (ATTACHMENTS &amp; DELIVERABLES)</h4>
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-3 text-[11px]">
+                          ${ext.trsaDocuments.map(grp => `
+                            <div class="p-3 rounded-xl bg-slate-50 border border-slate-200">
+                              <div class="font-bold text-[#0B2447] mb-1.5">${grp.categoryNo}. ${escapeHtml(grp.category)}</div>
+                              <ul class="list-disc pl-4 space-y-1 text-slate-600">
+                                ${grp.items.map(it => `<li><span class="font-semibold text-slate-800">${escapeHtml(it.title)}</span>${it.note ? ` <span class="text-[10px] text-slate-500">(${escapeHtml(it.note)})</span>` : ''}</li>`).join('')}
+                              </ul>
+                            </div>
+                          `).join('')}
+                        </div>
+                      </div>
+                    </div>
+                  `;
+                })() : ''}
+              </div>
+            ` : (store.showAddVendorForm || editingVendorObj) ? (() => {
+              const formContacts = normalizeVendorKeyContacts(editingVendorObj || {});
+              return `
               <div class="space-y-4">
                 <div class="flex items-center justify-between border-b border-slate-100 pb-3">
                   <div>
-                    <h3 class="text-base font-extrabold text-[#0F172A]">${editingVendorObj ? 'Edit Detail Vendor' : 'Tambah Vendor Baru'}</h3>
-                    <p class="text-xs text-slate-500">Lengkapi alamat manufaktur, PIC vendor, NPWP/Tax ID, dan lead time.</p>
+                    <h3 class="text-base font-extrabold text-[#0F172A]">${editingVendorObj ? 'Edit Vendor Information Matrix' : 'Tambah Vendor Baru'}</h3>
+                    <p class="text-xs text-slate-500">Lengkapi Profil Umum &amp; Komersial (A) serta 6 Kontak Utama Vendor (B). Telepon distandarisasi otomatis sesuai kode negara.</p>
                   </div>
                   <button type="button" onclick="window.TRSA.cancelVendorForm()" class="px-3 py-1.5 text-xs font-bold text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl cursor-pointer">Batal</button>
                 </div>
@@ -8795,31 +9156,31 @@ function renderDirectoryView(activeProject) {
                     <input id="dir-vnd-code" type="text" class="corp-input font-mono" value="${escapeHtml(editingVendorObj?.vendorCode || `VND-${String(vendors.length + 1).padStart(3, '0')}`)}" />
                   </div>
                   <div>
-                    <label class="block text-[11px] font-bold text-slate-600 uppercase mb-1">Nama Vendor / OEM *</label>
+                    <label class="block text-[11px] font-bold text-slate-600 uppercase mb-1">Company Name *</label>
                     <input id="dir-vnd-name" type="text" class="corp-input" value="${escapeHtml(editingVendorObj?.name || '')}" />
                   </div>
                   <div>
-                    <label class="block text-[11px] font-bold text-slate-600 uppercase mb-1">Origin</label>
+                    <label class="block text-[11px] font-bold text-slate-600 uppercase mb-1">Country *</label>
+                    <input id="dir-vnd-country" type="text" onchange="window.TRSA.onVendorFormCountryChanged(this.value)" class="corp-input" value="${escapeHtml(editingVendorObj?.country || 'Indonesia')}" />
+                  </div>
+                  <div>
+                    <label class="block text-[11px] font-bold text-slate-600 uppercase mb-1">Vendor Origin (Auto-Tag)</label>
                     <select id="dir-vnd-origin" class="corp-select">
-                      <option value="Foreign" ${(editingVendorObj?.origin || 'Foreign') === 'Foreign' ? 'selected' : ''}>Foreign (Import)</option>
-                      <option value="Local" ${editingVendorObj?.origin === 'Local' ? 'selected' : ''}>Local (Domestic Indonesia)</option>
-                      <option value="Mixed" ${editingVendorObj?.origin === 'Mixed' ? 'selected' : ''}>Mixed</option>
+                      <option value="Foreign" ${(editingVendorObj?.origin || 'Foreign') === 'Foreign' ? 'selected' : ''}>FOREIGN VENDOR (Outside Indonesia)</option>
+                      <option value="Local" ${editingVendorObj?.origin === 'Local' ? 'selected' : ''}>LOCAL VENDOR (Indonesia)</option>
+                      <option value="Mixed" ${editingVendorObj?.origin === 'Mixed' ? 'selected' : ''}>MIXED VENDOR</option>
                     </select>
                   </div>
                   <div>
-                    <label class="block text-[11px] font-bold text-slate-600 uppercase mb-1">Negara Asal</label>
-                    <input id="dir-vnd-country" type="text" class="corp-input" value="${escapeHtml(editingVendorObj?.country || 'Indonesia')}" />
+                    <label class="block text-[11px] font-bold text-slate-600 uppercase mb-1">Country of Origin of Equipment</label>
+                    <input id="dir-vnd-equip-origin" type="text" class="corp-input" value="${escapeHtml(editingVendorObj?.equipmentOriginCountry || editingVendorObj?.country || 'Indonesia')}" />
                   </div>
                   <div>
                     <label class="block text-[11px] font-bold text-slate-600 uppercase mb-1">Kategori Equipment</label>
                     <input id="dir-vnd-equip" type="text" class="corp-input" value="${escapeHtml(editingVendorObj?.equipmentType || 'Process Line')}" />
                   </div>
-                  <div>
-                    <label class="block text-[11px] font-bold text-slate-600 uppercase mb-1">Status Kualifikasi</label>
-                    <input id="dir-vnd-status" type="text" class="corp-input" value="${escapeHtml(editingVendorObj?.status || 'Approved OEM')}" />
-                  </div>
                   <div class="sm:col-span-2">
-                    <label class="block text-[11px] font-bold text-slate-600 uppercase mb-1">Alamat Lengkap Pabrik / HQ</label>
+                    <label class="block text-[11px] font-bold text-slate-600 uppercase mb-1">Address (Street Address)</label>
                     <input id="dir-vnd-address" type="text" class="corp-input" value="${escapeHtml(editingVendorObj?.address || '')}" />
                   </div>
                   <div>
@@ -8830,21 +9191,9 @@ function renderDirectoryView(activeProject) {
                     <label class="block text-[11px] font-bold text-slate-600 uppercase mb-1">Kode Pos</label>
                     <input id="dir-vnd-postal" type="text" class="corp-input font-mono" value="${escapeHtml(editingVendorObj?.postalCode || '')}" />
                   </div>
-                  <div>
-                    <label class="block text-[11px] font-bold text-slate-600 uppercase mb-1">Nama PIC Vendor</label>
-                    <input id="dir-vnd-pic-name" type="text" class="corp-input" value="${escapeHtml(editingVendorObj?.picName || '')}" />
-                  </div>
-                  <div>
-                    <label class="block text-[11px] font-bold text-slate-600 uppercase mb-1">Jabatan PIC Vendor</label>
-                    <input id="dir-vnd-pic-role" type="text" class="corp-input" value="${escapeHtml(editingVendorObj?.picRole || 'Account Manager')}" />
-                  </div>
-                  <div>
-                    <label class="block text-[11px] font-bold text-slate-600 uppercase mb-1">Email PIC Vendor</label>
-                    <input id="dir-vnd-pic-email" type="email" class="corp-input" value="${escapeHtml(editingVendorObj?.picEmail || '')}" />
-                  </div>
-                  <div>
-                    <label class="block text-[11px] font-bold text-slate-600 uppercase mb-1">Telepon PIC Vendor</label>
-                    <input id="dir-vnd-pic-phone" type="text" class="corp-input" value="${escapeHtml(editingVendorObj?.picPhone || '')}" />
+                  <div class="sm:col-span-2">
+                    <label class="block text-[11px] font-bold text-slate-600 uppercase mb-1">Term of Payment</label>
+                    <input id="dir-vnd-top" type="text" class="corp-input" placeholder="e.g., T/T or L/C at Sight: 30% DP, 55% Shipping Docs, 10% SAT, 5% Retention" value="${escapeHtml(editingVendorObj?.termOfPayment || '')}" />
                   </div>
                   <div>
                     <label class="block text-[11px] font-bold text-slate-600 uppercase mb-1">Tax ID / NPWP</label>
@@ -8858,10 +9207,14 @@ function renderDirectoryView(activeProject) {
                     </div>
                   </div>
                   <div>
+                    <label class="block text-[11px] font-bold text-slate-600 uppercase mb-1">Status Kualifikasi</label>
+                    <input id="dir-vnd-status" type="text" class="corp-input" value="${escapeHtml(editingVendorObj?.status || 'Approved OEM')}" />
+                  </div>
+                  <div>
                     <label class="block text-[11px] font-bold text-slate-600 uppercase mb-1">Website</label>
                     <input id="dir-vnd-website" type="text" class="corp-input" value="${escapeHtml(editingVendorObj?.website || '')}" />
                   </div>
-                  <div>
+                  <div class="sm:col-span-2">
                     <label class="block text-[11px] font-bold text-slate-600 uppercase mb-1">Sertifikasi (pisahkan koma)</label>
                     <input id="dir-vnd-certs" type="text" class="corp-input" value="${escapeHtml((editingVendorObj?.certifications || ['ISO 9001']).join(', '))}" />
                   </div>
@@ -8871,24 +9224,59 @@ function renderDirectoryView(activeProject) {
                   </div>
                 </div>
 
+                <!-- 6-Role Vendor Key Contact Persons Matrix Input -->
+                <div class="pt-3 border-t border-slate-100 space-y-2">
+                  <div class="text-xs font-extrabold text-[#0B2447] uppercase tracking-wider">B. Vendor Key Contact Persons (6 Roles)</div>
+                  <div class="overflow-x-auto border border-slate-200 rounded-xl">
+                    <table class="w-full text-xs">
+                      <thead class="bg-slate-100 text-[10px] font-bold uppercase text-slate-600">
+                        <tr>
+                          <th class="px-2.5 py-2 text-left">Role</th>
+                          <th class="px-2.5 py-2 text-left">Contact Name</th>
+                          <th class="px-2.5 py-2 text-left">Email Address</th>
+                          <th class="px-2.5 py-2 text-left">Phone / WhatsApp</th>
+                        </tr>
+                      </thead>
+                      <tbody class="divide-y divide-slate-100">
+                        ${formContacts.map((c, idx) => `
+                          <tr>
+                            <td class="px-2.5 py-1.5 font-bold text-[#0B2447] whitespace-nowrap">${escapeHtml(c.role)}</td>
+                            <td class="px-2 py-1"><input id="dir-vnd-kc-name-${idx}" type="text" class="corp-input text-xs py-1" placeholder="${VENDOR_TBC_MARKER}" value="${escapeHtml(c.name || '')}" /></td>
+                            <td class="px-2 py-1"><input id="dir-vnd-kc-email-${idx}" type="email" class="corp-input text-xs py-1" placeholder="name@vendor.com" value="${escapeHtml(c.email || '')}" /></td>
+                            <td class="px-2 py-1"><input id="dir-vnd-kc-phone-${idx}" type="text" class="corp-input font-mono text-xs py-1" placeholder="+62 / +86 / +31 ..." value="${escapeHtml(c.phone || '')}" /></td>
+                          </tr>
+                        `).join('')}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
                 <div class="flex justify-end gap-2 pt-2 border-t border-slate-100">
                   <button type="button" onclick="window.TRSA.cancelVendorForm()" class="px-4 py-2 text-xs font-bold text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl cursor-pointer">Batal</button>
-                  <button type="button" onclick="window.TRSA.submitVendorForm('${escapeHtml(editingVendorObj?.id || '')}')" class="btn-capiclean-primary px-5 py-2 text-xs cursor-pointer">Simpan Detail Vendor</button>
+                  <button type="button" onclick="window.TRSA.submitVendorForm('${escapeHtml(editingVendorObj?.id || '')}')" class="btn-capiclean-primary px-5 py-2 text-xs cursor-pointer">Simpan Matrix Vendor</button>
                 </div>
               </div>
-            ` : selectedVendor ? `
+              `;
+            })() : selectedVendor ? (() => {
+              const matrix = buildVendorInformationMatrix(selectedVendor);
+              return `
               <div class="space-y-5">
                 <div class="flex flex-col sm:flex-row sm:items-start justify-between gap-4 border-b border-slate-100 pb-4">
                   <div>
                     <div class="flex flex-wrap items-center gap-2">
                       <span class="px-2 py-0.5 rounded bg-slate-100 text-slate-700 font-mono text-[10px] font-bold">${escapeHtml(selectedVendor.vendorCode || selectedVendor.id)}</span>
-                      <span class="px-2 py-0.5 rounded text-[10px] font-bold ${selectedVendor.origin === 'Foreign' ? 'bg-sky-50 text-sky-800 border border-sky-200' : 'bg-emerald-50 text-emerald-800 border border-emerald-200'}">${escapeHtml(selectedVendor.origin)} &middot; ${escapeHtml(selectedVendor.country)}</span>
+                      <span class="px-2 py-0.5 rounded text-[10px] font-bold ${matrix.origin === 'Local' ? 'bg-emerald-50 text-emerald-800 border border-emerald-200' : 'bg-sky-50 text-sky-800 border border-sky-200'}">${escapeHtml(matrix.originTag)} &middot; ${escapeHtml(selectedVendor.country)}</span>
                       <span class="px-2 py-0.5 rounded bg-amber-50 text-amber-800 border border-amber-200 text-[10px] font-bold">${escapeHtml(selectedVendor.status || 'Approved OEM')}</span>
                     </div>
                     <h3 class="text-lg font-extrabold text-[#0F172A] mt-1.5">${escapeHtml(selectedVendor.name)}</h3>
                     <p class="text-xs text-slate-600 mt-0.5">${escapeHtml(selectedVendor.equipmentType)} &mdash; ${escapeHtml(selectedVendor.description)}</p>
                   </div>
                   <div class="flex flex-wrap gap-2 shrink-0">
+                    <button
+                      type="button"
+                      onclick="window.TRSA.copyVendorMatrixMarkdown('${escapeHtml(selectedVendor.id)}')"
+                      class="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold cursor-pointer"
+                    >Copy Matrix Markdown</button>
                     <button
                       type="button"
                       onclick="window.TRSA.applyVendorToProject('${escapeHtml(selectedVendor.id)}')"
@@ -8898,7 +9286,7 @@ function renderDirectoryView(activeProject) {
                       type="button"
                       onclick="window.TRSA.editDirectoryVendor('${escapeHtml(selectedVendor.id)}')"
                       class="btn-capiclean-primary px-3 py-1.5 text-xs cursor-pointer"
-                    >Edit Vendor</button>
+                    >Edit Matrix</button>
                     ${isAdmin ? `
                       <button
                         type="button"
@@ -8909,30 +9297,85 @@ function renderDirectoryView(activeProject) {
                   </div>
                 </div>
 
-                <dl class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
-                  <div class="sm:col-span-2 p-3.5 rounded-xl bg-slate-50 border border-slate-200/80">
-                    <dt class="text-[10px] font-bold uppercase text-slate-400">Alamat Lengkap Kantor Pusat / Pabrik</dt>
-                    <dd class="font-semibold text-[#0F172A] mt-0.5">${escapeHtml(selectedVendor.address || '—')}, ${escapeHtml(selectedVendor.city || '')} ${escapeHtml(selectedVendor.postalCode || '')}, ${escapeHtml(selectedVendor.country)}</dd>
+                <!-- Section A: Vendor General & Commercial Profile -->
+                <div class="space-y-2">
+                  <div class="text-xs font-extrabold text-[#0B2447] uppercase tracking-wider">A. Vendor General &amp; Commercial Profile</div>
+                  <div class="overflow-x-auto border border-slate-200 rounded-xl">
+                    <table class="w-full text-xs">
+                      <tbody class="divide-y divide-slate-100">
+                        <tr>
+                          <td class="px-3.5 py-2 font-bold bg-slate-50 w-56 text-slate-600">Company Name</td>
+                          <td class="px-3.5 py-2 font-bold text-[#0F172A]">${escapeHtml(matrix.generalProfile.companyName)}</td>
+                        </tr>
+                        <tr>
+                          <td class="px-3.5 py-2 font-bold bg-slate-50 text-slate-600">Address</td>
+                          <td class="px-3.5 py-2 text-slate-800">${escapeHtml(matrix.generalProfile.address)}</td>
+                        </tr>
+                        <tr>
+                          <td class="px-3.5 py-2 font-bold bg-slate-50 text-slate-600">Country</td>
+                          <td class="px-3.5 py-2 text-slate-800">
+                            ${escapeHtml(matrix.generalProfile.country)}
+                            <span class="ml-1.5 px-2 py-0.5 rounded text-[10px] font-bold ${matrix.origin === 'Local' ? 'bg-emerald-50 text-emerald-800 border border-emerald-200' : 'bg-sky-50 text-sky-800 border border-sky-200'}">Auto-Tag: ${escapeHtml(matrix.originTag)}</span>
+                          </td>
+                        </tr>
+                        <tr>
+                          <td class="px-3.5 py-2 font-bold bg-slate-50 text-slate-600">Country of Origin of Equipment</td>
+                          <td class="px-3.5 py-2 font-semibold text-slate-800">${escapeHtml(matrix.generalProfile.equipmentOriginCountry)}</td>
+                        </tr>
+                        <tr>
+                          <td class="px-3.5 py-2 font-bold bg-slate-50 text-slate-600">Term of Payment</td>
+                          <td class="px-3.5 py-2 text-slate-800">${escapeHtml(matrix.generalProfile.termOfPayment)}</td>
+                        </tr>
+                        <tr>
+                          <td class="px-3.5 py-2 font-bold bg-slate-50 text-slate-600">Tax ID / NPWP &amp; Lead Time</td>
+                          <td class="px-3.5 py-2 font-mono text-slate-700">${escapeHtml(selectedVendor.taxId || VENDOR_TBC_MARKER)} &middot; ${escapeHtml(selectedVendor.leadTimeWeeks || '—')}</td>
+                        </tr>
+                      </tbody>
+                    </table>
                   </div>
-                  <div class="p-3 rounded-xl bg-slate-50 border border-slate-200/80">
-                    <dt class="text-[10px] font-bold uppercase text-slate-400">PIC Vendor (Account / Project Lead)</dt>
-                    <dd class="font-bold text-[#0F172A] mt-0.5">${escapeHtml(selectedVendor.picName || '—')}</dd>
-                    <dd class="text-[11px] text-slate-500">${escapeHtml(selectedVendor.picRole || '')}</dd>
+                </div>
+
+                <!-- Section B: Vendor Key Contact Persons -->
+                <div class="space-y-2">
+                  <div class="text-xs font-extrabold text-[#0B2447] uppercase tracking-wider">B. Vendor Key Contact Persons (6 Roles)</div>
+                  <div class="overflow-x-auto border border-slate-200 rounded-xl">
+                    <table class="w-full text-xs">
+                      <thead class="bg-[#0B2447] text-white text-[11px]">
+                        <tr>
+                          <th class="px-3 py-2 text-left">Department / Role</th>
+                          <th class="px-3 py-2 text-left">Contact Name</th>
+                          <th class="px-3 py-2 text-left">Email Address</th>
+                          <th class="px-3 py-2 text-left">Phone / WhatsApp Number</th>
+                        </tr>
+                      </thead>
+                      <tbody class="divide-y divide-slate-100">
+                        ${matrix.keyContacts.map(kc => `
+                          <tr>
+                            <td class="px-3 py-2 font-bold text-[#0B2447]">${escapeHtml(kc.role)}</td>
+                            <td class="px-3 py-2 ${kc.name === VENDOR_TBC_MARKER ? 'text-amber-700 italic' : 'font-semibold text-slate-800'}">${escapeHtml(kc.name)}</td>
+                            <td class="px-3 py-2 font-mono ${kc.email === VENDOR_TBC_MARKER ? 'text-amber-700 italic' : 'text-[#0284C7]'}">${escapeHtml(kc.email)}</td>
+                            <td class="px-3 py-2 font-mono ${kc.phone === VENDOR_TBC_MARKER ? 'text-amber-700 italic' : 'text-slate-700'}">${escapeHtml(kc.phone)}</td>
+                          </tr>
+                        `).join('')}
+                      </tbody>
+                    </table>
                   </div>
-                  <div class="p-3 rounded-xl bg-slate-50 border border-slate-200/80">
-                    <dt class="text-[10px] font-bold uppercase text-slate-400">Kontak PIC Vendor</dt>
-                    <dd class="font-mono text-[#0369A1] font-semibold mt-0.5 break-all">${escapeHtml(selectedVendor.picEmail || '—')}</dd>
-                    <dd class="text-[11px] text-slate-600">${escapeHtml(selectedVendor.picPhone || '—')}</dd>
+                </div>
+
+                <!-- Section C: List of TRSA Documents (Attachments & Deliverables) -->
+                <div class="space-y-2">
+                  <div class="text-xs font-extrabold text-[#0B2447] uppercase tracking-wider">C. List of TRSA Documents (Attachments &amp; Deliverables)</div>
+                  <div class="grid grid-cols-1 md:grid-cols-3 gap-3 text-[11px]">
+                    ${matrix.trsaDocuments.map(grp => `
+                      <div class="p-3 rounded-xl bg-slate-50 border border-slate-200/80">
+                        <div class="font-bold text-[#0B2447] mb-1.5">${grp.categoryNo}. ${escapeHtml(grp.category)}</div>
+                        <ul class="list-disc pl-4 space-y-1 text-slate-600 leading-relaxed">
+                          ${grp.items.map(it => `<li><span class="font-semibold text-slate-800">${escapeHtml(it.title)}</span>${it.note ? ` <span class="text-[10px] text-slate-500">(${escapeHtml(it.note)})</span>` : ''}</li>`).join('')}
+                        </ul>
+                      </div>
+                    `).join('')}
                   </div>
-                  <div class="p-3 rounded-xl bg-slate-50 border border-slate-200/80">
-                    <dt class="text-[10px] font-bold uppercase text-slate-400">Tax ID / NPWP</dt>
-                    <dd class="font-mono font-bold text-[#0F172A] mt-0.5">${escapeHtml(selectedVendor.taxId || '—')}</dd>
-                  </div>
-                  <div class="p-3 rounded-xl bg-slate-50 border border-slate-200/80">
-                    <dt class="text-[10px] font-bold uppercase text-slate-400">Currency &amp; Standard Lead Time</dt>
-                    <dd class="font-bold text-[#0F172A] mt-0.5">${escapeHtml(selectedVendor.paymentCurrency || '—')} &middot; ${escapeHtml(selectedVendor.leadTimeWeeks || '—')}</dd>
-                  </div>
-                </dl>
+                </div>
 
                 <div class="flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-slate-100 text-xs">
                   <div class="flex flex-wrap gap-1.5">
@@ -8945,7 +9388,8 @@ function renderDirectoryView(activeProject) {
                   ` : ''}
                 </div>
               </div>
-            ` : ''}
+              `;
+            })() : ''}
           </div>
         </div>
       ` : currentTab === 'plants' ? `
@@ -9149,6 +9593,106 @@ function renderDirectoryView(activeProject) {
                 </div>
               </div>
             ` : ''}
+          </div>
+        </div>
+      ` : currentTab === 'payment_terms' ? `
+        <!-- TAB 5: DATABASE TERM OF PAYMENT -->
+        <div class="dropx-card p-6 space-y-5">
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <h2 class="text-sm font-extrabold text-[#0F172A]">Database Format Term of Payment (${paymentTerms.length})</h2>
+              <p class="text-xs text-slate-500">Master template termin pembayaran yang tersedia pada dropdown <strong>XIV. Term of Payment</strong> di Builder &amp; Dokumen TRSA.</p>
+            </div>
+            ${(isAdmin || String(store.getCurrentUser()?.role || '').toLowerCase().includes('purchasing')) ? `
+              <button type="button" onclick="window.TRSA.toggleAddPaymentTermForm()" class="btn-capiclean-primary px-3.5 py-1.5 text-xs cursor-pointer">+ Tambah Format Pembayaran</button>
+            ` : ''}
+          </div>
+
+          ${(store.showAddPaymentTermForm || editingPaymentTermObj) ? `
+            <div class="p-4 rounded-2xl bg-sky-50/70 border border-sky-200 space-y-3">
+              <div class="text-xs font-extrabold text-[#0369A1]">${editingPaymentTermObj ? `Edit Format Term of Payment: ${escapeHtml(editingPaymentTermObj.code)}` : 'Tambah Format Term of Payment Baru'}</div>
+              <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div>
+                  <label class="block text-[10px] font-bold uppercase text-slate-600 mb-1">Kode Option *</label>
+                  <input id="dir-pt-code" type="text" class="corp-input" placeholder="Option 3" value="${escapeHtml(editingPaymentTermObj?.code || '')}" />
+                </div>
+                <div>
+                  <label class="block text-[10px] font-bold uppercase text-slate-600 mb-1">Label Tampilan Dropdown *</label>
+                  <input id="dir-pt-label" type="text" class="corp-input" placeholder="Option 3 (Local IDR 30/60/10)" value="${escapeHtml(editingPaymentTermObj?.label || '')}" />
+                </div>
+                <div>
+                  <label class="block text-[10px] font-bold uppercase text-slate-600 mb-1">Mata Uang / Instrumen</label>
+                  <input id="dir-pt-currency" type="text" class="corp-input" placeholder="USD / EUR / IDR" value="${escapeHtml(editingPaymentTermObj?.currencyNote || 'USD / EUR / IDR')}" />
+                </div>
+                <div class="sm:col-span-3">
+                  <label class="block text-[10px] font-bold uppercase text-slate-600 mb-1">Rincian Termin Pembayaran (1 baris per termin: Tranche | Milestone Stage | Keterangan Trigger) *</label>
+                  <textarea id="dir-pt-breakdown" rows="4" class="corp-input font-mono text-[11px]" placeholder="30% | Down Payment | Payable via T/T against SWIFT APBG">${escapeHtml((editingPaymentTermObj?.breakdown || []).map(r => `${r.percent} | ${r.stage} | ${r.method}`).join('\n'))}</textarea>
+                </div>
+                <div class="sm:col-span-3">
+                  <label class="block text-[10px] font-bold uppercase text-slate-600 mb-1">Ketentuan Engineering Services Payment</label>
+                  <textarea id="dir-pt-eng" rows="2" class="corp-input text-xs">${escapeHtml(editingPaymentTermObj?.engineeringServicesPayment || MATRIX_ENGINEERING_SERVICES_PAYMENT)}</textarea>
+                </div>
+              </div>
+              <div class="flex justify-end gap-2">
+                <button type="button" onclick="window.TRSA.cancelPaymentTermForm()" class="px-3 py-1.5 text-xs font-bold text-slate-600 bg-white border border-slate-200 rounded-xl cursor-pointer">Batal</button>
+                <button type="button" onclick="window.TRSA.submitPaymentTermForm('${escapeHtml(editingPaymentTermObj?.id || '')}', '${escapeHtml(editingPaymentTermObj?.code || '')}')" class="btn-capiclean-primary px-4 py-1.5 text-xs cursor-pointer">Simpan Format Pembayaran</button>
+              </div>
+            </div>
+          ` : ''}
+
+          <div class="grid grid-cols-1 gap-4">
+            ${paymentTerms.map(pt => {
+              const isSelectedOnActive = activeProject?.commercialTerms?.selectedPaymentOption === pt.code;
+              return `
+                <div class="p-4 rounded-2xl border ${isSelectedOnActive ? 'border-[#0284C7] bg-sky-50/40' : 'border-slate-200 bg-white'} space-y-3">
+                  <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                    <div>
+                      <div class="flex items-center gap-2">
+                        <span class="px-2 py-0.5 rounded bg-[#0F172A] text-white font-mono text-[10px] font-bold">${escapeHtml(pt.code)}</span>
+                        <span class="text-sm font-extrabold text-[#0F172A]">${escapeHtml(pt.label)}</span>
+                        ${isSelectedOnActive ? '<span class="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-bold">Aktif di TRSA</span>' : ''}
+                      </div>
+                      <div class="text-[11px] text-slate-500 mt-1">${escapeHtml(pt.currencyNote)}</div>
+                    </div>
+                    <div class="flex flex-wrap items-center gap-2">
+                      <button
+                        type="button"
+                        onclick="window.TRSA.applyPaymentTermToProject('${escapeHtml(pt.code)}')"
+                        class="px-3 py-1.5 rounded-xl bg-[#E0F2FE] hover:bg-[#BAE6FD] text-[#0369A1] text-[11px] font-bold cursor-pointer"
+                      >
+                        Pakai di TRSA Aktif
+                      </button>
+                      ${(isAdmin || String(store.getCurrentUser()?.role || '').toLowerCase().includes('purchasing')) ? `
+                        <button type="button" onclick="window.TRSA.editPaymentTermRecord('${escapeHtml(pt.id)}')" class="px-2.5 py-1.5 text-[11px] font-bold text-[#0284C7] hover:bg-sky-50 rounded-lg cursor-pointer">Edit</button>
+                      ` : ''}
+                      ${isAdmin && paymentTerms.length > 1 ? `
+                        <button type="button" onclick="window.TRSA.deletePaymentTermRecord('${escapeHtml(pt.id)}')" class="px-2.5 py-1.5 text-[11px] font-bold text-red-600 hover:bg-red-50 rounded-lg cursor-pointer">Hapus</button>
+                      ` : ''}
+                    </div>
+                  </div>
+                  <div class="overflow-x-auto rounded-xl border border-slate-200 bg-white">
+                    <table class="w-full text-left border-collapse text-xs">
+                      <thead>
+                        <tr class="bg-slate-50 border-b border-slate-200 text-[10px] uppercase text-slate-500">
+                          <th class="py-2 px-3 font-bold" style="width: 12%;">Tranche</th>
+                          <th class="py-2 px-3 font-bold" style="width: 24%;">Milestone Stage</th>
+                          <th class="py-2 px-3 font-bold" style="width: 64%;">Payment Trigger / Terms</th>
+                        </tr>
+                      </thead>
+                      <tbody class="divide-y divide-slate-100">
+                        ${pt.breakdown.map(row => `
+                          <tr>
+                            <td class="py-2 px-3 font-mono font-bold text-[#EA580C]">${escapeHtml(row.percent)}</td>
+                            <td class="py-2 px-3 font-bold text-[#0F172A]">${escapeHtml(row.stage)}</td>
+                            <td class="py-2 px-3 text-[11px] text-slate-600">${escapeHtml(row.method)}</td>
+                          </tr>
+                        `).join('')}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              `;
+            }).join('')}
           </div>
         </div>
       ` : `
@@ -10060,7 +10604,28 @@ function attachEventHandlers(activeProject) {
     });
   }
 
-  // Step 6: Required Documentation & Appendices checkboxes & Sign-off Authorization inputs
+  // Step 6: Editable Engineering Services Payment, Documentation & Appendices checkboxes & Sign-off Authorization inputs
+  const commEngPayment = document.getElementById('comm-eng-payment');
+  if (commEngPayment) {
+    commEngPayment.addEventListener('input', (e) => {
+      activeProject.commercialTerms = activeProject.commercialTerms || {};
+      activeProject.commercialTerms.engineeringServicesPayment = e.target.value;
+    });
+  }
+  const commExWorksFactory = document.getElementById('comm-exworks-factory');
+  if (commExWorksFactory) {
+    commExWorksFactory.addEventListener('input', (e) => {
+      activeProject.commercialTerms = activeProject.commercialTerms || {};
+      activeProject.commercialTerms.exWorksFactory = e.target.value;
+      const pCode = resolvePlantCode(activeProject.documentInfo?.plantLocation || '1403');
+      const vOrig = normalizeOriginMode(activeProject.documentInfo?.vendorOrigin || 'Foreign');
+      activeProject.commercialTerms.shipmentItems = resolveShipmentItemsForMatrix(pCode, vOrig, e.target.value);
+      const previewEl = document.getElementById('step6-shipment-item-1-desc');
+      if (previewEl && activeProject.commercialTerms.shipmentItems[0]) {
+        previewEl.textContent = activeProject.commercialTerms.shipmentItems[0].description;
+      }
+    });
+  }
   document.querySelectorAll('[id^="doc-req-"]').forEach(cb => {
     cb.addEventListener('change', (e) => {
       const idx = parseInt(e.target.id.replace('doc-req-', ''), 10);
@@ -10339,8 +10904,14 @@ if (typeof window !== 'undefined') {
     render();
   },
   setPaymentOption(opt) {
+    store.setPaymentTermOption(opt);
+    render();
+  },
+  resetEngineeringServicesPayment() {
     const p = store.getActiveProject();
-    p.commercialTerms.selectedPaymentOption = opt;
+    if (!p) return;
+    p.commercialTerms = p.commercialTerms || {};
+    p.commercialTerms.engineeringServicesPayment = MATRIX_ENGINEERING_SERVICES_PAYMENT;
     store.saveProjects();
     render();
   },
@@ -10846,6 +11417,11 @@ if (typeof window !== 'undefined') {
     store.currentView = 'directory';
     render();
   },
+  openPaymentTermsInDirectory() {
+    store.directoryTab = 'payment_terms';
+    store.currentView = 'directory';
+    render();
+  },
   setDirectoryTab(tab) {
     store.directoryTab = tab;
     render();
@@ -10922,11 +11498,96 @@ if (typeof window !== 'undefined') {
   },
   toggleAddVendorForm() {
     store.editingVendorId = null;
+    store.showVendorExtractor = false;
     store.showAddVendorForm = !store.showAddVendorForm;
     render();
   },
+  toggleVendorExtractor() {
+    store.showAddVendorForm = false;
+    store.editingVendorId = null;
+    store.showVendorExtractor = !store.showVendorExtractor;
+    render();
+  },
+  loadSampleVendorRawText() {
+    store.vendorExtractorRawText = [
+      'Company: Zhejiang Snack Equipmnet Co., Ltd.',
+      'Address: No. 88 Binhai Industrial Park, Wenzhou, Zhejiang 325000, China',
+      'Country: China',
+      'Country of Origin of Equipment: China',
+      'Term of Payment: 30% DP via T/T against SWIFT APBG, 60% Before Shipment, 10% After SAT',
+      'Sales: Kevin Zhang | kevin.zhang@zjsnack.cn | 13800138000',
+      'Engineering: Li Wei | li.wei@zjsnack.cn | +86 577 8899 1122',
+      'Project Manager: Chen Ming | chen.ming@zjsnack.cn | +86 139 5566 7788',
+      'Spare Part: Zhao Lei | spareparts@zjsnack.cn | +86 577 8899 1155'
+    ].join('\n');
+    store.vendorExtractorResult = parseRawVendorProfileText(store.vendorExtractorRawText);
+    render();
+  },
+  runVendorMatrixExtractor() {
+    const raw = document.getElementById('vendor-extractor-raw')?.value || store.vendorExtractorRawText || '';
+    store.vendorExtractorRawText = raw;
+    if (!raw.trim()) {
+      store.showNotification('Tempel data profil vendor mentah terlebih dahulu.', 'error');
+      return;
+    }
+    store.vendorExtractorResult = parseRawVendorProfileText(raw);
+    store.showNotification('Data Vendor berhasil diekstrak dan distandarisasi ke Matrix TRSA.', 'success');
+    render();
+  },
+  copyExtractedMatrixMarkdown() {
+    if (!store.vendorExtractorResult?.matrix) return;
+    const md = formatVendorMatrixMarkdown(store.vendorExtractorResult.matrix);
+    if (navigator?.clipboard?.writeText) {
+      navigator.clipboard.writeText(md).catch(() => {});
+    }
+    store.showNotification('Markdown Vendor Information Matrix disalin ke clipboard.', 'success');
+  },
+  copyVendorMatrixMarkdown(vendorId) {
+    const v = (store.vendors || loadVendors()).find(item => item.id === vendorId);
+    if (!v) return;
+    const md = formatVendorMatrixMarkdown(buildVendorInformationMatrix(v));
+    if (navigator?.clipboard?.writeText) {
+      navigator.clipboard.writeText(md).catch(() => {});
+    }
+    store.showNotification(`Markdown Matrix "${v.name}" disalin ke clipboard.`, 'success');
+  },
+  saveExtractedVendor(applyToActive = false) {
+    if (!store.vendorExtractorResult?.vendorDraft) return;
+    const draft = store.vendorExtractorResult.vendorDraft;
+    if (!draft.name) {
+      store.showNotification('Nama perusahaan vendor tidak terdeteksi. Pastikan input berisi nama perusahaan.', 'error');
+      return;
+    }
+    const saved = store.saveVendorRecord(draft);
+    if (saved) {
+      store.showVendorExtractor = false;
+      if (applyToActive) {
+        window.TRSA.onVendorSelectChanged(saved.name);
+        store.showNotification(`Vendor "${saved.name}" disimpan & diterapkan ke TRSA aktif.`, 'success');
+        store.currentView = 'builder';
+        store.builderStep = 1;
+      }
+    }
+    render();
+  },
+  onVendorFormCountryChanged(countryVal) {
+    const originSel = document.getElementById('dir-vnd-origin');
+    const equipOriginInp = document.getElementById('dir-vnd-equip-origin');
+    const topInp = document.getElementById('dir-vnd-top');
+    const detectedOrigin = classifyVendorOrigin(countryVal, originSel?.value === 'Mixed' ? 'Mixed' : '');
+    if (originSel && originSel.value !== 'Mixed') {
+      originSel.value = detectedOrigin;
+    }
+    if (equipOriginInp && !equipOriginInp.value.trim()) {
+      equipOriginInp.value = countryVal.trim();
+    }
+    if (topInp && !topInp.value.trim()) {
+      topInp.value = getDefaultTermOfPaymentByOrigin(detectedOrigin);
+    }
+  },
   editDirectoryVendor(id) {
     store.showAddVendorForm = false;
+    store.showVendorExtractor = false;
     store.editingVendorId = id;
     render();
   },
@@ -10937,21 +11598,35 @@ if (typeof window !== 'undefined') {
   },
   submitVendorForm(existingId = '') {
     const val = (id) => document.getElementById(id)?.value?.trim() || '';
+    const country = val('dir-vnd-country') || 'Indonesia';
+    const rawOrigin = val('dir-vnd-origin') || 'Foreign';
+    const origin = classifyVendorOrigin(country, rawOrigin === 'Mixed' ? 'Mixed' : '');
+    const keyContacts = VENDOR_CONTACT_ROLES.map((role, idx) => ({
+      role,
+      name: val(`dir-vnd-kc-name-${idx}`),
+      email: val(`dir-vnd-kc-email-${idx}`),
+      phone: val(`dir-vnd-kc-phone-${idx}`)
+    }));
+    const firstContact = keyContacts.find(c => c.name || c.email || c.phone) || { role: 'Sales', name: '', email: '', phone: '' };
+
     const saved = store.saveVendorRecord({
       id: existingId || undefined,
       vendorCode: val('dir-vnd-code'),
       name: val('dir-vnd-name'),
-      origin: val('dir-vnd-origin') || 'Foreign',
-      country: val('dir-vnd-country') || 'Indonesia',
+      origin,
+      country,
+      equipmentOriginCountry: val('dir-vnd-equip-origin') || country,
       equipmentType: val('dir-vnd-equip') || 'Process Line',
-      status: val('dir-vnd-status') || 'Approved OEM',
+      status: val('dir-vnd-status') || (origin === 'Local' ? 'Approved Local Vendor' : 'Approved OEM'),
       address: val('dir-vnd-address'),
       city: val('dir-vnd-city'),
       postalCode: val('dir-vnd-postal'),
-      picName: val('dir-vnd-pic-name'),
-      picRole: val('dir-vnd-pic-role'),
-      picEmail: val('dir-vnd-pic-email'),
-      picPhone: val('dir-vnd-pic-phone'),
+      termOfPayment: val('dir-vnd-top') || getDefaultTermOfPaymentByOrigin(origin, val('dir-vnd-currency')),
+      picName: firstContact.name,
+      picRole: firstContact.role,
+      picEmail: firstContact.email,
+      picPhone: firstContact.phone,
+      keyContacts,
       taxId: val('dir-vnd-tax'),
       paymentCurrency: val('dir-vnd-currency'),
       leadTimeWeeks: val('dir-vnd-leadtime'),
@@ -11090,6 +11765,63 @@ if (typeof window !== 'undefined') {
   },
   deleteJobRecord(id) {
     store.removeJobTitleRecord(id);
+    render();
+  },
+  toggleAddPaymentTermForm() {
+    store.editingPaymentTermId = null;
+    store.showAddPaymentTermForm = !store.showAddPaymentTermForm;
+    render();
+  },
+  editPaymentTermRecord(id) {
+    store.showAddPaymentTermForm = false;
+    store.editingPaymentTermId = id;
+    render();
+  },
+  cancelPaymentTermForm() {
+    store.showAddPaymentTermForm = false;
+    store.editingPaymentTermId = null;
+    render();
+  },
+  submitPaymentTermForm(existingId = '', originalCode = '') {
+    const val = (id) => document.getElementById(id)?.value?.trim() || '';
+    const rawLines = (document.getElementById('dir-pt-breakdown')?.value || '')
+      .split('\n')
+      .map(l => l.trim())
+      .filter(Boolean);
+    const breakdown = rawLines.map(line => {
+      const parts = line.split('|').map(p => p.trim());
+      return {
+        percent: parts[0] || '100%',
+        stage: parts[1] || 'Milestone',
+        method: parts.slice(2).join(' | ') || parts[1] || line
+      };
+    });
+    const saved = store.savePaymentTermRecord({
+      id: existingId || undefined,
+      originalCode: originalCode || undefined,
+      code: val('dir-pt-code'),
+      label: val('dir-pt-label') || val('dir-pt-code'),
+      currencyNote: val('dir-pt-currency') || 'USD / EUR / IDR',
+      breakdown,
+      engineeringServicesPayment: val('dir-pt-eng')
+    });
+    if (saved) {
+      store.showAddPaymentTermForm = false;
+      store.editingPaymentTermId = null;
+    }
+    render();
+  },
+  deletePaymentTermRecord(idOrCode) {
+    store.removePaymentTermRecord(idOrCode);
+    render();
+  },
+  applyPaymentTermToProject(code) {
+    const term = store.setPaymentTermOption(code);
+    if (term) {
+      store.showNotification(`Format Term of Payment "${term.label}" diterapkan ke TRSA aktif.`, 'success');
+      store.currentView = 'builder';
+      store.builderStep = 6;
+    }
     render();
   }
 };

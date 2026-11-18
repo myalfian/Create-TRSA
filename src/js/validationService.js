@@ -3,6 +3,8 @@
  * Validates all 6 steps of PT Indofood Fortuna Makmur TRSA documents.
  */
 
+import { loadPaymentTerms } from './masterDataService.js';
+
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 const DATE_ISO_REGEX = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -248,8 +250,9 @@ export function validateField(fieldKey, value, context = {}) {
 
   // Step 6: Commercial Terms & Sign-Off
   if (fieldKey === 'commercialTerms.selectedPaymentOption') {
-    if (!['Matrix Standard', 'Option 1', 'Option 2'].includes(str)) {
-      return { valid: false, message: 'Please select a Payment Term schedule (Matrix Standard, Option 1, or Option 2).' };
+    const validCodes = loadPaymentTerms().map(pt => pt.code);
+    if (!validCodes.includes(str)) {
+      return { valid: false, message: `Please select a valid Payment Term option from database (${validCodes.join(', ')}).` };
     }
     return { valid: true, message: '' };
   }
